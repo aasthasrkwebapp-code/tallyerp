@@ -37,6 +37,8 @@
 @elseif ($voucher->source_type === \App\Models\PayrollRun::class && $voucher->source)
     <div class="alert alert-info small no-print"><i class="bi bi-wallet2 me-1"></i>Generated from
         <a href="{{ route('payroll-runs.show', $voucher->source) }}">payroll for {{ $voucher->source->label() }}</a>. Cancel it from there.</div>
+@elseif ($voucher->source_type === \App\Models\TransportExpense::class && $voucher->source)
+    <div class="alert alert-info small no-print"><i class="bi bi-truck me-1"></i>Generated from a transport expense ({{ $voucher->source->categoryLabel() }}, {{ $voucher->source->vehicle->number }})@if ($voucher->source->trip) on <a href="{{ route('trips.show', $voucher->source->trip) }}">trip {{ $voucher->source->trip->number }}</a>@endif. Cancel it from <a href="{{ route('transport-expenses.index') }}">transport expenses</a>.</div>
 @endif
 
 @if ($voucher->isPosted() && auth()->user()->can('vouchers.cancel'))

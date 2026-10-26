@@ -14,7 +14,7 @@ Legend: **Done** = working end to end with tests · **Partial** = usable but inc
 | G. Banking | Partial | Bank ledgers with bank details, bank book, bank reconciliation with bank dates, CSV statement import with auto/manual matching. Missing: cheque register and printing, OFX/MT940 import. |
 | H. Reports | Partial | Done: ledger, cash/bank book, day book, trial balance, group summary, P&L, balance sheet, cash flow, stock summary, dashboard, CSV. Receivables/payables with ageing. GST returns. Missing: ratios, PDF/Excel. |
 | I. Payroll | Partial | Done: employees, pay heads, salary structures, paid days, PF/ESI/professional tax/TDS, pay sheet, payslips, posting a salary journal, cancellation. Missing: attendance and leave registers, overtime, loans/advances, PF ECR and ESI files, Form 16, bank transfer file. |
-| J. Transport | Missing | Phase 7. |
+| J. Transport | Partial | Done: vehicles, drivers with advance ledgers, routes, trips, expenses posting vouchers, freight bills as sales invoices, trip/vehicle/route/customer/driver reports. Missing: LR printing, e-way bill numbers, multi-trip bills, document expiry reminders, tyre tracking. |
 | K. Security & audit | Done (core) | Permissions per company, audit trail with old/new values, login/logout/failed login logs, maker-checker. Missing: 2FA, IP restrictions. |
 | L. Data management | Missing | Phase 8: backup/restore, import/export. |
 | M. Dashboard & usability | Partial | Responsive layout, dashboard figures, Alt-key shortcuts. Missing: global search, configurable shortcuts. |

@@ -56,6 +56,7 @@ return [
         ],
         'inventory' => ['company.view', 'masters.view', 'inventory.*', 'reports.view'],
         'employee' => ['company.view', 'payroll.*'],
+        'transport' => ['company.view', 'masters.view', 'transport.*', 'reports.view'],
         'user' => ['company.view', 'masters.view', 'vouchers.view', 'vouchers.create', 'reports.view'],
         'viewer' => ['*.view'],
     ],
@@ -74,6 +75,11 @@ return [
     // Company-owned tables deleted (in this order) before the core tables when a company is deleted.
     // Value: self-referencing column to clear first, or null.
     'deletion_tables' => [
+        'transport_expenses' => null,
+        'trips' => null,
+        'transport_routes' => null,
+        'drivers' => null,
+        'vehicles' => null,
         'payslip_lines' => null,
         'payslips' => null,
         'payroll_runs' => null,
@@ -108,6 +114,25 @@ return [
         'bank_statement_lines' => 'account_id',
         'stock_items' => ['sales_account_id', 'purchase_account_id'],
         'pay_heads' => ['account_id', 'payable_account_id'],
+        'drivers' => 'account_id',
+        'trips' => 'party_account_id',
+        'transport_expenses' => ['expense_account_id', 'paid_account_id'],
+    ],
+
+    /*
+    | Transport expense categories and the ledger each posts to by default
+    | (created under Direct Expenses the first time it is used).
+    */
+    'transport_expense_categories' => [
+        'fuel' => ['label' => 'Fuel', 'ledger' => 'Fuel Expenses'],
+        'toll' => ['label' => 'Toll & parking', 'ledger' => 'Toll Charges'],
+        'driver' => ['label' => 'Driver allowance (bata)', 'ledger' => 'Driver Allowance'],
+        'loading' => ['label' => 'Loading & unloading', 'ledger' => 'Loading & Unloading Charges'],
+        'maintenance' => ['label' => 'Repairs & maintenance', 'ledger' => 'Vehicle Repairs & Maintenance'],
+        'tyres' => ['label' => 'Tyres', 'ledger' => 'Vehicle Repairs & Maintenance'],
+        'statutory' => ['label' => 'Insurance, permit & tax', 'ledger' => 'Vehicle Insurance & Taxes'],
+        'hire' => ['label' => 'Hired vehicle charges', 'ledger' => 'Lorry Hire Charges'],
+        'other' => ['label' => 'Other', 'ledger' => 'Other Trip Expenses'],
     ],
 
     /*
@@ -198,6 +223,11 @@ return [
         ['label' => 'GSTR-1', 'icon' => 'file-earmark-arrow-up', 'route' => 'gst.gstr1', 'can' => 'gst.view'],
         ['label' => 'GSTR-3B', 'icon' => 'file-earmark-text', 'route' => 'gst.gstr3b', 'can' => 'gst.view'],
         ['label' => 'Purchase Register', 'icon' => 'file-earmark-arrow-down', 'route' => 'gst.purchase-register', 'can' => 'gst.view'],
+        ['heading' => 'Transport'],
+        ['label' => 'Trips', 'icon' => 'signpost-split', 'route' => 'trips.index', 'can' => 'transport.view'],
+        ['label' => 'Trip & Vehicle Expenses', 'icon' => 'fuel-pump', 'route' => 'transport-expenses.index', 'can' => 'transport.view'],
+        ['label' => 'Vehicles, Drivers & Routes', 'icon' => 'truck-front', 'route' => 'transport-masters.index', 'can' => 'transport.view', 'params' => ['master' => 'vehicles']],
+        ['label' => 'Transport Reports', 'icon' => 'bar-chart-line', 'route' => 'transport-reports', 'can' => 'transport.view', 'params' => ['report' => 'vehicles']],
         ['heading' => 'Payroll'],
         ['label' => 'Employees', 'icon' => 'person-vcard', 'route' => 'employees.index', 'can' => 'payroll.view'],
         ['label' => 'Pay Heads', 'icon' => 'list-check', 'route' => 'pay-heads.index', 'can' => 'payroll.view'],

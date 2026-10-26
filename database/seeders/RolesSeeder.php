@@ -25,6 +25,7 @@ class RolesSeeder extends Seeder
             'purchases' => 'Access to purchases, bills, and payables',
             'inventory' => 'Access to inventory management and stock',
             'employee' => 'Access to payroll and employee records',
+            'transport' => 'Access to trips, vehicles and transport expenses',
             'viewer' => 'Read-only access to reports and masters',
         ];
 

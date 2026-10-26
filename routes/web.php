@@ -26,6 +26,10 @@ use App\Http\Controllers\Reports\AccountingReportController;
 use App\Http\Controllers\Reports\OutstandingReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\Transport\TransportExpenseController;
+use App\Http\Controllers\Transport\TransportMasterController;
+use App\Http\Controllers\Transport\TransportReportController;
+use App\Http\Controllers\Transport\TripController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => auth()->check() ? redirect()->route('dashboard') : redirect()->route('login'));
@@ -179,6 +183,32 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
         Route::post('/runs/{payrollRun}/cancel', [PayrollRunController::class, 'cancel'])->name('payroll-runs.cancel')->middleware('can:payroll.delete');
         Route::delete('/runs/{payrollRun}', [PayrollRunController::class, 'destroy'])->name('payroll-runs.destroy')->middleware('can:payroll.delete');
         Route::get('/runs/{payrollRun}/payslips/{payslip}', [PayrollRunController::class, 'payslip'])->name('payroll-runs.payslip')->middleware('can:payroll.view');
+    });
+
+    // Transport: vehicles, drivers, routes, trips, expenses and profitability
+    Route::prefix('transport')->group(function () {
+        $masters = implode('|', array_keys(TransportMasterController::MASTERS));
+        Route::get('/masters/{master}', [TransportMasterController::class, 'index'])->name('transport-masters.index')->where('master', $masters)->middleware('can:transport.view');
+        Route::post('/masters/{master}', [TransportMasterController::class, 'store'])->name('transport-masters.store')->where('master', $masters)->middleware('can:transport.create');
+        Route::put('/masters/{master}/{id}', [TransportMasterController::class, 'update'])->name('transport-masters.update')->where(['master' => $masters, 'id' => '[0-9]+'])->middleware('can:transport.edit');
+        Route::delete('/masters/{master}/{id}', [TransportMasterController::class, 'destroy'])->name('transport-masters.destroy')->where(['master' => $masters, 'id' => '[0-9]+'])->middleware('can:transport.delete');
+
+        Route::get('/trips', [TripController::class, 'index'])->name('trips.index')->middleware('can:transport.view');
+        Route::get('/trips/create', [TripController::class, 'create'])->name('trips.create')->middleware('can:transport.create');
+        Route::post('/trips', [TripController::class, 'store'])->name('trips.store')->middleware('can:transport.create');
+        Route::get('/trips/{trip}', [TripController::class, 'show'])->name('trips.show')->middleware('can:transport.view');
+        Route::get('/trips/{trip}/edit', [TripController::class, 'edit'])->name('trips.edit')->middleware('can:transport.edit');
+        Route::put('/trips/{trip}', [TripController::class, 'update'])->name('trips.update')->middleware('can:transport.edit');
+        Route::post('/trips/{trip}/complete', [TripController::class, 'complete'])->name('trips.complete')->middleware('can:transport.edit');
+        Route::post('/trips/{trip}/cancel', [TripController::class, 'cancel'])->name('trips.cancel')->middleware('can:transport.delete');
+        Route::post('/trips/{trip}/bill', [TripController::class, 'bill'])->name('trips.bill')->middleware('can:transport.edit');
+
+        Route::get('/expenses', [TransportExpenseController::class, 'index'])->name('transport-expenses.index')->middleware('can:transport.view');
+        Route::get('/expenses/create', [TransportExpenseController::class, 'create'])->name('transport-expenses.create')->middleware('can:transport.create');
+        Route::post('/expenses', [TransportExpenseController::class, 'store'])->name('transport-expenses.store')->middleware('can:transport.create');
+        Route::post('/expenses/{transportExpense}/cancel', [TransportExpenseController::class, 'cancel'])->name('transport-expenses.cancel')->middleware('can:transport.delete');
+
+        Route::get('/reports/{report}', TransportReportController::class)->name('transport-reports')->where('report', 'trips|vehicles|routes|customers|drivers')->middleware('can:transport.view');
     });
 
     // Sales invoices, purchase bills, credit and debit notes (permissions checked per kind)
