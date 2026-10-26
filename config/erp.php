@@ -123,6 +123,7 @@ return [
         ['label' => 'Balance Sheet', 'icon' => 'clipboard-data', 'route' => 'reports.balance-sheet', 'can' => 'reports.view'],
         ['label' => 'Day Book', 'icon' => 'calendar-day', 'route' => 'reports.day-book', 'can' => 'reports.view'],
         ['label' => 'Ledger Report', 'icon' => 'book', 'route' => 'reports.ledger', 'can' => 'reports.view'],
+        ['label' => 'Cash / Bank Book', 'icon' => 'cash-stack', 'route' => 'reports.ledger', 'can' => 'reports.view', 'params' => ['book' => 'cash']],
         ['label' => 'Outstanding', 'icon' => 'hourglass-split', 'route' => 'reports.outstanding', 'can' => 'reports.view'],
         ['heading' => 'Company'],
         ['label' => 'Company Settings', 'icon' => 'building-gear', 'route' => 'settings.edit', 'can' => 'company.edit'],

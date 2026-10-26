@@ -11,6 +11,7 @@ use App\Http\Controllers\Masters\CostCentreController;
 use App\Http\Controllers\Masters\LedgerController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Reports\AccountingReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
@@ -103,6 +104,16 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     Route::post('/vouchers/{voucher}/reverse', [VoucherController::class, 'reverse'])->name('vouchers.reverse')->middleware('can:vouchers.cancel');
     Route::delete('/vouchers/{voucher}', [VoucherController::class, 'destroy'])->name('vouchers.destroy')->middleware('can:vouchers.delete');
     Route::get('/ledgers/{ledger}/open-bills', [VoucherController::class, 'openBills'])->name('ledgers.open-bills')->middleware('can:vouchers.view');
+
+    // Accounting reports
+    Route::middleware('can:reports.view')->prefix('reports')->name('reports.')->group(function () {
+        Route::get('/trial-balance', [AccountingReportController::class, 'trialBalance'])->name('trial-balance');
+        Route::get('/profit-loss', [AccountingReportController::class, 'profitLoss'])->name('profit-loss');
+        Route::get('/balance-sheet', [AccountingReportController::class, 'balanceSheet'])->name('balance-sheet');
+        Route::get('/day-book', [AccountingReportController::class, 'dayBook'])->name('day-book');
+        Route::get('/ledger', [AccountingReportController::class, 'ledger'])->name('ledger');
+        Route::get('/groups/{group}', [AccountingReportController::class, 'groupSummary'])->name('group-summary');
+    });
 
     Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index')->middleware('can:audit.view');
     Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show'])->name('audit-logs.show')->middleware('can:audit.view');

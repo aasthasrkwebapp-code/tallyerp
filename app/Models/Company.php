@@ -53,7 +53,7 @@ class Company extends Model
     protected function casts(): array
     {
         return [
-            'books_begin_date' => 'date',
+            'books_begin_date' => \App\Casts\DateOnly::class,
             'settings' => 'array',
         ];
     }

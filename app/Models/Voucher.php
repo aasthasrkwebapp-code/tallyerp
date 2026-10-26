@@ -37,8 +37,8 @@ class Voucher extends Model
     protected function casts(): array
     {
         return [
-            'date' => 'date',
-            'reference_date' => 'date',
+            'date' => \App\Casts\DateOnly::class,
+            'reference_date' => \App\Casts\DateOnly::class,
             'total' => 'decimal:2',
             'approved_at' => 'datetime',
             'posted_at' => 'datetime',

@@ -19,8 +19,8 @@ class AccountingPeriod extends Model
     protected function casts(): array
     {
         return [
-            'start_date' => 'date',
-            'end_date' => 'date',
+            'start_date' => \App\Casts\DateOnly::class,
+            'end_date' => \App\Casts\DateOnly::class,
             'is_locked' => 'boolean',
             'locked_at' => 'datetime',
         ];
