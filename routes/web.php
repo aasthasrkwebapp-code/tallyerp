@@ -9,6 +9,7 @@ use App\Http\Controllers\Billing\PartyController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinancialYearController;
+use App\Http\Controllers\Gst\GstReportController;
 use App\Http\Controllers\Masters\AccountGroupController;
 use App\Http\Controllers\Masters\CostCentreController;
 use App\Http\Controllers\Masters\LedgerController;
@@ -142,6 +143,13 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     Route::post('/bank-statement-lines/{line}/match', [BankReconciliationController::class, 'match'])->name('bank-statement-lines.match')->middleware('can:banking.edit');
     Route::post('/bank-statement-lines/{line}/unmatch', [BankReconciliationController::class, 'unmatch'])->name('bank-statement-lines.unmatch')->middleware('can:banking.edit');
     Route::delete('/bank-statement-lines/{line}', [BankReconciliationController::class, 'destroyLine'])->name('bank-statement-lines.destroy')->middleware('can:banking.delete');
+
+    // GST returns (working papers)
+    Route::middleware('can:gst.view')->prefix('gst')->name('gst.')->group(function () {
+        Route::get('/gstr-1', [GstReportController::class, 'gstr1'])->name('gstr1');
+        Route::get('/gstr-3b', [GstReportController::class, 'gstr3b'])->name('gstr3b');
+        Route::get('/purchase-register', [GstReportController::class, 'purchaseRegister'])->name('purchase-register');
+    });
 
     // Accounting reports
     Route::middleware('can:reports.view')->prefix('reports')->name('reports.')->group(function () {
