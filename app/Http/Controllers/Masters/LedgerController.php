@@ -30,8 +30,7 @@ class LedgerController extends Controller
             ->withQueryString();
 
         // Opening balances must net to zero; any difference is shown like Tally does.
-        $openingDifference = Account::query()->get(['opening_balance', 'opening_balance_type'])
-            ->sum(fn (Account $a) => $a->openingPaise());
+        $openingDifference = app(\App\Services\Reports\AccountBalances::class)->openingDifference();
 
         return view('masters.ledgers.index', [
             'ledgers' => $ledgers,

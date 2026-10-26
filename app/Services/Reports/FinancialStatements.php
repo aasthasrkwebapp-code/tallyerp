@@ -3,32 +3,63 @@
 namespace App\Services\Reports;
 
 use App\Models\AccountGroup;
+use App\Services\Inventory\StockLedger;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
  * Trial balance, profit & loss and balance sheet built from AccountBalances.
- * Every figure comes from posted voucher entries and ledger opening balances.
+ * Every figure comes from posted voucher entries and ledger opening balances,
+ * plus stock values from StockLedger (opening stock of the year in the trial
+ * balance, opening and closing stock in trading, closing stock as an asset).
  */
 class FinancialStatements
 {
-    public function __construct(protected AccountBalances $balances) {}
+    public function __construct(protected AccountBalances $balances, protected StockLedger $stock) {}
+
+    /**
+     * Stock values for statements: opening stock as at books beginning (from the
+     * items), stock at the start of the year containing $date and stock at $date.
+     *
+     * @return array{books:int, year:int}
+     */
+    protected function stockOpenings(string $date): array
+    {
+        if (! $this->stock->active()) {
+            return ['books' => 0, 'year' => 0];
+        }
+
+        return [
+            'books' => $this->stock->openingValue(),
+            'year' => $this->stockBefore($this->balances->yearStart($date)),
+        ];
+    }
+
+    /** Stock value at the end of the day before $date. */
+    protected function stockBefore(string $date): int
+    {
+        return $this->stock->active() ? $this->stock->valueAt(Carbon::parse($date)->subDay()->toDateString()) : 0;
+    }
 
     public function trialBalance(string $from, string $to): array
     {
         $rows = $this->balances->forPeriod($from, $to);
         $tree = $this->balances->groupTree($rows);
-        $accumulated = $this->balances->accumulatedProfit($rows);
+        $stock = $this->stockOpenings($from);
+        // Stock gained in earlier years is profit of those years (credit).
+        $accumulated = $this->balances->accumulatedProfit($rows) - ($stock['year'] - $stock['books']);
         $difference = $this->balances->openingDifference();
+        $openingStock = $stock['year'];
 
         $totals = [
-            'opening' => $rows->sum('opening') + $accumulated - $difference,
+            'opening' => $rows->sum('opening') + $accumulated + $openingStock - $difference,
             'debit' => $rows->sum('debit'),
             'credit' => $rows->sum('credit'),
-            'closing_dr' => $rows->sum(fn ($r) => max($r->closing, 0)) + max($accumulated, 0) + max(-$difference, 0),
+            'closing_dr' => $rows->sum(fn ($r) => max($r->closing, 0)) + max($accumulated, 0) + $openingStock + max(-$difference, 0),
             'closing_cr' => $rows->sum(fn ($r) => max(-$r->closing, 0)) + max(-$accumulated, 0) + max($difference, 0),
         ];
 
-        return compact('rows', 'tree', 'accumulated', 'difference', 'totals');
+        return compact('rows', 'tree', 'accumulated', 'difference', 'openingStock', 'totals');
     }
 
     /**
@@ -57,11 +88,15 @@ class FinancialStatements
         ];
 
         $sum = fn (Collection $c) => $c->sum('amount');
-        $grossProfit = $sum($sections['trading_income']) - $sum($sections['trading_expense']);
+        $openingStock = $this->stockBefore($from);
+        $closingStock = $this->stock->active() ? $this->stock->valueAt($to) : 0;
+        $grossProfit = $sum($sections['trading_income']) + $closingStock - $sum($sections['trading_expense']) - $openingStock;
         $netProfit = $grossProfit + $sum($sections['other_income']) - $sum($sections['other_expense']);
 
         return [
             'sections' => $sections,
+            'opening_stock' => $openingStock,
+            'closing_stock' => $closingStock,
             'gross_profit' => $grossProfit,
             'net_profit' => $netProfit,
             'totals' => array_map($sum, $sections),
@@ -88,14 +123,18 @@ class FinancialStatements
         $assets = $side('asset');
 
         // Profit is a credit (negative) balance on income/expense ledgers.
-        $currentProfit = -$rows->filter(fn ($r) => in_array($r->account->group->nature, ['income', 'expense'], true))->sum('closing');
-        $accumulatedProfit = -$this->balances->accumulatedProfit($rows);
+        // Stock adds to profit: this year's change in the current period, earlier changes in previous years.
+        $stock = $this->stockOpenings($asOf);
+        $closingStock = $this->stock->active() ? $this->stock->valueAt($asOf) : 0;
+        $currentProfit = -$rows->filter(fn ($r) => in_array($r->account->group->nature, ['income', 'expense'], true))->sum('closing')
+            + $closingStock - $stock['year'];
+        $accumulatedProfit = -$this->balances->accumulatedProfit($rows) + $stock['year'] - $stock['books'];
         $difference = $this->balances->openingDifference();
 
         $totalLiabilities = $liabilities->sum('amount') + $currentProfit + $accumulatedProfit + $difference;
-        $totalAssets = $assets->sum('amount');
+        $totalAssets = $assets->sum('amount') + $closingStock;
 
-        return compact('liabilities', 'assets', 'currentProfit', 'accumulatedProfit', 'difference', 'totalLiabilities', 'totalAssets', 'yearStart');
+        return compact('liabilities', 'assets', 'closingStock', 'currentProfit', 'accumulatedProfit', 'difference', 'totalLiabilities', 'totalAssets', 'yearStart');
     }
 
     /** Attach a positive "amount" for a P&L group (income Cr positive, expense Dr positive). */

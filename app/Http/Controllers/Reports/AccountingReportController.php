@@ -35,6 +35,9 @@ class AccountingReportController extends Controller
                 Money::fromPaise($r->opening), Money::fromPaise($r->debit), Money::fromPaise($r->credit),
                 $r->closing > 0 ? Money::fromPaise($r->closing) : '', $r->closing < 0 ? Money::fromPaise(-$r->closing) : '',
             ]);
+            if ($data['openingStock']) {
+                $rows->push(['Opening stock', '', Money::fromPaise($data['openingStock']), '', '', Money::fromPaise($data['openingStock']), '']);
+            }
             if ($data['accumulated']) {
                 $rows->push(['Profit & Loss A/c (previous years)', '', Money::fromPaise($data['accumulated']), '', '',
                     $data['accumulated'] > 0 ? Money::fromPaise($data['accumulated']) : '', $data['accumulated'] < 0 ? Money::fromPaise(-$data['accumulated']) : '']);

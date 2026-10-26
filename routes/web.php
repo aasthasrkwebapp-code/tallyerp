@@ -10,6 +10,10 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinancialYearController;
 use App\Http\Controllers\Gst\GstReportController;
+use App\Http\Controllers\Inventory\InventoryMasterController;
+use App\Http\Controllers\Inventory\StockItemController;
+use App\Http\Controllers\Inventory\StockJournalController;
+use App\Http\Controllers\Inventory\StockReportController;
 use App\Http\Controllers\Masters\AccountGroupController;
 use App\Http\Controllers\Masters\CostCentreController;
 use App\Http\Controllers\Masters\LedgerController;
@@ -122,6 +126,32 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
             Route::delete('/{ledger}', [PartyController::class, 'destroy'])->name('destroy')->defaults('kind', $kind)->middleware("can:{$module}.delete");
         });
     }
+
+    // Inventory: masters, stock items, stock journals and stock reports
+    Route::prefix('inventory')->group(function () {
+        $masters = implode('|', array_keys(InventoryMasterController::MASTERS));
+        Route::get('/masters/{master}', [InventoryMasterController::class, 'index'])->name('inventory-masters.index')->where('master', $masters)->middleware('can:inventory.view');
+        Route::post('/masters/{master}', [InventoryMasterController::class, 'store'])->name('inventory-masters.store')->where('master', $masters)->middleware('can:inventory.create');
+        Route::put('/masters/{master}/{id}', [InventoryMasterController::class, 'update'])->name('inventory-masters.update')->where(['master' => $masters, 'id' => '[0-9]+'])->middleware('can:inventory.edit');
+        Route::delete('/masters/{master}/{id}', [InventoryMasterController::class, 'destroy'])->name('inventory-masters.destroy')->where(['master' => $masters, 'id' => '[0-9]+'])->middleware('can:inventory.delete');
+
+        Route::get('/items', [StockItemController::class, 'index'])->name('stock-items.index')->middleware('can:inventory.view');
+        Route::get('/items/create', [StockItemController::class, 'create'])->name('stock-items.create')->middleware('can:inventory.create');
+        Route::post('/items', [StockItemController::class, 'store'])->name('stock-items.store')->middleware('can:inventory.create');
+        Route::get('/items/{stockItem}', [StockItemController::class, 'show'])->name('stock-items.show')->middleware('can:inventory.view');
+        Route::get('/items/{stockItem}/edit', [StockItemController::class, 'edit'])->name('stock-items.edit')->middleware('can:inventory.edit');
+        Route::put('/items/{stockItem}', [StockItemController::class, 'update'])->name('stock-items.update')->middleware('can:inventory.edit');
+        Route::delete('/items/{stockItem}', [StockItemController::class, 'destroy'])->name('stock-items.destroy')->middleware('can:inventory.delete');
+
+        Route::get('/journals', [StockJournalController::class, 'index'])->name('stock-journals.index')->middleware('can:inventory.view');
+        Route::get('/journals/create', [StockJournalController::class, 'create'])->name('stock-journals.create')->middleware('can:inventory.create');
+        Route::post('/journals', [StockJournalController::class, 'store'])->name('stock-journals.store')->middleware('can:inventory.create');
+        Route::get('/journals/{stockJournal}', [StockJournalController::class, 'show'])->name('stock-journals.show')->middleware('can:inventory.view');
+        Route::post('/journals/{stockJournal}/cancel', [StockJournalController::class, 'cancel'])->name('stock-journals.cancel')->middleware('can:inventory.delete');
+
+        Route::get('/summary', [StockReportController::class, 'summary'])->name('stock-summary')->middleware('can:inventory.view');
+        Route::get('/reorder', [StockReportController::class, 'reorder'])->name('stock-reorder')->middleware('can:inventory.view');
+    });
 
     // Sales invoices, purchase bills, credit and debit notes (permissions checked per kind)
     Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.index');

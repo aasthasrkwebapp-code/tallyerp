@@ -52,6 +52,13 @@
                     @endforeach
                 @endif
             @endforeach
+            @if ($openingStock)
+                <tr class="row-group">
+                    <td>Opening stock</td>
+                    <td class="amount">{{ $dc($openingStock) }}</td><td></td><td></td>
+                    <td class="amount">{{ $m($openingStock) }}</td><td></td>
+                </tr>
+            @endif
             @if ($accumulated)
                 <tr class="row-group">
                     <td>Profit &amp; Loss A/c <small class="text-secondary fw-normal">(previous years)</small></td>

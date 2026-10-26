@@ -114,9 +114,28 @@
             } else {
                 row.querySelectorAll('input').forEach(function (i) { if (!i.readOnly) i.value = i.classList.contains('item-qty') ? '1' : ''; });
                 row.querySelector('.item-ledger').value = '';
+                var st = row.querySelector('.item-stock');
+                if (st) st.value = '';
             }
             recalc();
         });
+        // Choosing a stock item fills its ledger, description, unit, HSN, GST rate and rate.
+        var stock = row.querySelector('.item-stock');
+        if (stock) {
+            stock.addEventListener('change', function () {
+                var id = parseInt(stock.value, 10);
+                var s = (cfg.stockItems || []).find(function (x) { return x.id === id; });
+                if (!s) return;
+                var set = function (sel, value) { var el = row.querySelector(sel); if (el && value !== null && value !== undefined && value !== '') el.value = value; };
+                if (s.ledger) set('.item-ledger', String(s.ledger));
+                set('.item-desc', s.name);
+                set('.item-unit', s.unit);
+                set('.item-hsn', s.hsn);
+                set('.item-gst', s.gst);
+                set('.item-rate', s.rate);
+                recalc();
+            });
+        }
         var ledger = row.querySelector('.item-ledger');
         ledger.addEventListener('change', function () {
             var opt = ledger.options[ledger.selectedIndex];
@@ -135,7 +154,7 @@
         var row = wrap.firstElementChild;
         itemsBox.appendChild(row);
         bindRow(row);
-        row.querySelector('.item-ledger').focus();
+        (row.querySelector('.item-stock') || row.querySelector('.item-ledger')).focus();
         recalc();
     });
 

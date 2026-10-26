@@ -35,7 +35,14 @@
                     </tr>
                     @include('reports._statement-rows', ['items' => $node->children, 'depth' => 2, 'expand' => $expand])
                 @endforeach
-                @if ($sections[$key]->isEmpty())<tr><td class="indent-1 text-secondary" colspan="3">None</td></tr>@endif
+                @php($stockRow = $key === 'trading_income' ? ['Closing stock', $closing_stock, $to] : ['Opening stock', $opening_stock, \Illuminate\Support\Carbon::parse($from)->subDay()->toDateString()])
+                @if ($stockRow[1])
+                    <tr>
+                        <td class="indent-1">@can('inventory.view')<a href="{{ route('stock-summary', ['to' => $stockRow[2]]) }}" class="text-body">{{ $stockRow[0] }}</a>@else{{ $stockRow[0] }}@endcan</td>
+                        <td></td>
+                        <td class="amount">{{ $m($stockRow[1]) }}</td>
+                    </tr>
+                @elseif ($sections[$key]->isEmpty())<tr><td class="indent-1 text-secondary" colspan="3">None</td></tr>@endif
             @endforeach
             <tr class="row-total"><td>{{ $gross_profit >= 0 ? 'Gross profit' : 'Gross loss' }}</td><td></td><td class="amount">{{ $m(abs($gross_profit)) }}</td></tr>
 
@@ -63,5 +70,5 @@
         </table>
     </div>
 </div>
-<p class="small text-secondary mt-2">Closing stock is not yet valued automatically. Until the inventory module is used, record closing stock with a journal to a Stock-in-Hand ledger.</p>
+<p class="small text-secondary mt-2">Opening and closing stock are valued at weighted average cost from stock items, purchases and stock journals.</p>
 @endsection

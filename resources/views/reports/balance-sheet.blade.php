@@ -37,6 +37,13 @@
                             </tr>
                             @include('reports._statement-rows', ['items' => $node->children, 'depth' => 1, 'expand' => $expand])
                         @endforeach
+                        @if (! $isLiability && $closingStock)
+                            <tr class="row-group">
+                                <td>@can('inventory.view')<a href="{{ route('stock-summary', ['to' => $to]) }}" class="text-body">Closing stock</a>@else Closing stock @endcan</td>
+                                <td></td>
+                                <td class="amount">{{ $m($closingStock) }}</td>
+                            </tr>
+                        @endif
                         @if ($isLiability)
                             @if ($accumulatedProfit || $currentProfit)
                                 <tr class="row-group"><td>Profit &amp; Loss A/c</td><td></td><td class="amount">{{ $m($accumulatedProfit + $currentProfit) }}</td></tr>

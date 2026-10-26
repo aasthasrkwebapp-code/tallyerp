@@ -53,6 +53,28 @@ final class Decimal
         return intdiv($numerator + intdiv($denominator, 2), $denominator);
     }
 
+    /**
+     * round(a × b / c) for integers, exact while a × b fits in 64 bits. Larger
+     * products (beyond about 9.2 × 10^18) fall back to floating point, which is
+     * still exact to the paisa for results below 10^15.
+     */
+    public static function mulDiv(int $a, int $b, int $c): int
+    {
+        if ($c === 0) {
+            throw new \DivisionByZeroError('Division by zero.');
+        }
+        $negative = (($a < 0) xor ($b < 0)) xor ($c < 0);
+        [$a, $b, $c] = [abs($a), abs($b), abs($c)];
+
+        if ($b === 0 || $a <= intdiv(PHP_INT_MAX - $c, $b)) {
+            $result = intdiv($a * $b + intdiv($c, 2), $c);
+        } else {
+            $result = (int) round($a / $c * $b);
+        }
+
+        return $negative ? -$result : $result;
+    }
+
     /** Trim trailing zeros for display: "18.00" => "18", "2.500" => "2.5". */
     public static function trim(string|int|float|null $value): string
     {

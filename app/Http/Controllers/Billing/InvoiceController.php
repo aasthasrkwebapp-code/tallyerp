@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Billing;
 
 use App\Http\Controllers\Controller;
 use App\Models\Account;
+use App\Models\Godown;
 use App\Models\Invoice;
+use App\Models\StockItem;
 use App\Models\Voucher;
 use App\Models\VoucherType;
 use App\Services\Billing\InvoiceService;
+use App\Services\Inventory\StockJournalService;
 use App\Services\Reports\Outstanding;
 use App\Support\CurrentCompany;
 use App\Support\Decimal;
@@ -101,7 +104,7 @@ class InvoiceController extends Controller
 
         return redirect()->route('invoices.show', $invoice)
             ->with('success', $this->savedMessage($invoice))
-            ->with('warning', $this->creditWarning($invoice));
+            ->with('warning', $this->warnings($invoice));
     }
 
     public function show(Request $request, Invoice $invoice)
@@ -138,7 +141,7 @@ class InvoiceController extends Controller
 
         return redirect()->route('invoices.show', $invoice)
             ->with('success', $this->savedMessage($invoice))
-            ->with('warning', $this->creditWarning($invoice));
+            ->with('warning', $this->warnings($invoice));
     }
 
     public function post(Request $request, Invoice $invoice)
@@ -149,7 +152,7 @@ class InvoiceController extends Controller
 
         $invoice = $this->invoices->post($invoice, $request->user());
 
-        return redirect()->route('invoices.show', $invoice)->with('success', $this->savedMessage($invoice));
+        return redirect()->route('invoices.show', $invoice)->with('success', $this->savedMessage($invoice))->with('warning', $this->warnings($invoice));
     }
 
     public function cancel(Request $request, Invoice $invoice)
@@ -237,6 +240,16 @@ class InvoiceController extends Controller
                 ->get(['id', 'name', 'hsn_sac', 'gst_rate'])
                 ->map(fn ($a) => ['id' => $a->id, 'name' => $a->name, 'hsn' => $a->hsn_sac, 'gst' => $a->gst_rate !== null ? Decimal::trim($a->gst_rate) : null])
                 ->values(),
+            'stockItems' => StockItem::query()->with('unit')
+                ->where(fn ($q) => $q->where('is_active', true)->orWhereIn('id', array_filter(array_column($input['items'] ?? [], 'stock_item_id'))))
+                ->orderBy('name')->get()
+                ->map(fn (StockItem $s) => [
+                    'id' => $s->id, 'name' => $s->name, 'unit' => $s->unit->symbol, 'hsn' => $s->hsn_sac,
+                    'gst' => $s->gst_rate !== null ? Decimal::trim($s->gst_rate) : null,
+                    'rate' => ($r = $config['item_type'] === 'sales' ? $s->sales_rate : $s->purchase_rate) !== null ? Decimal::trim($r) : null,
+                    'ledger' => $config['item_type'] === 'sales' ? $s->sales_account_id : $s->purchase_account_id,
+                ])->values(),
+            'godowns' => Godown::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('name')->get(['id', 'name']),
             'originals' => $originals->map(fn (Invoice $i) => [
                 'id' => $i->id, 'party' => $i->party_account_id,
                 'label' => $i->displayNumber().' · '.$i->date->format('d-m-Y').' · '.Money::format($i->grand_total),
@@ -277,6 +290,8 @@ class InvoiceController extends Controller
             'terms' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'max:200'],
             'items.*.account_id' => ['nullable', 'integer'],
+            'items.*.stock_item_id' => ['nullable', 'integer'],
+            'items.*.godown_id' => ['nullable', 'integer'],
             'items.*.description' => ['nullable', 'string', 'max:500'],
             'items.*.hsn_sac' => ['nullable', 'string', 'max:10'],
             'items.*.quantity' => ['nullable', 'string', 'max:20'],
@@ -323,6 +338,24 @@ class InvoiceController extends Controller
             Voucher::PENDING => "{$label} submitted for approval.",
             default => "{$label} saved as draft.",
         };
+    }
+
+    /** Credit limit and negative stock warnings shown after saving (they never block). */
+    protected function warnings(Invoice $invoice): ?string
+    {
+        return implode(' ', array_filter([$this->creditWarning($invoice), $this->stockWarning($invoice)])) ?: null;
+    }
+
+    /** Warn when posting takes an item below zero in its godown. */
+    protected function stockWarning(Invoice $invoice): ?string
+    {
+        if ($invoice->status() !== Voucher::POSTED || ! in_array($invoice->kind, ['sales', 'debit_note'], true)) {
+            return null;
+        }
+        $ids = $invoice->items->pluck('stock_item_id')->filter()->unique()->all();
+        $negative = $ids ? app(StockJournalService::class)->negativeItems($ids, $invoice->date->toDateString()) : [];
+
+        return $negative ? 'Stock is now negative for '.implode('; ', $negative).'.' : null;
     }
 
     /** Warn (do not block) when a customer goes over the credit limit. */

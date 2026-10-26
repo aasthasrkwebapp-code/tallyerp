@@ -113,9 +113,14 @@ class Account extends Model
     /** True when any voucher, bill or document refers to this ledger (config erp.ledger_usage). */
     public function hasTransactions(): bool
     {
-        foreach (config('erp.ledger_usage', []) as $table => $column) {
-            if (\Illuminate\Support\Facades\Schema::hasTable($table) && \Illuminate\Support\Facades\DB::table($table)->where($column, $this->id)->exists()) {
-                return true;
+        foreach (config('erp.ledger_usage', []) as $table => $columns) {
+            if (! \Illuminate\Support\Facades\Schema::hasTable($table)) {
+                continue;
+            }
+            foreach ((array) $columns as $column) {
+                if (\Illuminate\Support\Facades\DB::table($table)->where($column, $this->id)->exists()) {
+                    return true;
+                }
             }
         }
 

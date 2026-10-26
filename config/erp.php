@@ -67,6 +67,7 @@ return [
     'company_seeders' => [
         \App\Services\Setup\DefaultChartOfAccounts::class,
         \App\Services\Setup\DefaultVoucherTypes::class,
+        \App\Services\Setup\DefaultInventory::class,
     ],
 
     // Company-owned tables deleted (in this order) before the core tables when a company is deleted.
@@ -76,6 +77,13 @@ return [
         'invoice_items' => null,
         'invoices' => 'original_invoice_id',
         'parties' => null,
+        'stock_journal_lines' => null,
+        'stock_journals' => null,
+        'stock_items' => null,
+        'godowns' => null,
+        'stock_categories' => null,
+        'stock_groups' => 'parent_id',
+        'units' => null,
         'voucher_revisions' => null,
         'bill_allocations' => null,
         'voucher_entries' => null,
@@ -83,7 +91,7 @@ return [
         'voucher_types' => null,
     ],
 
-    // Tables (=> column) that reference a ledger; a ledger used in any of them cannot be deleted.
+    // Tables (=> column or columns) that reference a ledger; a ledger used in any of them cannot be deleted.
     'ledger_usage' => [
         'voucher_entries' => 'account_id',
         'bill_allocations' => 'account_id',
@@ -91,6 +99,7 @@ return [
         'invoices' => 'party_account_id',
         'invoice_items' => 'account_id',
         'bank_statement_lines' => 'account_id',
+        'stock_items' => ['sales_account_id', 'purchase_account_id'],
     ],
 
     // Registration types of customers and suppliers under GST.
@@ -139,12 +148,14 @@ return [
         ['label' => 'Customers', 'icon' => 'person-badge', 'route' => 'customers.index', 'can' => 'sales.view'],
         ['label' => 'Suppliers', 'icon' => 'truck', 'route' => 'suppliers.index', 'can' => 'purchases.view'],
         ['label' => 'Stock Items', 'icon' => 'box-seam', 'route' => 'stock-items.index', 'can' => 'inventory.view'],
+        ['label' => 'Units, Groups & Godowns', 'icon' => 'boxes', 'route' => 'inventory-masters.index', 'can' => 'inventory.view', 'params' => ['master' => 'units']],
         ['heading' => 'Transactions'],
         ['label' => 'Vouchers', 'icon' => 'journal-text', 'route' => 'vouchers.index', 'can' => 'vouchers.view'],
         ['label' => 'Sales Invoices', 'icon' => 'receipt', 'route' => 'invoices.index', 'can' => 'sales.view', 'params' => ['kind' => 'sales']],
         ['label' => 'Credit Notes', 'icon' => 'arrow-return-left', 'route' => 'invoices.index', 'can' => 'sales.view', 'params' => ['kind' => 'credit_note']],
         ['label' => 'Purchase Bills', 'icon' => 'cart3', 'route' => 'invoices.index', 'can' => 'purchases.view', 'params' => ['kind' => 'purchase']],
         ['label' => 'Debit Notes', 'icon' => 'arrow-return-right', 'route' => 'invoices.index', 'can' => 'purchases.view', 'params' => ['kind' => 'debit_note']],
+        ['label' => 'Stock Journals', 'icon' => 'arrow-left-right', 'route' => 'stock-journals.index', 'can' => 'inventory.view'],
         ['label' => 'Banking', 'icon' => 'bank', 'route' => 'bank-reconciliation.index', 'can' => 'banking.view'],
         ['heading' => 'Reports'],
         ['label' => 'Trial Balance', 'icon' => 'list-columns', 'route' => 'reports.trial-balance', 'can' => 'reports.view'],
@@ -155,6 +166,8 @@ return [
         ['label' => 'Cash / Bank Book', 'icon' => 'cash-stack', 'route' => 'reports.ledger', 'can' => 'reports.view', 'params' => ['book' => 'cash']],
         ['label' => 'Receivables', 'icon' => 'hourglass-split', 'route' => 'reports.outstanding', 'can' => 'reports.view', 'params' => ['type' => 'receivable']],
         ['label' => 'Payables', 'icon' => 'hourglass-bottom', 'route' => 'reports.outstanding', 'can' => 'reports.view', 'params' => ['type' => 'payable']],
+        ['label' => 'Stock Summary', 'icon' => 'clipboard-check', 'route' => 'stock-summary', 'can' => 'inventory.view'],
+        ['label' => 'Reorder Status', 'icon' => 'arrow-repeat', 'route' => 'stock-reorder', 'can' => 'inventory.view'],
         ['heading' => 'GST'],
         ['label' => 'GSTR-1', 'icon' => 'file-earmark-arrow-up', 'route' => 'gst.gstr1', 'can' => 'gst.view'],
         ['label' => 'GSTR-3B', 'icon' => 'file-earmark-text', 'route' => 'gst.gstr3b', 'can' => 'gst.view'],

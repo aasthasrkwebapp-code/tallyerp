@@ -66,10 +66,14 @@ class AccountBalances
         });
     }
 
-    /** Net of all ledger opening balances (should be zero). */
+    /**
+     * Net of all ledger opening balances plus the opening stock value
+     * (opening stock is a debit, like an asset). Should be zero.
+     */
     public function openingDifference(): int
     {
-        return Account::query()->get(['opening_balance', 'opening_balance_type'])->sum(fn (Account $a) => $a->openingPaise());
+        return Account::query()->get(['opening_balance', 'opening_balance_type'])->sum(fn (Account $a) => $a->openingPaise())
+            + \App\Models\StockItem::query()->get(['opening_value'])->sum(fn ($i) => Money::toPaise($i->opening_value));
     }
 
     /** Profit (negative = credit = profit) from income/expense ledgers in earlier financial years. */

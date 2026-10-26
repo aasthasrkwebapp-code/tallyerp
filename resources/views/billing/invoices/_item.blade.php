@@ -1,7 +1,28 @@
 {{-- One invoice item row. $i is the index (or __I__ in the template), $item the values. --}}
 <div class="voucher-line invoice-item border-bottom pb-2 mb-2" data-index="{{ $i }}">
     <div class="row g-2 align-items-end">
-        <div class="col-12 col-md-4">
+        @if ($stockItems->isNotEmpty())
+            <div class="col-12 col-md-3">
+                <label class="form-label small mb-0">Stock item</label>
+                <select name="items[{{ $i }}][stock_item_id]" class="form-select form-select-sm item-stock @error("items.$i.stock_item_id") is-invalid @enderror" aria-label="Stock item">
+                    <option value="">None (service / other)</option>
+                    @foreach ($stockItems as $s)
+                        <option value="{{ $s['id'] }}" @selected((int) ($item['stock_item_id'] ?? 0) === $s['id'])>{{ $s['name'] }}</option>
+                    @endforeach
+                </select>
+            </div>
+            @if ($godowns->count() > 1)
+                <div class="col-6 col-md-2 item-godown-box">
+                    <label class="form-label small mb-0">Godown</label>
+                    <select name="items[{{ $i }}][godown_id]" class="form-select form-select-sm item-godown @error("items.$i.godown_id") is-invalid @enderror" aria-label="Godown">
+                        @foreach ($godowns as $g)
+                            <option value="{{ $g->id }}" @selected((int) ($item['godown_id'] ?? $godowns->first()->id) === $g->id)>{{ $g->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
+        @endif
+        <div class="col-12 col-md-{{ $stockItems->isNotEmpty() ? 3 : 4 }}">
             <label class="form-label small mb-0">{{ $config['item_type'] === 'sales' ? 'Sales' : 'Purchase' }} ledger</label>
             <select name="items[{{ $i }}][account_id]" class="form-select form-select-sm item-ledger @error("items.$i.account_id") is-invalid @enderror" aria-label="Ledger">
                 <option value="">Select</option>
@@ -12,7 +33,7 @@
         </div>
         <div class="col-12 col-md">
             <label class="form-label small mb-0">Description</label>
-            <input name="items[{{ $i }}][description]" value="{{ $item['description'] ?? '' }}" class="form-control form-control-sm" maxlength="500" placeholder="Goods or service">
+            <input name="items[{{ $i }}][description]" value="{{ $item['description'] ?? '' }}" class="form-control form-control-sm item-desc" maxlength="500" placeholder="Goods or service">
         </div>
         <div class="col-auto">
             <button type="button" class="btn btn-sm btn-outline-danger item-remove" aria-label="Remove item"><i class="bi bi-x-lg"></i></button>
@@ -29,7 +50,7 @@
         </div>
         <div class="col-4 col-md-1">
             <label class="form-label small mb-0">Unit</label>
-            <input name="items[{{ $i }}][unit]" value="{{ $item['unit'] ?? '' }}" class="form-control form-control-sm" maxlength="20" placeholder="Nos">
+            <input name="items[{{ $i }}][unit]" value="{{ $item['unit'] ?? '' }}" class="form-control form-control-sm item-unit" maxlength="20" placeholder="Nos">
         </div>
         <div class="col-6 col-md-2">
             <label class="form-label small mb-0">Rate</label>

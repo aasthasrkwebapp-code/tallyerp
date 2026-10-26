@@ -11,7 +11,7 @@ class InvoiceItem extends Model
     use BelongsToCompany;
 
     protected $fillable = [
-        'company_id', 'invoice_id', 'line_no', 'account_id', 'description', 'hsn_sac', 'quantity', 'unit',
+        'company_id', 'invoice_id', 'line_no', 'account_id', 'stock_item_id', 'godown_id', 'description', 'hsn_sac', 'quantity', 'unit',
         'rate', 'discount_percent', 'gross_amount', 'discount_amount', 'taxable_amount', 'gst_rate',
         'cgst_amount', 'sgst_amount', 'igst_amount', 'total_amount',
     ];
@@ -36,6 +36,16 @@ class InvoiceItem extends Model
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class);
+    }
+
+    public function stockItem(): BelongsTo
+    {
+        return $this->belongsTo(StockItem::class);
+    }
+
+    public function godown(): BelongsTo
+    {
+        return $this->belongsTo(Godown::class);
     }
 
     public function account(): BelongsTo

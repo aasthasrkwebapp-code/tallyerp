@@ -5,7 +5,9 @@ namespace App\Services\Billing;
 use App\Models\Account;
 use App\Models\AccountGroup;
 use App\Models\Company;
+use App\Models\Godown;
 use App\Models\Invoice;
+use App\Models\StockItem;
 use App\Models\User;
 use App\Models\Voucher;
 use App\Models\VoucherType;
@@ -95,6 +97,8 @@ class InvoiceService
                     'company_id' => $invoice->company_id,
                     'line_no' => $n + 1,
                     'account_id' => $item['account']->id,
+                    'stock_item_id' => $item['stock_item_id'],
+                    'godown_id' => $item['godown_id'],
                     'description' => $item['description'],
                     'hsn_sac' => $item['hsn_sac'],
                     'quantity' => $item['quantity'],
@@ -195,6 +199,8 @@ class InvoiceService
             'terms' => $invoice->terms,
             'items' => $invoice->items->map(fn ($i) => [
                 'account_id' => $i->account_id,
+                'stock_item_id' => $i->stock_item_id,
+                'godown_id' => $i->godown_id,
                 'description' => $i->description,
                 'hsn_sac' => $i->hsn_sac,
                 'quantity' => $i->quantity,
@@ -276,13 +282,43 @@ class InvoiceService
         }
 
         $allowedRates = config('erp.gst_rates');
-        $accounts = Account::query()->whereIn('id', array_column($data['items'] ?? [], 'account_id'))->get()->keyBy('id');
+        $rows = array_values($data['items'] ?? []);
+        $stockItems = StockItem::query()->with('unit')->whereIn('id', array_filter(array_map(fn ($r) => (int) ($r['stock_item_id'] ?? 0), $rows)))->get()->keyBy('id');
+        $ledgerColumn = $config['item_type'] === 'sales' ? 'sales_account_id' : 'purchase_account_id';
+        // A stock item supplies its ledger when the row has none.
+        foreach ($rows as $i => $row) {
+            $stock = $stockItems->get((int) ($row['stock_item_id'] ?? 0));
+            if ($stock && empty($row['account_id']) && $stock->{$ledgerColumn}) {
+                $rows[$i]['account_id'] = $stock->{$ledgerColumn};
+            }
+        }
+        $godownIds = Godown::query()->when(! $invoice, fn ($q) => $q->where('is_active', true))->pluck('id')->all();
+        $defaultGodown = Godown::defaultId();
+        $previousItems = $invoice ? $invoice->items()->pluck('stock_item_id')->filter()->all() : [];
+
+        $accounts = Account::query()->whereIn('id', array_column($rows, 'account_id'))->get()->keyBy('id');
         $items = [];
-        foreach (array_values($data['items'] ?? []) as $i => $row) {
-            if (empty($row['account_id']) && trim((string) ($row['description'] ?? '')) === '' && ($row['rate'] ?? '') === '') {
+        foreach ($rows as $i => $row) {
+            if (empty($row['account_id']) && empty($row['stock_item_id']) && trim((string) ($row['description'] ?? '')) === '' && ($row['rate'] ?? '') === '') {
                 continue; // blank row
             }
             $line = 'Item '.(count($items) + 1);
+
+            $stock = null;
+            $godownId = null;
+            if (! empty($row['stock_item_id'])) {
+                $stock = $stockItems->get((int) $row['stock_item_id']);
+                if (! $stock || (! $stock->is_active && ! in_array($stock->id, $previousItems, true))) {
+                    $errors["items.$i.stock_item_id"] = "{$line}: choose an active stock item.";
+
+                    continue;
+                }
+                $godownId = (int) ($row['godown_id'] ?? 0) ?: $defaultGodown;
+                if (! in_array($godownId, $godownIds, true)) {
+                    $errors["items.$i.godown_id"] = "{$line}: choose a godown.";
+                }
+            }
+
             $account = $accounts->get((int) ($row['account_id'] ?? 0));
             if (! $account || $account->account_type !== $config['item_type']) {
                 $errors["items.$i.account_id"] = "{$line}: select a ".$config['item_type'].' ledger.';
@@ -295,10 +331,13 @@ class InvoiceService
             $quantity = trim((string) ($row['quantity'] ?? ''));
             $rate = trim((string) ($row['rate'] ?? ''));
             $discount = trim((string) ($row['discount_percent'] ?? '')) ?: '0';
-            $gstRate = Decimal::trim(trim((string) ($row['gst_rate'] ?? '')) ?: '0');
+            $gstInput = trim((string) ($row['gst_rate'] ?? ''));
+            $gstRate = Decimal::trim($gstInput !== '' ? $gstInput : ($stock?->gst_rate ?? '0'));
 
             if (! preg_match('/^\d{1,7}(\.\d{1,3})?$/', $quantity) || (float) $quantity <= 0) {
                 $errors["items.$i.quantity"] = "{$line}: enter a quantity greater than zero (up to 3 decimals).";
+            } elseif ($stock && str_contains($quantity, '.') && strlen(rtrim(explode('.', $quantity)[1], '0')) > $stock->unit->decimal_places) {
+                $errors["items.$i.quantity"] = "{$line}: unit {$stock->unit->symbol} allows {$stock->unit->decimal_places} decimal places.";
             }
             if (! preg_match('/^\d{1,11}(\.\d{1,2})?$/', $rate)) {
                 $errors["items.$i.rate"] = "{$line}: enter a valid rate (up to 2 decimals).";
@@ -309,17 +348,19 @@ class InvoiceService
             if (! in_array($gstRate, $allowedRates, true)) {
                 $errors["items.$i.gst_rate"] = "{$line}: choose a valid GST rate.";
             }
-            $hsn = trim((string) ($row['hsn_sac'] ?? '')) ?: $account->hsn_sac;
+            $hsn = trim((string) ($row['hsn_sac'] ?? '')) ?: ($stock?->hsn_sac ?: $account->hsn_sac);
             if ($hsn && ! preg_match('/^\d{4,8}$/', $hsn)) {
                 $errors["items.$i.hsn_sac"] = "{$line}: HSN / SAC must be 4 to 8 digits.";
             }
 
             $items[] = [
                 'account' => $account,
-                'description' => mb_substr(trim((string) ($row['description'] ?? '')) ?: $account->name, 0, 500),
+                'stock_item_id' => $stock?->id,
+                'godown_id' => $godownId,
+                'description' => mb_substr(trim((string) ($row['description'] ?? '')) ?: ($stock?->name ?? $account->name), 0, 500),
                 'hsn_sac' => $hsn ?: null,
                 'quantity' => $quantity,
-                'unit' => mb_substr(trim((string) ($row['unit'] ?? '')), 0, 20) ?: null,
+                'unit' => mb_substr(trim((string) ($row['unit'] ?? '')), 0, 20) ?: $stock?->unit->symbol,
                 'rate' => $rate,
                 'discount_percent' => $discount,
                 'gst_rate' => $gstRate,

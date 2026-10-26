@@ -17,7 +17,7 @@
     <div class="alert alert-warning">
         <i class="bi bi-exclamation-triangle me-1"></i>
         Difference in opening balances: <strong>{{ \App\Support\Money::drCr($openingDifference) }}</strong>.
-        Total debit and credit opening balances should be equal.
+        Total debit and credit opening balances (with opening stock counted as a debit) should be equal.
     </div>
 @endif
 
