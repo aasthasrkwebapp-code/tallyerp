@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Accounting\VoucherController;
+use App\Http\Controllers\Accounting\VoucherTypeController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DashboardController;
@@ -82,6 +84,25 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     Route::put('/cost-centres/{costCentre}', [CostCentreController::class, 'update'])->name('cost-centres.update')->middleware('can:masters.edit');
     Route::delete('/cost-centres/{costCentre}', [CostCentreController::class, 'destroy'])->name('cost-centres.destroy')->middleware('can:masters.delete');
     Route::post('/cost-categories', [CostCentreController::class, 'storeCategory'])->name('cost-categories.store')->middleware('can:masters.create');
+
+    // Voucher types and vouchers
+    Route::get('/voucher-types', [VoucherTypeController::class, 'index'])->name('voucher-types.index')->middleware('can:voucher_types.view');
+    Route::get('/voucher-types/create', [VoucherTypeController::class, 'create'])->name('voucher-types.create')->middleware('can:voucher_types.create');
+    Route::post('/voucher-types', [VoucherTypeController::class, 'store'])->name('voucher-types.store')->middleware('can:voucher_types.create');
+    Route::get('/voucher-types/{voucherType}/edit', [VoucherTypeController::class, 'edit'])->name('voucher-types.edit')->middleware('can:voucher_types.edit');
+    Route::put('/voucher-types/{voucherType}', [VoucherTypeController::class, 'update'])->name('voucher-types.update')->middleware('can:voucher_types.edit');
+
+    Route::get('/vouchers', [VoucherController::class, 'index'])->name('vouchers.index')->middleware('can:vouchers.view');
+    Route::get('/vouchers/create', [VoucherController::class, 'create'])->name('vouchers.create')->middleware('can:vouchers.create');
+    Route::post('/vouchers', [VoucherController::class, 'store'])->name('vouchers.store')->middleware('can:vouchers.create');
+    Route::get('/vouchers/{voucher}', [VoucherController::class, 'show'])->name('vouchers.show')->middleware('can:vouchers.view');
+    Route::get('/vouchers/{voucher}/edit', [VoucherController::class, 'edit'])->name('vouchers.edit');
+    Route::put('/vouchers/{voucher}', [VoucherController::class, 'update'])->name('vouchers.update');
+    Route::post('/vouchers/{voucher}/post', [VoucherController::class, 'post'])->name('vouchers.post');
+    Route::post('/vouchers/{voucher}/cancel', [VoucherController::class, 'cancel'])->name('vouchers.cancel')->middleware('can:vouchers.cancel');
+    Route::post('/vouchers/{voucher}/reverse', [VoucherController::class, 'reverse'])->name('vouchers.reverse')->middleware('can:vouchers.cancel');
+    Route::delete('/vouchers/{voucher}', [VoucherController::class, 'destroy'])->name('vouchers.destroy')->middleware('can:vouchers.delete');
+    Route::get('/ledgers/{ledger}/open-bills', [VoucherController::class, 'openBills'])->name('ledgers.open-bills')->middleware('can:vouchers.view');
 
     Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index')->middleware('can:audit.view');
     Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show'])->name('audit-logs.show')->middleware('can:audit.view');

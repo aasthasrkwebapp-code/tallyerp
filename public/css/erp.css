@@ -41,7 +41,7 @@ a { color: var(--erp-accent); }
 .erp-sidebar .nav-link.active { background: var(--erp-accent); color: #fff; }
 
 @media (min-width: 992px) {
-    .erp-sidebar.offcanvas-lg { position: sticky; top: 0; height: 100vh; overflow-y: auto; flex-shrink: 0; transition: width .2s ease; }
+    .erp-sidebar.offcanvas-lg { position: sticky; top: 0; height: 100vh; overflow-y: auto; flex-shrink: 0; transition: width .2s ease; background-color: var(--erp-sidebar-bg) !important; }
     body.sidebar-collapsed .erp-sidebar { width: var(--erp-sidebar-collapsed); }
     body.sidebar-collapsed .erp-sidebar .nav-label,
     body.sidebar-collapsed .erp-sidebar .nav-heading,

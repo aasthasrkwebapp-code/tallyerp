@@ -66,14 +66,37 @@ return [
     // Classes with a seed(Company $company) method, run when a company is created.
     'company_seeders' => [
         \App\Services\Setup\DefaultChartOfAccounts::class,
+        \App\Services\Setup\DefaultVoucherTypes::class,
     ],
 
     // Company-owned tables deleted (in this order) before the core tables when a company is deleted.
     // Value: self-referencing column to clear first, or null.
-    'deletion_tables' => [],
+    'deletion_tables' => [
+        'voucher_revisions' => null,
+        'bill_allocations' => null,
+        'voucher_entries' => null,
+        'vouchers' => 'reversal_of_id',
+        'voucher_types' => null,
+    ],
 
     // Tables (=> column) that reference a ledger; a ledger used in any of them cannot be deleted.
-    'ledger_usage' => [],
+    'ledger_usage' => [
+        'voucher_entries' => 'account_id',
+        'bill_allocations' => 'account_id',
+        'vouchers' => 'party_account_id',
+    ],
+
+    // Base voucher types and their behaviour.
+    'voucher_base_types' => [
+        'journal' => 'Journal',
+        'contra' => 'Contra',
+        'payment' => 'Payment',
+        'receipt' => 'Receipt',
+        'sales' => 'Sales',
+        'purchase' => 'Purchase',
+        'credit_note' => 'Credit Note',
+        'debit_note' => 'Debit Note',
+    ],
 
     /*
     | Sidebar navigation. Items whose route is not registered yet are hidden,
