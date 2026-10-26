@@ -1,0 +1,45 @@
+<?php
+
+namespace App\Models;
+
+use App\Models\Concerns\BelongsToCompany;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class InvoiceItem extends Model
+{
+    use BelongsToCompany;
+
+    protected $fillable = [
+        'company_id', 'invoice_id', 'line_no', 'account_id', 'description', 'hsn_sac', 'quantity', 'unit',
+        'rate', 'discount_percent', 'gross_amount', 'discount_amount', 'taxable_amount', 'gst_rate',
+        'cgst_amount', 'sgst_amount', 'igst_amount', 'total_amount',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'quantity' => 'decimal:3',
+            'rate' => 'decimal:2',
+            'discount_percent' => 'decimal:2',
+            'gross_amount' => 'decimal:2',
+            'discount_amount' => 'decimal:2',
+            'taxable_amount' => 'decimal:2',
+            'gst_rate' => 'decimal:2',
+            'cgst_amount' => 'decimal:2',
+            'sgst_amount' => 'decimal:2',
+            'igst_amount' => 'decimal:2',
+            'total_amount' => 'decimal:2',
+        ];
+    }
+
+    public function invoice(): BelongsTo
+    {
+        return $this->belongsTo(Invoice::class);
+    }
+
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(Account::class);
+    }
+}

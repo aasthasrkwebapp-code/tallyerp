@@ -31,6 +31,11 @@
     </div>
 </div>
 
+@if ($voucher->source_type === \App\Models\Invoice::class && $voucher->source)
+    <div class="alert alert-info small no-print"><i class="bi bi-receipt me-1"></i>Generated from
+        <a href="{{ route('invoices.show', $voucher->source) }}">{{ $voucher->source->config()['label'] }} {{ $voucher->source->displayNumber() }}</a>. Alter or delete it from there.</div>
+@endif
+
 @if ($voucher->isPosted() && auth()->user()->can('vouchers.cancel'))
     <div class="collapse no-print" id="cancel-panel">
         <div class="row g-3 mb-3">

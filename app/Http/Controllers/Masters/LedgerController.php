@@ -8,7 +8,6 @@ use App\Models\Account;
 use App\Models\AccountGroup;
 use App\Support\Money;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
 
 class LedgerController extends Controller
 {
@@ -94,23 +93,12 @@ class LedgerController extends Controller
             return back()->with('error', 'Predefined ledgers cannot be deleted. You can rename them instead.');
         }
 
-        if ($this->hasTransactions($ledger)) {
+        if ($ledger->hasTransactions()) {
             return back()->with('error', 'This ledger has transactions and cannot be deleted. Mark it inactive instead.');
         }
 
         $ledger->delete();
 
         return redirect()->route('ledgers.index')->with('success', 'Ledger deleted.');
-    }
-
-    protected function hasTransactions(Account $ledger): bool
-    {
-        foreach (config('erp.ledger_usage', []) as $table => $column) {
-            if (Schema::hasTable($table) && \DB::table($table)->where($column, $ledger->id)->exists()) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

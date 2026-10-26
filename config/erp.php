@@ -72,6 +72,9 @@ return [
     // Company-owned tables deleted (in this order) before the core tables when a company is deleted.
     // Value: self-referencing column to clear first, or null.
     'deletion_tables' => [
+        'invoice_items' => null,
+        'invoices' => 'original_invoice_id',
+        'parties' => null,
         'voucher_revisions' => null,
         'bill_allocations' => null,
         'voucher_entries' => null,
@@ -84,6 +87,28 @@ return [
         'voucher_entries' => 'account_id',
         'bill_allocations' => 'account_id',
         'vouchers' => 'party_account_id',
+        'invoices' => 'party_account_id',
+        'invoice_items' => 'account_id',
+    ],
+
+    // Registration types of customers and suppliers under GST.
+    'gst_registration_types' => [
+        'regular' => 'Regular',
+        'composition' => 'Composition',
+        'unregistered' => 'Unregistered',
+        'consumer' => 'Consumer',
+        'overseas' => 'Overseas',
+        'sez' => 'SEZ',
+    ],
+
+    'gst_rates' => ['0', '0.1', '0.25', '1', '1.5', '3', '5', '6', '7.5', '12', '18', '28', '40'],
+
+    // Invoice kinds: voucher class, permission module, party group and item ledger type.
+    'invoice_kinds' => [
+        'sales' => ['label' => 'Sales Invoice', 'plural' => 'Sales Invoices', 'base' => 'sales', 'module' => 'sales', 'party_group' => 'sundry_debtors', 'item_type' => 'sales', 'tax' => 'output'],
+        'credit_note' => ['label' => 'Credit Note', 'plural' => 'Credit Notes (Sales Returns)', 'base' => 'credit_note', 'module' => 'sales', 'party_group' => 'sundry_debtors', 'item_type' => 'sales', 'tax' => 'output'],
+        'purchase' => ['label' => 'Purchase Bill', 'plural' => 'Purchase Bills', 'base' => 'purchase', 'module' => 'purchases', 'party_group' => 'sundry_creditors', 'item_type' => 'purchase', 'tax' => 'input'],
+        'debit_note' => ['label' => 'Debit Note', 'plural' => 'Debit Notes (Purchase Returns)', 'base' => 'debit_note', 'module' => 'purchases', 'party_group' => 'sundry_creditors', 'item_type' => 'purchase', 'tax' => 'input'],
     ],
 
     // Base voucher types and their behaviour.
@@ -115,7 +140,9 @@ return [
         ['heading' => 'Transactions'],
         ['label' => 'Vouchers', 'icon' => 'journal-text', 'route' => 'vouchers.index', 'can' => 'vouchers.view'],
         ['label' => 'Sales Invoices', 'icon' => 'receipt', 'route' => 'invoices.index', 'can' => 'sales.view', 'params' => ['kind' => 'sales']],
+        ['label' => 'Credit Notes', 'icon' => 'arrow-return-left', 'route' => 'invoices.index', 'can' => 'sales.view', 'params' => ['kind' => 'credit_note']],
         ['label' => 'Purchase Bills', 'icon' => 'cart3', 'route' => 'invoices.index', 'can' => 'purchases.view', 'params' => ['kind' => 'purchase']],
+        ['label' => 'Debit Notes', 'icon' => 'arrow-return-right', 'route' => 'invoices.index', 'can' => 'purchases.view', 'params' => ['kind' => 'debit_note']],
         ['label' => 'Banking', 'icon' => 'bank', 'route' => 'bank-reconciliation.index', 'can' => 'banking.view'],
         ['heading' => 'Reports'],
         ['label' => 'Trial Balance', 'icon' => 'list-columns', 'route' => 'reports.trial-balance', 'can' => 'reports.view'],
@@ -124,7 +151,8 @@ return [
         ['label' => 'Day Book', 'icon' => 'calendar-day', 'route' => 'reports.day-book', 'can' => 'reports.view'],
         ['label' => 'Ledger Report', 'icon' => 'book', 'route' => 'reports.ledger', 'can' => 'reports.view'],
         ['label' => 'Cash / Bank Book', 'icon' => 'cash-stack', 'route' => 'reports.ledger', 'can' => 'reports.view', 'params' => ['book' => 'cash']],
-        ['label' => 'Outstanding', 'icon' => 'hourglass-split', 'route' => 'reports.outstanding', 'can' => 'reports.view'],
+        ['label' => 'Receivables', 'icon' => 'hourglass-split', 'route' => 'reports.outstanding', 'can' => 'reports.view', 'params' => ['type' => 'receivable']],
+        ['label' => 'Payables', 'icon' => 'hourglass-bottom', 'route' => 'reports.outstanding', 'can' => 'reports.view', 'params' => ['type' => 'payable']],
         ['heading' => 'Company'],
         ['label' => 'Company Settings', 'icon' => 'building-gear', 'route' => 'settings.edit', 'can' => 'company.edit'],
         ['label' => 'Financial Years', 'icon' => 'calendar-range', 'route' => 'financial-years.index', 'can' => 'periods.view'],

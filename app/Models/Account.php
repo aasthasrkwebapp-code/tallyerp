@@ -8,6 +8,7 @@ use App\Support\Money;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * A ledger account in the chart of accounts.
@@ -76,6 +77,11 @@ class Account extends Model
         return $this->belongsTo(AccountGroup::class, 'account_group_id');
     }
 
+    public function partyDetails(): HasOne
+    {
+        return $this->hasOne(Party::class);
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
@@ -102,6 +108,18 @@ class Account extends Model
     public function isCashOrBank(): bool
     {
         return in_array($this->account_type, ['cash', 'bank'], true);
+    }
+
+    /** True when any voucher, bill or document refers to this ledger (config erp.ledger_usage). */
+    public function hasTransactions(): bool
+    {
+        foreach (config('erp.ledger_usage', []) as $table => $column) {
+            if (\Illuminate\Support\Facades\Schema::hasTable($table) && \Illuminate\Support\Facades\DB::table($table)->where($column, $this->id)->exists()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function displayName(): string

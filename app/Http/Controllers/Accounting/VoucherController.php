@@ -130,6 +130,8 @@ class VoucherController extends Controller
 
     public function destroy(Voucher $voucher)
     {
+        abort_if($voucher->source_type !== null, 403, 'This voucher was generated from another document; delete that document instead.');
+
         $this->vouchers->delete($voucher);
 
         return redirect()->route('vouchers.index')->with('success', 'Draft voucher deleted.');

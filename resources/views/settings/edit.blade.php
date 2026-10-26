@@ -40,6 +40,7 @@
                         'allow_future_dated_vouchers' => ['Allow future-dated vouchers', 'Permit voucher dates after today.'],
                         'require_voucher_approval' => ['Require voucher approval (maker-checker)', 'Vouchers entered by non-approvers stay pending until approved.'],
                         'invoice_show_bank_details' => ['Show bank details on invoices', 'Print the default bank account on sales invoices.'],
+                        'invoice_round_off' => ['Round invoice totals', 'Round invoice totals to the nearest rupee and post the difference to Round Off.'],
                     ] as $key => [$label, $help])
                         <div class="form-check form-switch mb-3">
                             <input class="form-check-input" type="checkbox" role="switch" id="pref_{{ $key }}" name="{{ $key }}" value="1" @checked($settings[$key])>

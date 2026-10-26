@@ -3,6 +3,8 @@
 use App\Http\Controllers\Accounting\VoucherController;
 use App\Http\Controllers\Accounting\VoucherTypeController;
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\Billing\InvoiceController;
+use App\Http\Controllers\Billing\PartyController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinancialYearController;
@@ -12,6 +14,7 @@ use App\Http\Controllers\Masters\LedgerController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Reports\AccountingReportController;
+use App\Http\Controllers\Reports\OutstandingReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
@@ -105,6 +108,31 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     Route::delete('/vouchers/{voucher}', [VoucherController::class, 'destroy'])->name('vouchers.destroy')->middleware('can:vouchers.delete');
     Route::get('/ledgers/{ledger}/open-bills', [VoucherController::class, 'openBills'])->name('ledgers.open-bills')->middleware('can:vouchers.view');
 
+    // Customers and suppliers (party ledgers with contact and GST details)
+    foreach (['customers' => ['customer', 'sales'], 'suppliers' => ['supplier', 'purchases']] as $prefix => [$kind, $module]) {
+        Route::prefix($prefix)->name($prefix.'.')->group(function () use ($kind, $module) {
+            Route::get('/', [PartyController::class, 'index'])->name('index')->defaults('kind', $kind)->middleware("can:{$module}.view");
+            Route::get('/create', [PartyController::class, 'create'])->name('create')->defaults('kind', $kind)->middleware("can:{$module}.create");
+            Route::post('/', [PartyController::class, 'store'])->name('store')->defaults('kind', $kind)->middleware("can:{$module}.create");
+            Route::get('/{ledger}', [PartyController::class, 'show'])->name('show')->defaults('kind', $kind)->middleware("can:{$module}.view");
+            Route::get('/{ledger}/edit', [PartyController::class, 'edit'])->name('edit')->defaults('kind', $kind)->middleware("can:{$module}.edit");
+            Route::put('/{ledger}', [PartyController::class, 'update'])->name('update')->defaults('kind', $kind)->middleware("can:{$module}.edit");
+            Route::delete('/{ledger}', [PartyController::class, 'destroy'])->name('destroy')->defaults('kind', $kind)->middleware("can:{$module}.delete");
+        });
+    }
+
+    // Sales invoices, purchase bills, credit and debit notes (permissions checked per kind)
+    Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
+    Route::get('/invoices/create', [InvoiceController::class, 'create'])->name('invoices.create');
+    Route::post('/invoices', [InvoiceController::class, 'store'])->name('invoices.store');
+    Route::get('/invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
+    Route::get('/invoices/{invoice}/edit', [InvoiceController::class, 'edit'])->name('invoices.edit');
+    Route::get('/invoices/{invoice}/print', [InvoiceController::class, 'print'])->name('invoices.print');
+    Route::put('/invoices/{invoice}', [InvoiceController::class, 'update'])->name('invoices.update');
+    Route::post('/invoices/{invoice}/post', [InvoiceController::class, 'post'])->name('invoices.post');
+    Route::post('/invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('invoices.cancel');
+    Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('invoices.destroy');
+
     // Accounting reports
     Route::middleware('can:reports.view')->prefix('reports')->name('reports.')->group(function () {
         Route::get('/trial-balance', [AccountingReportController::class, 'trialBalance'])->name('trial-balance');
@@ -113,6 +141,8 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
         Route::get('/day-book', [AccountingReportController::class, 'dayBook'])->name('day-book');
         Route::get('/ledger', [AccountingReportController::class, 'ledger'])->name('ledger');
         Route::get('/groups/{group}', [AccountingReportController::class, 'groupSummary'])->name('group-summary');
+        Route::get('/outstanding', [OutstandingReportController::class, 'index'])->name('outstanding');
+        Route::get('/outstanding/{ledger}', [OutstandingReportController::class, 'party'])->name('outstanding.party');
     });
 
     Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index')->middleware('can:audit.view');

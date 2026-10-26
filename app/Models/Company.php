@@ -24,6 +24,7 @@ class Company extends Model
         'invoice_terms' => null,
         'invoice_footer' => null,
         'invoice_show_bank_details' => true,
+        'invoice_round_off' => true,
     ];
 
     protected $fillable = [

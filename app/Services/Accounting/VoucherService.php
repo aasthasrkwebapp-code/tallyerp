@@ -564,6 +564,17 @@ class VoucherService
             }
             $seen[$key] = true;
 
+            if ($ref === Voucher::OWN_NUMBER) {
+                if ($billType !== 'new_ref') {
+                    $errors["entries.$i.bills.$j.bill_ref"] = "{$label}: only a new reference can use this voucher's number.";
+                    continue;
+                }
+                // Uniqueness is checked once the number is assigned (writeLines).
+                $out[] = ['bill_type' => $billType, 'bill_ref' => $ref, 'paise' => $paise, 'due_date' => $bill['due_date'] ?? null];
+                $total += $paise;
+                continue;
+            }
+
             $existingBill = $ref !== '' ? $this->bills->find($account->id, $ref, $existing?->id) : null;
 
             if (in_array($billType, ['new_ref', 'advance'], true) && $existingBill && in_array($existingBill->bill_type, ['new_ref', 'advance'], true)) {
@@ -631,11 +642,18 @@ class VoucherService
                 if (! isset($bill['paise'])) {
                     continue; // drafts keep raw input only after validation on posting
                 }
+                $ref = $bill['bill_ref'];
+                if ($ref === Voucher::OWN_NUMBER && $voucher->isPosted()) {
+                    $ref = $voucher->voucher_number;
+                    if ($this->bills->find($line['account']->id, $ref, $voucher->id)) {
+                        throw ValidationException::withMessages(['entries' => "Bill {$ref} already exists for {$line['account']->name}. Change the voucher numbering (e.g. a yearly prefix) or enter the bill reference manually."]);
+                    }
+                }
                 $entry->billAllocations()->create([
                     'company_id' => $voucher->company_id,
                     'account_id' => $line['account']->id,
                     'bill_type' => $bill['bill_type'],
-                    'bill_ref' => $bill['bill_ref'],
+                    'bill_ref' => $ref,
                     'amount' => Money::fromPaise($bill['paise']),
                     'side' => $line['side'],
                     'due_date' => $bill['due_date'] ?: null,

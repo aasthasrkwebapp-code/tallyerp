@@ -5,14 +5,14 @@ Legend: **Done** = working end to end with tests · **Partial** = usable but inc
 
 | Module | Status | Notes |
 |---|---|---|
-| A. Company & configuration | Done | Multi-company, switch, settings, GSTIN/PAN validation, FY + monthly period locks, users/roles per company, custom roles. Logo upload: missing. |
+| A. Company & configuration | Done | Multi-company, switch, settings, GSTIN/PAN validation, FY + monthly period locks, users/roles per company, custom roles. |
 | B. Accounting engine | Done (core) | Groups, ledgers, cost centres, voucher types/numbering, 8 voucher classes, bill-wise, draft/approval/post/cancel/reverse, revisions. Missing: opening bill-wise refs, recurring vouchers, multi-currency. |
-| C. Sales | Missing | Phase 3: customers, sales invoices with items and tax, credit notes, receivables. (Sales vouchers can already be posted through the voucher engine.) |
-| D. Purchases | Missing | Phase 3. |
-| E. GST | Missing | Phase 5. GST rates/HSN fields exist on ledgers only. |
+| C. Sales | Partial | Done: customers, sales invoices with items and GST, credit notes against invoices, receivables with ageing, invoice print, credit-limit warning. Missing: quotations, sales orders, delivery notes, stock items on invoices. |
+| D. Purchases | Partial | Done: suppliers, purchase bills (duplicate supplier bill check), debit notes, payables with ageing. Missing: purchase orders, GRN, stock items. |
+| E. GST | Partial | CGST/SGST/IGST computed on invoices from place of supply and registration type; HSN-wise tax summary on print. Missing: GSTR-1/3B registers, cess, reverse charge, e-invoice, e-way bill. |
 | F. Inventory | Missing | Phase 6. Closing stock is not valued in the P&L. |
 | G. Banking | Partial | Bank ledgers with bank details, bank book. Missing: reconciliation, statement import, cheque register. |
-| H. Reports | Partial | Done: ledger, cash/bank book, day book, trial balance, group summary, P&L, balance sheet, dashboard, CSV. Missing: outstanding/ageing, cash flow, ratios, GST reports, PDF/Excel. |
+| H. Reports | Partial | Done: ledger, cash/bank book, day book, trial balance, group summary, P&L, balance sheet, dashboard, CSV. Receivables/payables with ageing. Missing: cash flow, ratios, GST reports, PDF/Excel. |
 | I. Payroll | Missing | Phase 6. |
 | J. Transport | Missing | Phase 7. |
 | K. Security & audit | Done (core) | Permissions per company, audit trail with old/new values, login/logout/failed login logs, maker-checker. Missing: 2FA, IP restrictions. |

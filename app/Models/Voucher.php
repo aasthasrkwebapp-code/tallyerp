@@ -20,6 +20,9 @@ class Voucher extends Model
     public const POSTED = 'posted';
     public const CANCELLED = 'cancelled';
 
+    /** Bill reference placeholder replaced by the voucher's own number when it is posted. */
+    public const OWN_NUMBER = '{number}';
+
     public const STATUSES = [
         self::DRAFT => 'Draft',
         self::PENDING => 'Pending approval',
