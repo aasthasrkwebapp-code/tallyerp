@@ -67,6 +67,35 @@ class FinancialReportsTest extends TestCase
         $post('receipt', '2026-05-20', [[Account::idFor('cash'), 'Dr', '1000'], [Account::idFor('interest_received'), 'Cr', '1000']]);
     }
 
+    public function test_cash_flow_classifies_cash_movements(): void
+    {
+        $voucher = fn (string $base, string $date, array $lines) => app(VoucherService::class)->create([
+            'voucher_type_id' => VoucherType::where('base_type', $base)->value('id'),
+            'date' => $date,
+            'entries' => array_map(fn ($l) => ['account_id' => $l[0], 'side' => $l[1], 'amount' => $l[2]], $lines),
+        ], $this->owner);
+        $computer = Account::create(['name' => 'Computer', 'account_group_id' => AccountGroup::idFor('fixed_assets'), 'account_type' => 'general']);
+        $loan = Account::create(['name' => 'Term Loan', 'account_group_id' => AccountGroup::idFor('secured_loans'), 'account_type' => 'general']);
+
+        $voucher('payment', '2026-05-21', [[$computer->id, 'Dr', '15000'], [$this->l['bank']->id, 'Cr', '15000']]);
+        $voucher('receipt', '2026-05-22', [[$this->l['bank']->id, 'Dr', '40000'], [$loan->id, 'Cr', '40000']]);
+        $voucher('contra', '2026-05-23', [[Account::idFor('cash'), 'Dr', '3000'], [$this->l['bank']->id, 'Cr', '3000']]);
+
+        $cf = app(\App\Services\Reports\CashFlow::class)->statement('2026-04-01', '2026-05-31');
+
+        $this->assertSame(10000000, $cf['opening']);               // bank 80k + cash 20k
+        // Operating: rent −5,000, customer +20,000, interest +1,000.
+        $this->assertSame(1600000, $cf['sections']['operating']['total']);
+        $this->assertSame(-1500000, $cf['sections']['investing']['total']);
+        $this->assertSame(4000000, $cf['sections']['financing']['total']);
+        $this->assertSame(4100000, $cf['net']);                    // the contra transfer nets out
+        $this->assertSame($cf['opening'] + $cf['net'], $cf['closing']);
+
+        $this->actingAs($this->owner)->get(route('reports.cash-flow', ['from' => '2026-04-01', 'to' => '2026-05-31', 'expand' => 1]))
+            ->assertOk()->assertSee('Fixed Assets')->assertSee('Term Loan')->assertSee('1,41,000.00');
+        $this->get(route('reports.cash-flow', ['from' => '2026-04-01', 'to' => '2026-05-31', 'export' => 'csv']))->assertOk();
+    }
+
     public function test_trial_balance_agrees(): void
     {
         $tb = app(FinancialStatements::class)->trialBalance('2026-04-01', '2026-05-31');

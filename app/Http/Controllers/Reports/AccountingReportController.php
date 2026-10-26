@@ -9,6 +9,7 @@ use App\Models\Voucher;
 use App\Models\VoucherEntry;
 use App\Models\VoucherType;
 use App\Services\Reports\AccountBalances;
+use App\Services\Reports\CashFlow;
 use App\Services\Reports\FinancialStatements;
 use App\Support\CsvExport;
 use App\Support\Money;
@@ -61,6 +62,32 @@ class AccountingReportController extends Controller
         [$from, $to] = $this->period($request);
 
         return view('reports.profit-loss', $this->statements->profitAndLoss($from, $to) + compact('from', 'to'));
+    }
+
+    public function cashFlow(Request $request, CashFlow $cashFlow)
+    {
+        [$from, $to] = $this->period($request);
+        $data = $cashFlow->statement($from, $to);
+
+        if ($request->input('export') === 'csv') {
+            $this->authorize('reports.export');
+            $rows = collect([['Opening cash and bank balance', '', Money::fromPaise($data['opening'])]]);
+            foreach ($data['sections'] as $section) {
+                $rows->push([$section['label'], '', '']);
+                foreach ($section['groups'] as $node) {
+                    foreach ($node->ledgers as $l) {
+                        $rows->push([$l->account->name, $node->group->name, Money::fromPaise($l->amount)]);
+                    }
+                }
+                $rows->push(['Net '.lcfirst($section['label']), '', Money::fromPaise($section['total'])]);
+            }
+            $rows->push(['Net change in cash and bank', '', Money::fromPaise($data['net'])]);
+            $rows->push(['Closing cash and bank balance', '', Money::fromPaise($data['closing'])]);
+
+            return CsvExport::download("cash-flow-{$from}-to-{$to}.csv", ['Particulars', 'Group', 'Amount (+in / -out)'], $rows);
+        }
+
+        return view('reports.cash-flow', $data + compact('from', 'to'));
     }
 
     public function balanceSheet(Request $request)

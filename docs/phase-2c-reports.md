@@ -49,7 +49,16 @@ are excluded, FY carry-forward, CSV export and permission checks.
 
 ## Known limitations
 
-* Closing stock is not valued automatically yet (needs the inventory module); the P&L shows
-  a note.
+* Closing stock is valued from stock items since Phase 6a (see `phase-6a-inventory.md`).
 * Opening bill-wise references for ledgers are not supported yet (openings are on account).
 * PDF and Excel export are pending (Phase 8); CSV works.
+
+## Cash flow statement (added later)
+
+**Reports → Cash Flow** (`App\Services\Reports\CashFlow`), direct method. For each posted voucher
+that touches a cash or bank ledger, every other line is a source or use of cash, classified by the
+ledger's group: Fixed Assets and Investments → investing; Capital Account and Loans (Liability) →
+financing; everything else → operating. Contra transfers between cash and bank cancel out.
+Opening + net change always equals the closing cash and bank balance (an alert shows otherwise).
+Detailed view lists ledgers; CSV export. Checklist: pay for a fixed asset from the bank, receive
+a loan, make a contra transfer, then confirm the three sections and the closing balance.

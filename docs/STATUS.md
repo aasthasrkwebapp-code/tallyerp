@@ -12,7 +12,7 @@ Legend: **Done** = working end to end with tests · **Partial** = usable but inc
 | E. GST | Partial | CGST/SGST/IGST on invoices from place of supply and registration type; GSTR-1 working papers (B2B, B2CL, B2CS, exports, CDNR/CDNUR, HSN, documents) with CSV; GSTR-3B with ITC and set-off; purchase register. Missing: JSON for the portal, GSTR-2B matching, cess, reverse charge, e-invoice, e-way bill. |
 | F. Inventory | Partial | Done: units, stock groups and categories, godowns, stock items with opening stock, stock on invoices and returns, transfers and adjustments (stock journals), weighted average valuation, closing stock in P&L and balance sheet, stock summary, item movement ledger, reorder status, negative-stock warning. Missing: batches/serials, FIFO, orders and delivery notes/GRN, goods in transit, ageing, BOM. |
 | G. Banking | Partial | Bank ledgers with bank details, bank book, bank reconciliation with bank dates, CSV statement import with auto/manual matching. Missing: cheque register and printing, OFX/MT940 import. |
-| H. Reports | Partial | Done: ledger, cash/bank book, day book, trial balance, group summary, P&L, balance sheet, dashboard, CSV. Receivables/payables with ageing. GST returns. Missing: cash flow, ratios, PDF/Excel. |
+| H. Reports | Partial | Done: ledger, cash/bank book, day book, trial balance, group summary, P&L, balance sheet, cash flow, stock summary, dashboard, CSV. Receivables/payables with ageing. GST returns. Missing: ratios, PDF/Excel. |
 | I. Payroll | Missing | Phase 6. |
 | J. Transport | Missing | Phase 7. |
 | K. Security & audit | Done (core) | Permissions per company, audit trail with old/new values, login/logout/failed login logs, maker-checker. Missing: 2FA, IP restrictions. |

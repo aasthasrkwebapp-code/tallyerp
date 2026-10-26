@@ -161,6 +161,7 @@ return [
         ['label' => 'Trial Balance', 'icon' => 'list-columns', 'route' => 'reports.trial-balance', 'can' => 'reports.view'],
         ['label' => 'Profit & Loss', 'icon' => 'graph-up-arrow', 'route' => 'reports.profit-loss', 'can' => 'reports.view'],
         ['label' => 'Balance Sheet', 'icon' => 'clipboard-data', 'route' => 'reports.balance-sheet', 'can' => 'reports.view'],
+        ['label' => 'Cash Flow', 'icon' => 'water', 'route' => 'reports.cash-flow', 'can' => 'reports.view'],
         ['label' => 'Day Book', 'icon' => 'calendar-day', 'route' => 'reports.day-book', 'can' => 'reports.view'],
         ['label' => 'Ledger Report', 'icon' => 'book', 'route' => 'reports.ledger', 'can' => 'reports.view'],
         ['label' => 'Cash / Bank Book', 'icon' => 'cash-stack', 'route' => 'reports.ledger', 'can' => 'reports.view', 'params' => ['book' => 'cash']],
