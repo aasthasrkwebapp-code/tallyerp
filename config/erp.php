@@ -68,11 +68,18 @@ return [
         \App\Services\Setup\DefaultChartOfAccounts::class,
         \App\Services\Setup\DefaultVoucherTypes::class,
         \App\Services\Setup\DefaultInventory::class,
+        \App\Services\Setup\DefaultPayroll::class,
     ],
 
     // Company-owned tables deleted (in this order) before the core tables when a company is deleted.
     // Value: self-referencing column to clear first, or null.
     'deletion_tables' => [
+        'payslip_lines' => null,
+        'payslips' => null,
+        'payroll_runs' => null,
+        'employee_pay_heads' => null,
+        'pay_heads' => null,
+        'employees' => null,
         'bank_statement_lines' => null,
         'invoice_items' => null,
         'invoices' => 'original_invoice_id',
@@ -100,6 +107,24 @@ return [
         'invoice_items' => 'account_id',
         'bank_statement_lines' => 'account_id',
         'stock_items' => ['sales_account_id', 'purchase_account_id'],
+        'pay_heads' => ['account_id', 'payable_account_id'],
+    ],
+
+    /*
+    | Payroll statutory limits (monthly, rupees). PF is worked out on basic
+    | salary up to the ceiling; ESI applies while gross pay is within the limit.
+    | Professional tax slabs: [gross up to (null = above), tax, February tax].
+    */
+    'payroll' => [
+        'pf_wage_ceiling' => 15000,
+        'esi_wage_limit' => 21000,
+        'professional_tax' => [
+            'Maharashtra' => [[7500, 0], [10000, 175], [null, 200, 300]],
+            'Karnataka' => [[24999, 0], [null, 200]],
+            'West Bengal' => [[10000, 0], [15000, 110], [25000, 130], [40000, 150], [null, 200]],
+            'Gujarat' => [[11999, 0], [null, 200]],
+            'Telangana' => [[15000, 0], [20000, 150], [null, 200]],
+        ],
     ],
 
     // Registration types of customers and suppliers under GST.
@@ -173,6 +198,10 @@ return [
         ['label' => 'GSTR-1', 'icon' => 'file-earmark-arrow-up', 'route' => 'gst.gstr1', 'can' => 'gst.view'],
         ['label' => 'GSTR-3B', 'icon' => 'file-earmark-text', 'route' => 'gst.gstr3b', 'can' => 'gst.view'],
         ['label' => 'Purchase Register', 'icon' => 'file-earmark-arrow-down', 'route' => 'gst.purchase-register', 'can' => 'gst.view'],
+        ['heading' => 'Payroll'],
+        ['label' => 'Employees', 'icon' => 'person-vcard', 'route' => 'employees.index', 'can' => 'payroll.view'],
+        ['label' => 'Pay Heads', 'icon' => 'list-check', 'route' => 'pay-heads.index', 'can' => 'payroll.view'],
+        ['label' => 'Monthly Payroll', 'icon' => 'wallet2', 'route' => 'payroll-runs.index', 'can' => 'payroll.view'],
         ['heading' => 'Company'],
         ['label' => 'Company Settings', 'icon' => 'building-gear', 'route' => 'settings.edit', 'can' => 'company.edit'],
         ['label' => 'Financial Years', 'icon' => 'calendar-range', 'route' => 'financial-years.index', 'can' => 'periods.view'],

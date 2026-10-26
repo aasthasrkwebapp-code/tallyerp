@@ -34,6 +34,9 @@
 @if ($voucher->source_type === \App\Models\Invoice::class && $voucher->source)
     <div class="alert alert-info small no-print"><i class="bi bi-receipt me-1"></i>Generated from
         <a href="{{ route('invoices.show', $voucher->source) }}">{{ $voucher->source->config()['label'] }} {{ $voucher->source->displayNumber() }}</a>. Alter or delete it from there.</div>
+@elseif ($voucher->source_type === \App\Models\PayrollRun::class && $voucher->source)
+    <div class="alert alert-info small no-print"><i class="bi bi-wallet2 me-1"></i>Generated from
+        <a href="{{ route('payroll-runs.show', $voucher->source) }}">payroll for {{ $voucher->source->label() }}</a>. Cancel it from there.</div>
 @endif
 
 @if ($voucher->isPosted() && auth()->user()->can('vouchers.cancel'))

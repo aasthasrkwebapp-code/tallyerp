@@ -18,6 +18,9 @@ use App\Http\Controllers\Masters\AccountGroupController;
 use App\Http\Controllers\Masters\CostCentreController;
 use App\Http\Controllers\Masters\LedgerController;
 use App\Http\Controllers\MemberController;
+use App\Http\Controllers\Payroll\EmployeeController;
+use App\Http\Controllers\Payroll\PayHeadController;
+use App\Http\Controllers\Payroll\PayrollRunController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Reports\AccountingReportController;
 use App\Http\Controllers\Reports\OutstandingReportController;
@@ -151,6 +154,31 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
 
         Route::get('/summary', [StockReportController::class, 'summary'])->name('stock-summary')->middleware('can:inventory.view');
         Route::get('/reorder', [StockReportController::class, 'reorder'])->name('stock-reorder')->middleware('can:inventory.view');
+    });
+
+    // Payroll: employees, pay heads and monthly payroll
+    Route::prefix('payroll')->group(function () {
+        Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index')->middleware('can:payroll.view');
+        Route::get('/employees/create', [EmployeeController::class, 'create'])->name('employees.create')->middleware('can:payroll.create');
+        Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store')->middleware('can:payroll.create');
+        Route::get('/employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show')->middleware('can:payroll.view');
+        Route::get('/employees/{employee}/edit', [EmployeeController::class, 'edit'])->name('employees.edit')->middleware('can:payroll.edit');
+        Route::put('/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update')->middleware('can:payroll.edit');
+        Route::delete('/employees/{employee}', [EmployeeController::class, 'destroy'])->name('employees.destroy')->middleware('can:payroll.delete');
+
+        Route::get('/pay-heads', [PayHeadController::class, 'index'])->name('pay-heads.index')->middleware('can:payroll.view');
+        Route::post('/pay-heads', [PayHeadController::class, 'store'])->name('pay-heads.store')->middleware('can:payroll.create');
+        Route::put('/pay-heads/{payHead}', [PayHeadController::class, 'update'])->name('pay-heads.update')->middleware('can:payroll.edit');
+        Route::delete('/pay-heads/{payHead}', [PayHeadController::class, 'destroy'])->name('pay-heads.destroy')->middleware('can:payroll.delete');
+
+        Route::get('/runs', [PayrollRunController::class, 'index'])->name('payroll-runs.index')->middleware('can:payroll.view');
+        Route::post('/runs', [PayrollRunController::class, 'store'])->name('payroll-runs.store')->middleware('can:payroll.create');
+        Route::get('/runs/{payrollRun}', [PayrollRunController::class, 'show'])->name('payroll-runs.show')->middleware('can:payroll.view');
+        Route::put('/runs/{payrollRun}', [PayrollRunController::class, 'update'])->name('payroll-runs.update')->middleware('can:payroll.edit');
+        Route::post('/runs/{payrollRun}/post', [PayrollRunController::class, 'post'])->name('payroll-runs.post')->middleware('can:payroll.edit');
+        Route::post('/runs/{payrollRun}/cancel', [PayrollRunController::class, 'cancel'])->name('payroll-runs.cancel')->middleware('can:payroll.delete');
+        Route::delete('/runs/{payrollRun}', [PayrollRunController::class, 'destroy'])->name('payroll-runs.destroy')->middleware('can:payroll.delete');
+        Route::get('/runs/{payrollRun}/payslips/{payslip}', [PayrollRunController::class, 'payslip'])->name('payroll-runs.payslip')->middleware('can:payroll.view');
     });
 
     // Sales invoices, purchase bills, credit and debit notes (permissions checked per kind)
