@@ -155,8 +155,21 @@ class VoucherService
 
             $voucher->save();
 
+            // Keep bank reconciliation dates of lines that survive the alteration.
+            $cleared = $voucher->entries()->whereNotNull('bank_date')->get(['id', 'account_id', 'debit', 'credit', 'bank_date']);
+            $statementLines = DB::table('bank_statement_lines')->whereIn('voucher_entry_id', $cleared->pluck('id'))->pluck('id', 'voucher_entry_id');
             $voucher->entries()->each(fn ($e) => $e->delete());
             $this->writeLines($voucher, $lines);
+            foreach ($cleared as $old) {
+                $new = $voucher->entries()->whereNull('bank_date')->where('account_id', $old->account_id)
+                    ->where('debit', $old->debit)->where('credit', $old->credit)->first();
+                if ($new) {
+                    $new->update(['bank_date' => $old->bank_date]);
+                    if ($statementLines->has($old->id)) {
+                        DB::table('bank_statement_lines')->where('id', $statementLines[$old->id])->update(['voucher_entry_id' => $new->id]);
+                    }
+                }
+            }
 
             return $voucher->load('entries.billAllocations');
         });
@@ -191,6 +204,11 @@ class VoucherService
                 throw ValidationException::withMessages(['voucher' => 'This voucher has been reversed. Cancel the reversal first.']);
             }
             $this->assertNotSettled($voucher);
+
+            // A cancelled voucher no longer explains any bank statement line.
+            $entryIds = $voucher->entries()->pluck('id');
+            DB::table('bank_statement_lines')->whereIn('voucher_entry_id', $entryIds)->update(['voucher_entry_id' => null]);
+            $voucher->entries()->update(['bank_date' => null]);
 
             $voucher->update([
                 'status' => Voucher::CANCELLED,

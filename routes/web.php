@@ -3,6 +3,7 @@
 use App\Http\Controllers\Accounting\VoucherController;
 use App\Http\Controllers\Accounting\VoucherTypeController;
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\Banking\BankReconciliationController;
 use App\Http\Controllers\Billing\InvoiceController;
 use App\Http\Controllers\Billing\PartyController;
 use App\Http\Controllers\CompanyController;
@@ -132,6 +133,15 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     Route::post('/invoices/{invoice}/post', [InvoiceController::class, 'post'])->name('invoices.post');
     Route::post('/invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('invoices.cancel');
     Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('invoices.destroy');
+
+    // Banking: reconciliation and statement import
+    Route::get('/banking', [BankReconciliationController::class, 'index'])->name('bank-reconciliation.index')->middleware('can:banking.view');
+    Route::post('/banking/{ledger}/dates', [BankReconciliationController::class, 'update'])->name('bank-reconciliation.update')->middleware('can:banking.edit');
+    Route::post('/banking/{ledger}/import', [BankReconciliationController::class, 'import'])->name('bank-reconciliation.import')->middleware('can:banking.create');
+    Route::post('/banking/{ledger}/auto-match', [BankReconciliationController::class, 'autoMatch'])->name('bank-reconciliation.auto-match')->middleware('can:banking.edit');
+    Route::post('/bank-statement-lines/{line}/match', [BankReconciliationController::class, 'match'])->name('bank-statement-lines.match')->middleware('can:banking.edit');
+    Route::post('/bank-statement-lines/{line}/unmatch', [BankReconciliationController::class, 'unmatch'])->name('bank-statement-lines.unmatch')->middleware('can:banking.edit');
+    Route::delete('/bank-statement-lines/{line}', [BankReconciliationController::class, 'destroyLine'])->name('bank-statement-lines.destroy')->middleware('can:banking.delete');
 
     // Accounting reports
     Route::middleware('can:reports.view')->prefix('reports')->name('reports.')->group(function () {

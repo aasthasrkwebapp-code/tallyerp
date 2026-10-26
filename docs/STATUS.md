@@ -11,7 +11,7 @@ Legend: **Done** = working end to end with tests · **Partial** = usable but inc
 | D. Purchases | Partial | Done: suppliers, purchase bills (duplicate supplier bill check), debit notes, payables with ageing. Missing: purchase orders, GRN, stock items. |
 | E. GST | Partial | CGST/SGST/IGST computed on invoices from place of supply and registration type; HSN-wise tax summary on print. Missing: GSTR-1/3B registers, cess, reverse charge, e-invoice, e-way bill. |
 | F. Inventory | Missing | Phase 6. Closing stock is not valued in the P&L. |
-| G. Banking | Partial | Bank ledgers with bank details, bank book. Missing: reconciliation, statement import, cheque register. |
+| G. Banking | Partial | Bank ledgers with bank details, bank book, bank reconciliation with bank dates, CSV statement import with auto/manual matching. Missing: cheque register and printing, OFX/MT940 import. |
 | H. Reports | Partial | Done: ledger, cash/bank book, day book, trial balance, group summary, P&L, balance sheet, dashboard, CSV. Receivables/payables with ageing. Missing: cash flow, ratios, GST reports, PDF/Excel. |
 | I. Payroll | Missing | Phase 6. |
 | J. Transport | Missing | Phase 7. |

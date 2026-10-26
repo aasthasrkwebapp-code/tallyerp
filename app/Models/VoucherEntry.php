@@ -12,11 +12,11 @@ class VoucherEntry extends Model
 {
     use BelongsToCompany;
 
-    protected $fillable = ['company_id', 'voucher_id', 'account_id', 'line_no', 'debit', 'credit', 'cost_centre_id', 'narration'];
+    protected $fillable = ['company_id', 'voucher_id', 'account_id', 'line_no', 'debit', 'credit', 'cost_centre_id', 'narration', 'bank_date'];
 
     protected function casts(): array
     {
-        return ['debit' => 'decimal:2', 'credit' => 'decimal:2'];
+        return ['debit' => 'decimal:2', 'credit' => 'decimal:2', 'bank_date' => \App\Casts\DateOnly::class];
     }
 
     public function voucher(): BelongsTo

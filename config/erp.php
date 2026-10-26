@@ -72,6 +72,7 @@ return [
     // Company-owned tables deleted (in this order) before the core tables when a company is deleted.
     // Value: self-referencing column to clear first, or null.
     'deletion_tables' => [
+        'bank_statement_lines' => null,
         'invoice_items' => null,
         'invoices' => 'original_invoice_id',
         'parties' => null,
@@ -89,6 +90,7 @@ return [
         'vouchers' => 'party_account_id',
         'invoices' => 'party_account_id',
         'invoice_items' => 'account_id',
+        'bank_statement_lines' => 'account_id',
     ],
 
     // Registration types of customers and suppliers under GST.
