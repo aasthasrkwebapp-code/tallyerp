@@ -16,7 +16,7 @@ Legend: **Done** = working end to end with tests · **Partial** = usable but inc
 | I. Payroll | Partial | Done: employees, pay heads, salary structures, paid days, PF/ESI/professional tax/TDS, pay sheet, payslips, posting a salary journal, cancellation. Missing: attendance and leave registers, overtime, loans/advances, PF ECR and ESI files, Form 16, bank transfer file. |
 | J. Transport | Partial | Done: vehicles, drivers with advance ledgers, routes, trips, expenses posting vouchers, freight bills as sales invoices, trip/vehicle/route/customer/driver reports. Missing: LR printing, e-way bill numbers, multi-trip bills, document expiry reminders, tyre tracking. |
 | K. Security & audit | Done (core) | Permissions per company, audit trail with old/new values, login/logout/failed login logs, maker-checker. Missing: 2FA, IP restrictions. |
-| L. Data management | Missing | Phase 8: backup/restore, import/export. |
+| L. Data management | Partial | Done: company backups with checksums, verify, restore with safety backup, upload/download, scheduled backups with retention, integrity checks. Missing: import/export (Phase 8b), off-site copies, encryption. |
 | M. Dashboard & usability | Partial | Responsive layout, dashboard figures, Alt-key shortcuts. Missing: global search, configurable shortcuts. |
 
 Testing: run `php artisan test` (SQLite in memory). The suite has not yet been run against MySQL.

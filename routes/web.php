@@ -30,6 +30,8 @@ use App\Http\Controllers\Transport\TransportExpenseController;
 use App\Http\Controllers\Transport\TransportMasterController;
 use App\Http\Controllers\Transport\TransportReportController;
 use App\Http\Controllers\Transport\TripController;
+use App\Http\Controllers\Data\BackupController;
+use App\Http\Controllers\Data\IntegrityController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => auth()->check() ? redirect()->route('dashboard') : redirect()->route('login'));
@@ -250,6 +252,21 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
         Route::get('/groups/{group}', [AccountingReportController::class, 'groupSummary'])->name('group-summary');
         Route::get('/outstanding', [OutstandingReportController::class, 'index'])->name('outstanding');
         Route::get('/outstanding/{ledger}', [OutstandingReportController::class, 'party'])->name('outstanding.party');
+    });
+
+    // Data management: backups, restore and integrity checks
+    Route::prefix('data')->group(function () {
+        Route::middleware('can:data.backup')->group(function () {
+            Route::get('/backups', [BackupController::class, 'index'])->name('backups.index');
+            Route::post('/backups', [BackupController::class, 'store'])->name('backups.store');
+            Route::post('/backups/upload', [BackupController::class, 'upload'])->name('backups.upload');
+            Route::put('/backups/schedule', [BackupController::class, 'schedule'])->name('backups.schedule');
+            Route::get('/backups/{backupLog}/download', [BackupController::class, 'download'])->name('backups.download');
+            Route::post('/backups/{backupLog}/verify', [BackupController::class, 'verify'])->name('backups.verify');
+            Route::post('/backups/{backupLog}/restore', [BackupController::class, 'restore'])->name('backups.restore');
+            Route::delete('/backups/{backupLog}', [BackupController::class, 'destroy'])->name('backups.destroy');
+        });
+        Route::get('/integrity', IntegrityController::class)->name('integrity')->middleware('can:data.view');
     });
 
     Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index')->middleware('can:audit.view');

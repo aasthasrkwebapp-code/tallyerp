@@ -81,7 +81,7 @@ a { color: var(--erp-accent); }
     .table-stack, .table-stack tbody, .table-stack tr, .table-stack td { display: block; width: 100%; }
     .table-stack tr { border: 1px solid #e5e7eb; border-radius: .6rem; margin-bottom: .75rem; padding: .4rem .2rem; background: #fff; }
     .table-stack td { border: 0; padding: .3rem .75rem; text-align: right !important; display: flex; justify-content: space-between; gap: 1rem; }
-    .table-stack td::before { content: attr(data-label); font-weight: 600; color: #6b7280; text-align: left; }
+    .table-stack td::before { content: attr(data-label); font-weight: 600; color: #6b7280; text-align: left; flex-shrink: 0; }
     .table-stack td[data-label=""]::before, .table-stack td:not([data-label])::before { content: none; }
     .table-stack tfoot { display: block; }
     .table-stack tfoot tr { display: block; }

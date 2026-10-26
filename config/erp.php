@@ -74,6 +74,9 @@ return [
 
     // Company-owned tables deleted (in this order) before the core tables when a company is deleted.
     // Value: self-referencing column to clear first, or null.
+    // Where company backups are written (Data → Backup & Restore).
+    'backup_path' => env('ERP_BACKUP_PATH', storage_path('app/private/backups')),
+
     'deletion_tables' => [
         'transport_expenses' => null,
         'trips' => null,
@@ -238,6 +241,9 @@ return [
         ['label' => 'Users & Roles', 'icon' => 'people', 'route' => 'members.index', 'can' => 'users.view'],
         ['label' => 'Audit Trail', 'icon' => 'shield-check', 'route' => 'audit-logs.index', 'can' => 'audit.view'],
         ['label' => 'Companies', 'icon' => 'buildings', 'route' => 'companies.index'],
+        ['heading' => 'Data'],
+        ['label' => 'Backup & Restore', 'icon' => 'database-check', 'route' => 'backups.index', 'can' => 'data.backup'],
+        ['label' => 'Integrity Check', 'icon' => 'clipboard2-check', 'route' => 'integrity', 'can' => 'data.view'],
     ],
 
 ];

@@ -25,6 +25,8 @@ class Company extends Model
         'invoice_footer' => null,
         'invoice_show_bank_details' => true,
         'invoice_round_off' => true,
+        'backup_frequency' => 'off', // off, daily, weekly
+        'backup_keep' => 7,
     ];
 
     protected $fillable = [
