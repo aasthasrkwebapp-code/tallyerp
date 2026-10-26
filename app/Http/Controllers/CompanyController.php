@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Middleware\EnsureCompanySelected;
 use App\Http\Requests\CompanyRequest;
-use App\Models\AuditLog;
 use App\Models\Company;
 use App\Services\CompanySetupService;
 use App\Support\CurrentCompany;
@@ -68,7 +67,7 @@ class CompanyController extends Controller
             ->with('success', 'Company updated successfully.');
     }
 
-    public function destroy(Request $request, Company $company)
+    public function destroy(Request $request, Company $company, \App\Services\CompanyDeletionService $deletion)
     {
         $this->authorizeMember($request, $company, 'company.delete');
 
@@ -76,8 +75,7 @@ class CompanyController extends Controller
             'confirm_name' => ['required', 'in:'.$company->name],
         ], ['confirm_name.in' => 'Type the company name exactly to confirm deletion.']);
 
-        AuditLog::record('company_deleted', $company, $company->only(['name', 'gstin']), null, 'Company deleted: '.$company->name);
-        $company->delete();
+        $deletion->delete($company);
 
         if ($request->session()->get(EnsureCompanySelected::SESSION_KEY) === $company->id) {
             $request->session()->forget(EnsureCompanySelected::SESSION_KEY);

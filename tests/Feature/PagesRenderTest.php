@@ -20,7 +20,12 @@ class PagesRenderTest extends TestCase
         $pages = [
             '/dashboard', '/companies', '/companies/create', "/companies/{$company->id}", "/companies/{$company->id}/edit",
             '/settings', '/financial-years', '/members', '/roles/create', "/roles/{$role->id}", '/audit-logs', '/profile',
+            '/account-groups', '/account-groups/create', '/ledgers', '/ledgers/create', '/cost-centres',
         ];
+        $ledger = \App\Models\Account::first();
+        $group = \App\Models\AccountGroup::first();
+        $pages[] = "/ledgers/{$ledger->id}/edit";
+        $pages[] = "/account-groups/{$group->id}/edit";
 
         foreach ($pages as $page) {
             $this->actingAs($owner)->get($page)->assertOk();

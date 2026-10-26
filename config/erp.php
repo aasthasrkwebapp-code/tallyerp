@@ -64,7 +64,16 @@ return [
     'super_roles' => ['owner', 'admin'],
 
     // Classes with a seed(Company $company) method, run when a company is created.
-    'company_seeders' => [],
+    'company_seeders' => [
+        \App\Services\Setup\DefaultChartOfAccounts::class,
+    ],
+
+    // Company-owned tables deleted (in this order) before the core tables when a company is deleted.
+    // Value: self-referencing column to clear first, or null.
+    'deletion_tables' => [],
+
+    // Tables (=> column) that reference a ledger; a ledger used in any of them cannot be deleted.
+    'ledger_usage' => [],
 
     /*
     | Sidebar navigation. Items whose route is not registered yet are hidden,

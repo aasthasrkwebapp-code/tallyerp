@@ -4,6 +4,9 @@ use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinancialYearController;
+use App\Http\Controllers\Masters\AccountGroupController;
+use App\Http\Controllers\Masters\CostCentreController;
+use App\Http\Controllers\Masters\LedgerController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RoleController;
@@ -57,6 +60,28 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     Route::get('/roles/{role}/edit', [RoleController::class, 'edit'])->name('roles.edit')->middleware('can:users.edit');
     Route::put('/roles/{role}', [RoleController::class, 'update'])->name('roles.update')->middleware('can:users.edit');
     Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy')->middleware('can:users.delete');
+
+    // Accounting masters
+    Route::get('/account-groups', [AccountGroupController::class, 'index'])->name('account-groups.index')->middleware('can:masters.view');
+    Route::get('/account-groups/create', [AccountGroupController::class, 'create'])->name('account-groups.create')->middleware('can:masters.create');
+    Route::post('/account-groups', [AccountGroupController::class, 'store'])->name('account-groups.store')->middleware('can:masters.create');
+    Route::get('/account-groups/{accountGroup}/edit', [AccountGroupController::class, 'edit'])->name('account-groups.edit')->middleware('can:masters.edit');
+    Route::put('/account-groups/{accountGroup}', [AccountGroupController::class, 'update'])->name('account-groups.update')->middleware('can:masters.edit');
+    Route::delete('/account-groups/{accountGroup}', [AccountGroupController::class, 'destroy'])->name('account-groups.destroy')->middleware('can:masters.delete');
+
+    Route::get('/ledgers', [LedgerController::class, 'index'])->name('ledgers.index')->middleware('can:masters.view');
+    Route::get('/ledgers/create', [LedgerController::class, 'create'])->name('ledgers.create')->middleware('can:masters.create');
+    Route::post('/ledgers', [LedgerController::class, 'store'])->name('ledgers.store')->middleware('can:masters.create');
+    Route::get('/ledgers/{ledger}', [LedgerController::class, 'show'])->name('ledgers.show')->middleware('can:masters.view');
+    Route::get('/ledgers/{ledger}/edit', [LedgerController::class, 'edit'])->name('ledgers.edit')->middleware('can:masters.edit');
+    Route::put('/ledgers/{ledger}', [LedgerController::class, 'update'])->name('ledgers.update')->middleware('can:masters.edit');
+    Route::delete('/ledgers/{ledger}', [LedgerController::class, 'destroy'])->name('ledgers.destroy')->middleware('can:masters.delete');
+
+    Route::get('/cost-centres', [CostCentreController::class, 'index'])->name('cost-centres.index')->middleware('can:masters.view');
+    Route::post('/cost-centres', [CostCentreController::class, 'store'])->name('cost-centres.store')->middleware('can:masters.create');
+    Route::put('/cost-centres/{costCentre}', [CostCentreController::class, 'update'])->name('cost-centres.update')->middleware('can:masters.edit');
+    Route::delete('/cost-centres/{costCentre}', [CostCentreController::class, 'destroy'])->name('cost-centres.destroy')->middleware('can:masters.delete');
+    Route::post('/cost-categories', [CostCentreController::class, 'storeCategory'])->name('cost-categories.store')->middleware('can:masters.create');
 
     Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index')->middleware('can:audit.view');
     Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show'])->name('audit-logs.show')->middleware('can:audit.view');

@@ -13,31 +13,43 @@ trait Auditable
     public static function bootAuditable(): void
     {
         static::created(function ($model) {
-            AuditLog::record('created', $model, null, $model->auditableAttributes($model->getAttributes()));
+            $keys = array_keys($model->getAttributes());
+            AuditLog::record('created', $model, null, $model->auditValues($keys, fn ($k) => $model->getAttribute($k)));
         });
 
         static::updated(function ($model) {
-            $changes = $model->auditableAttributes($model->getChanges());
-            unset($changes['updated_at']);
+            $keys = array_diff(array_keys($model->getChanges()), ['updated_at']);
 
-            if ($changes === []) {
+            if ($keys === []) {
                 return;
             }
 
-            $old = array_intersect_key($model->auditableAttributes($model->getOriginal()), $changes);
-            AuditLog::record('updated', $model, $old, $changes);
+            AuditLog::record(
+                'updated',
+                $model,
+                $model->auditValues($keys, fn ($k) => $model->getOriginal($k)),
+                $model->auditValues($keys, fn ($k) => $model->getAttribute($k)),
+            );
         });
 
         static::deleted(function ($model) {
-            AuditLog::record('deleted', $model, $model->auditableAttributes($model->getOriginal()), null);
+            $keys = array_keys($model->getOriginal());
+            AuditLog::record('deleted', $model, $model->auditValues($keys, fn ($k) => $model->getOriginal($k)), null);
         });
     }
 
-    protected function auditableAttributes(array $attributes): array
+    /** Cast values (decimals as "5000.00", dates as strings) for the given keys, minus hidden ones. */
+    protected function auditValues(array $keys, callable $value): array
     {
-        $hidden = array_merge($this->getHidden(), $this->auditExclude ?? [], ['created_at']);
+        $hidden = array_merge($this->getHidden(), $this->auditExclude ?? [], ['created_at', 'updated_at']);
+        $out = [];
 
-        return array_diff_key($attributes, array_flip($hidden));
+        foreach (array_diff($keys, $hidden) as $key) {
+            $v = $value($key);
+            $out[$key] = $v instanceof \DateTimeInterface ? $v->format('Y-m-d H:i:s') : ($v instanceof \BackedEnum ? $v->value : $v);
+        }
+
+        return $out;
     }
 
     public function auditLabel(): string
