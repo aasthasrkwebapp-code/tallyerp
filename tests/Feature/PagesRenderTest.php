@@ -1,0 +1,32 @@
+<?php
+
+namespace Tests\Feature;
+
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+/**
+ * Smoke test: every main screen renders for the company owner.
+ */
+class PagesRenderTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_main_screens_render(): void
+    {
+        [$owner, $company] = $this->createCompanyWithOwner();
+        $role = \App\Models\Role::whereNull('company_id')->where('name', 'viewer')->first();
+
+        $pages = [
+            '/dashboard', '/companies', '/companies/create', "/companies/{$company->id}", "/companies/{$company->id}/edit",
+            '/settings', '/financial-years', '/members', '/roles/create', "/roles/{$role->id}", '/audit-logs', '/profile',
+        ];
+
+        foreach ($pages as $page) {
+            $this->actingAs($owner)->get($page)->assertOk();
+        }
+
+        $log = \App\Models\AuditLog::where("company_id", $company->id)->firstOrFail();
+        $this->actingAs($owner)->get("/audit-logs/{$log->id}")->assertOk();
+    }
+}

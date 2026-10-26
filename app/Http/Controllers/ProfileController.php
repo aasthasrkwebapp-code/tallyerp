@@ -48,6 +48,13 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
+        if ($user->ownedCompanies()->exists()) {
+            return Redirect::route('profile.edit')->withErrors(
+                ['password' => 'You still own one or more companies. Delete them or transfer ownership first.'],
+                'userDeletion'
+            );
+        }
+
         Auth::logout();
 
         $user->delete();

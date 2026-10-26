@@ -11,7 +11,16 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->alias([
+            'company' => \App\Http\Middleware\EnsureCompanySelected::class,
+        ]);
+
+        // The active company must be resolved before route-model binding so the
+        // tenant scope applies to bound models (cross-company ids give 404).
+        $middleware->prependToPriorityList(
+            before: \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            prepend: \App\Http\Middleware\EnsureCompanySelected::class,
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
