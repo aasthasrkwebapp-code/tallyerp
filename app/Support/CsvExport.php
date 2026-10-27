@@ -2,16 +2,34 @@
 
 namespace App\Support;
 
+use Illuminate\Http\Request;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
+/**
+ * Report downloads. Reports call download() with a header row and data rows;
+ * ?export=csv gives CSV and ?export=xlsx gives an Excel workbook of the same rows.
+ */
 class CsvExport
 {
+    public static function requested(Request $request): bool
+    {
+        return in_array($request->input('export'), ['csv', 'xlsx'], true);
+    }
+
     /**
-     * Stream a CSV download. Cells that start with = + - @ are prefixed with
-     * a quote so spreadsheet programs do not execute them as formulas.
+     * Stream a CSV download (or XLSX when ?export=xlsx). Cells that start with = + - @ are prefixed
+     * with a quote so spreadsheet programs do not execute them as formulas.
      */
     public static function download(string $filename, array $headers, iterable $rows): StreamedResponse
     {
+        if (request()->input('export') === 'xlsx') {
+            return static::xlsx(preg_replace('/\.csv$/i', '', $filename).'.xlsx', $headers, $rows);
+        }
+
         return response()->streamDownload(function () use ($headers, $rows) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM for Excel
@@ -21,6 +39,50 @@ class CsvExport
             }
             fclose($out);
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /** Excel workbook: numbers are stored as numbers, everything else as plain text (never formulas). */
+    public static function xlsx(string $filename, array $headers, iterable $rows, string $title = 'Report'): StreamedResponse
+    {
+        $book = static::workbook($headers, $rows, $title);
+
+        return response()->streamDownload(function () use ($book) {
+            (new Xlsx($book))->save('php://output');
+            $book->disconnectWorksheets();
+        }, $filename, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+    }
+
+    public static function workbook(array $headers, iterable $rows, string $title = 'Report'): Spreadsheet
+    {
+        $book = new Spreadsheet;
+        $sheet = $book->getActiveSheet();
+        $sheet->setTitle(mb_substr(preg_replace('/[\\\\\/?*\[\]:]/', ' ', $title), 0, 31));
+
+        $r = 1;
+        foreach (array_values($headers) as $i => $h) {
+            $sheet->setCellValueExplicit([$i + 1, $r], (string) $h, DataType::TYPE_STRING);
+        }
+        $sheet->getStyle([1, 1, max(count($headers), 1), 1])->getFont()->setBold(true);
+        $sheet->freezePane('A2');
+
+        foreach ($rows as $row) {
+            $r++;
+            foreach (array_values((array) $row) as $i => $value) {
+                if (is_int($value) || is_float($value) || (is_string($value) && preg_match('/^-?\d{1,13}(\.\d{1,4})?$/', $value) && ! preg_match('/^-?0\d/', $value))) {
+                    $sheet->setCellValueExplicit([$i + 1, $r], (float) $value, DataType::TYPE_NUMERIC);
+                    if (is_string($value) && str_contains($value, '.')) {
+                        $sheet->getStyle([$i + 1, $r])->getNumberFormat()->setFormatCode('#,##0.'.str_repeat('0', strlen(substr(strrchr($value, '.'), 1))));
+                    }
+                } else {
+                    $sheet->setCellValueExplicit([$i + 1, $r], (string) $value, DataType::TYPE_STRING);
+                }
+            }
+        }
+        foreach (range(1, max(count($headers), 1)) as $col) {
+            $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($col))->setAutoSize(true);
+        }
+
+        return $book;
     }
 
     public static function safe(mixed $value): string

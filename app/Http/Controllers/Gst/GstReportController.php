@@ -22,7 +22,7 @@ class GstReportController extends Controller
         [$from, $to] = $this->period($request);
         $data = $this->gst->gstr1($from, $to);
 
-        if ($request->input('export') === 'csv') {
+        if (\App\Support\CsvExport::requested($request)) {
             $this->authorize('reports.export');
 
             return $this->gstr1Csv((string) $request->input('section', 'b2b'), $data, $from, $to);
@@ -43,7 +43,7 @@ class GstReportController extends Controller
         [$from, $to] = $this->period($request);
         $rows = $this->gst->purchaseRegister($from, $to);
 
-        if ($request->input('export') === 'csv') {
+        if (\App\Support\CsvExport::requested($request)) {
             $this->authorize('reports.export');
             $sign = fn ($r) => $r['kind'] === 'debit_note' ? -1 : 1;
 

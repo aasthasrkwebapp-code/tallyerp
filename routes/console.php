@@ -10,3 +10,12 @@ Artisan::command('inspire', function () {
 
 // Company backups on their schedule (Company Settings → Data → Backups).
 Schedule::command('erp:backup --scheduled')->dailyAt('01:30')->withoutOverlapping();
+
+// Uploaded import files that were never imported.
+Schedule::call(function () {
+    foreach (glob(storage_path('app/private/imports/*')) ?: [] as $file) {
+        if (is_file($file) && filemtime($file) < now()->subDay()->getTimestamp()) {
+            @unlink($file);
+        }
+    }
+})->name('erp:clean-imports')->daily();

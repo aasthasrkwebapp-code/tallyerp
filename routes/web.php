@@ -32,6 +32,8 @@ use App\Http\Controllers\Transport\TransportReportController;
 use App\Http\Controllers\Transport\TripController;
 use App\Http\Controllers\Data\BackupController;
 use App\Http\Controllers\Data\IntegrityController;
+use App\Http\Controllers\Data\ImportController;
+use App\Http\Controllers\Data\ExportController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => auth()->check() ? redirect()->route('dashboard') : redirect()->route('login'));
@@ -266,6 +268,15 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
             Route::post('/backups/{backupLog}/restore', [BackupController::class, 'restore'])->name('backups.restore');
             Route::delete('/backups/{backupLog}', [BackupController::class, 'destroy'])->name('backups.destroy');
         });
+        Route::middleware('can:data.import')->group(function () {
+            Route::get('/import', [ImportController::class, 'index'])->name('imports.index');
+            Route::get('/import/template/{type}.{format}', [ImportController::class, 'template'])->name('imports.template')->where('format', 'csv|xlsx');
+            Route::post('/import/preview', [ImportController::class, 'preview'])->name('imports.preview');
+            Route::post('/import/confirm', [ImportController::class, 'confirm'])->name('imports.confirm');
+            Route::get('/import/errors', [ImportController::class, 'errors'])->name('imports.errors');
+        });
+        Route::get('/export', [ExportController::class, 'index'])->name('exports.index')->middleware('can:data.export');
+        Route::get('/export/{type}', [ExportController::class, 'download'])->name('exports.download')->middleware('can:data.export');
         Route::get('/integrity', IntegrityController::class)->name('integrity')->middleware('can:data.view');
     });
 

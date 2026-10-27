@@ -28,7 +28,7 @@ class AccountingReportController extends Controller
         $data = $this->statements->trialBalance($from, $to);
         $detailed = $request->boolean('ledgers');
 
-        if ($request->input('export') === 'csv') {
+        if (\App\Support\CsvExport::requested($request)) {
             $this->authorize('reports.export');
 
             $rows = $data['rows']->filter(fn ($r) => $r->opening || $r->debit || $r->credit)->map(fn ($r) => [
@@ -69,7 +69,7 @@ class AccountingReportController extends Controller
         [$from, $to] = $this->period($request);
         $data = $cashFlow->statement($from, $to);
 
-        if ($request->input('export') === 'csv') {
+        if (\App\Support\CsvExport::requested($request)) {
             $this->authorize('reports.export');
             $rows = collect([['Opening cash and bank balance', '', Money::fromPaise($data['opening'])]]);
             foreach ($data['sections'] as $section) {
@@ -112,7 +112,7 @@ class AccountingReportController extends Controller
             ->orderBy('date')->orderBy('id')
             ->get();
 
-        if ($request->input('export') === 'csv') {
+        if (\App\Support\CsvExport::requested($request)) {
             $this->authorize('reports.export');
 
             return CsvExport::download("day-book-{$from}-to-{$to}.csv", ['Date', 'Type', 'Number', 'Ledger', 'Debit', 'Credit', 'Narration', 'Status'],
@@ -180,7 +180,7 @@ class AccountingReportController extends Controller
                 'totalCr' => $balance->credit,
             ]);
 
-            if ($request->input('export') === 'csv') {
+            if (\App\Support\CsvExport::requested($request)) {
                 $this->authorize('reports.export');
                 $csv = collect([[$from, 'Opening balance', '', '', '', '', Money::drCr($balance->opening)]])
                     ->concat($lines->map(fn ($l) => [

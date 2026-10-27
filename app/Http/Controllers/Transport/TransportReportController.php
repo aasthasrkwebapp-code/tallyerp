@@ -30,7 +30,7 @@ class TransportReportController extends Controller
             'drivers' => ['rows' => $this->reports->drivers($from, $to)],
         };
 
-        if ($request->input('export') === 'csv') {
+        if (\App\Support\CsvExport::requested($request)) {
             $this->authorize('reports.export');
             $f = fn (int $p) => Money::fromPaise($p);
             [$header, $rows] = match ($report) {

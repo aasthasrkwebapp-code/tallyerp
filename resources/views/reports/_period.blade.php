@@ -20,6 +20,7 @@
             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.print()"><i class="bi bi-printer"></i> Print</button>
             @if (($csv ?? false) && auth()->user()->can('reports.export'))
                 <a class="btn btn-sm btn-outline-secondary" href="{{ request()->fullUrlWithQuery(['export' => 'csv', 'from' => $from, 'to' => $to]) }}"><i class="bi bi-filetype-csv"></i> CSV</a>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ request()->fullUrlWithQuery(['export' => 'xlsx', 'from' => $from, 'to' => $to]) }}"><i class="bi bi-file-earmark-excel"></i> Excel</a>
             @endif
         </div>
     </div>

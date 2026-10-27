@@ -243,6 +243,8 @@ return [
         ['label' => 'Companies', 'icon' => 'buildings', 'route' => 'companies.index'],
         ['heading' => 'Data'],
         ['label' => 'Backup & Restore', 'icon' => 'database-check', 'route' => 'backups.index', 'can' => 'data.backup'],
+        ['label' => 'Import', 'icon' => 'box-arrow-in-down', 'route' => 'imports.index', 'can' => 'data.import'],
+        ['label' => 'Export', 'icon' => 'box-arrow-up', 'route' => 'exports.index', 'can' => 'data.export'],
         ['label' => 'Integrity Check', 'icon' => 'clipboard2-check', 'route' => 'integrity', 'can' => 'data.view'],
     ],
 

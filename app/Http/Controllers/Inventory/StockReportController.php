@@ -39,7 +39,7 @@ class StockReportController extends Controller
             ->filter(fn ($s) => $s->rows->isNotEmpty())
             ->values();
 
-        if ($request->input('export') === 'csv') {
+        if (\App\Support\CsvExport::requested($request)) {
             $this->authorize('reports.export');
 
             return CsvExport::download("stock-summary-{$asOf}.csv", ['Item', 'Group', 'Quantity', 'Unit', 'Rate', 'Value'],

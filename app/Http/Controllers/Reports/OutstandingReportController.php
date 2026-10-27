@@ -32,7 +32,7 @@ class OutstandingReportController extends Controller
             $totals[$bucket] = $rows->sum($bucket);
         }
 
-        if ($request->input('export') === 'csv') {
+        if (\App\Support\CsvExport::requested($request)) {
             $this->authorize('reports.export');
 
             return CsvExport::download("{$type}s-{$to}.csv",
@@ -58,7 +58,7 @@ class OutstandingReportController extends Controller
         $balance = ($this->outstanding->balances([$ledger->id], $to)[$ledger->id] ?? 0) * ($type === 'payable' ? -1 : 1);
         $bills = $ledger->maintain_bill_wise ? $this->outstanding->bills($ledger, $to) : collect();
 
-        if ($request->input('export') === 'csv') {
+        if (\App\Support\CsvExport::requested($request)) {
             $this->authorize('reports.export');
 
             return CsvExport::download("outstanding-{$ledger->id}-{$to}.csv",

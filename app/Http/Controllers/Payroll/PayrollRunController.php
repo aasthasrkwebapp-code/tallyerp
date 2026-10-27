@@ -40,7 +40,7 @@ class PayrollRunController extends Controller
         $heads = PayHead::query()->whereIn('id', $headIds)->orderBy('sort_order')->orderBy('id')->get();
         $amounts = $payrollRun->payslips->mapWithKeys(fn ($s) => [$s->id => $s->lines->keyBy('pay_head_id')]);
 
-        if ($request->input('export') === 'csv') {
+        if (\App\Support\CsvExport::requested($request)) {
             $this->authorize('payroll.view');
             $header = array_merge(['Code', 'Employee', 'Paid days'], $heads->pluck('name')->all(), ['Gross', 'Deductions', 'Net pay', 'Employer contributions']);
             $rows = $payrollRun->payslips->sortBy('employee_code')->map(fn ($s) => array_merge(
