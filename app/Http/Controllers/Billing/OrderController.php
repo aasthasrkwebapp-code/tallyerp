@@ -73,7 +73,7 @@ class OrderController extends Controller
     public function show(Request $request, Order $order)
     {
         $this->authorizeKind($request, $order->kind, 'view');
-        $order->load('items.stockItem.unit', 'party.partyDetails', 'creator', 'statusUser');
+        $order->load('items.stockItem.unit', 'party.partyDetails', 'creator', 'statusUser', 'source');
         $progress = $this->orders->progress($order);
 
         return view('billing.orders.show', [
@@ -83,6 +83,7 @@ class OrderController extends Controller
             'label' => $this->orders->statusLabel($order, $progress),
             'invoices' => $this->orders->invoicesFor($order),
             'locked' => $this->orders->referenced($order),
+            'conversions' => $order->conversions()->get(),
             'notes' => \App\Models\DeliveryNote::query()->whereHas('items', fn ($q) => $q->whereIn('order_item_id', $order->items->pluck('id')))->orderBy('date')->get(),
         ]);
     }
@@ -129,6 +130,18 @@ class OrderController extends Controller
         return redirect()->route('orders.show', $order)->with('success', "Order {$order->number} reopened.");
     }
 
+    /** Turn an open quotation into a sales order. */
+    public function convert(Request $request, Order $order)
+    {
+        abort_unless($order->isQuotation(), 404);
+        $target = $order->config()['converts_to'];
+        $this->authorizeKind($request, $target, 'create');
+        $data = $request->validate(['date' => ['nullable', 'date']]);
+        $new = $this->orders->convert($order, $request->user(), $data['date'] ?? null);
+
+        return redirect()->route('orders.show', $new)->with('success', "Quotation {$order->number} converted to ".mb_strtolower($new->config()['label'])." {$new->number}.");
+    }
+
     public function print(Request $request, Order $order)
     {
         return view('pdf.order', $this->printData($request, $order) + ['printable' => true]);
@@ -147,6 +160,7 @@ class OrderController extends Controller
     {
         $kind = $this->kind($request);
         $this->authorizeKind($request, $kind, 'view');
+        abort_if(Order::kindConfig($kind)['quotation'] ?? false, 404);
         $filters = $request->validate(['party' => ['nullable', 'integer'], 'overdue' => ['nullable', 'boolean']]);
         $config = Order::kindConfig($kind);
         $today = now()->toDateString();
@@ -240,7 +254,7 @@ class OrderController extends Controller
         ], [
             'party_account_id.required' => 'Select the party.',
             'items.required' => 'Add at least one item.',
-            'delivery_date.after_or_equal' => 'The delivery date cannot be before the order date.',
+            'delivery_date.after_or_equal' => 'This date cannot be before the document date.',
         ]);
 
         $data = $request->only(['date', 'delivery_date', 'party_account_id', 'reference', 'reference_date', 'place_of_supply', 'narration', 'terms']);

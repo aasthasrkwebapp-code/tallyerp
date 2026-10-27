@@ -31,17 +31,17 @@
                 @error('party_account_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
             <div class="col-6 col-md-3 col-lg-2">
-                <label for="date" class="form-label">Order date</label>
+                <label for="date" class="form-label">{{ ($config['quotation'] ?? false) ? 'Date' : 'Order date' }}</label>
                 <input id="date" type="date" name="date" value="{{ $input['date'] ?? '' }}" class="form-control @error('date') is-invalid @enderror" required>
                 @error('date')<div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
             <div class="col-6 col-md-3 col-lg-2">
-                <label for="delivery_date" class="form-label">Delivery by</label>
+                <label for="delivery_date" class="form-label">{{ $config['date_label'] ?? 'Delivery by' }}</label>
                 <input id="delivery_date" type="date" name="delivery_date" value="{{ $input['delivery_date'] ?? '' }}" class="form-control @error('delivery_date') is-invalid @enderror">
                 @error('delivery_date')<div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
             <div class="col-6 col-md-3 col-lg-2">
-                <label for="reference" class="form-label">{{ $config['invoice_kind'] === 'sales' ? "Customer's PO no." : 'Quotation ref.' }}</label>
+                <label for="reference" class="form-label">{{ ($config['quotation'] ?? false) ? 'Enquiry ref.' : ($config['invoice_kind'] === 'sales' ? "Customer's PO no." : 'Quotation ref.') }}</label>
                 <input id="reference" name="reference" value="{{ $input['reference'] ?? '' }}" class="form-control @error('reference') is-invalid @enderror" maxlength="50">
             </div>
             <div class="col-6 col-md-3 col-lg-2">

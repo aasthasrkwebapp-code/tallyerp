@@ -101,6 +101,27 @@ class OrderService
         });
     }
 
+    /** Make a sales order from an open quotation; the quotation is closed as converted. */
+    public function convert(Order $quote, User $user, ?string $date = null): Order
+    {
+        if (! $quote->isQuotation() || ! $quote->isOpen()) {
+            throw ValidationException::withMessages(['order' => 'Only open quotations can be converted.']);
+        }
+        $target = $quote->config()['converts_to'];
+
+        return DB::transaction(function () use ($quote, $user, $date, $target) {
+            $input = $this->toInput($quote);
+            $input['date'] = $date ?? now()->toDateString();
+            $input['delivery_date'] = null;
+            $input['narration'] = trim('From quotation '.$quote->number.'. '.($quote->narration ?? ''));
+            $order = $this->save(null, $target, $input, $user);
+            $order->update(['source_id' => $quote->id]);
+            $this->setStatus($quote, Order::CLOSED, $user, 'Converted to '.mb_strtolower(Order::kindConfig($target)['label']).' '.$order->number, 'converted');
+
+            return $order->fresh(['items', 'source']);
+        });
+    }
+
     /** Cancel an order nothing has been invoiced against. */
     public function cancel(Order $order, User $user, string $reason): Order
     {
@@ -128,6 +149,9 @@ class OrderService
     {
         if ($order->status !== Order::CLOSED) {
             throw ValidationException::withMessages(['order' => 'Only closed orders can be reopened.']);
+        }
+        if ($order->isQuotation() && $order->conversions()->exists()) {
+            throw ValidationException::withMessages(['order' => 'This quotation has been converted, so it cannot be reopened.']);
         }
 
         return $this->setStatus($order, Order::OPEN, $user, null, 'reopened');
@@ -199,6 +223,13 @@ class OrderService
         if ($order->status === Order::CANCELLED) {
             return 'Cancelled';
         }
+        if ($order->isQuotation()) {
+            if ($order->status === Order::CLOSED) {
+                return $order->conversions()->exists() ? 'Converted' : 'Closed';
+            }
+
+            return $order->delivery_date && $order->delivery_date->toDateString() < now()->toDateString() ? 'Expired' : 'Open';
+        }
         if ($order->status === Order::CLOSED) {
             return 'Closed';
         }
@@ -215,6 +246,9 @@ class OrderService
     {
         if (! $order->isOpen()) {
             throw ValidationException::withMessages(['order' => 'This order is '.$order->status.'.']);
+        }
+        if ($order->isQuotation()) {
+            throw ValidationException::withMessages(['order' => 'Convert the quotation to a sales order first.']);
         }
         $config = $order->config();
         $ledgerColumn = $config['invoice_kind'] === 'sales' ? 'sales_account_id' : 'purchase_account_id';
@@ -254,7 +288,7 @@ class OrderService
      */
     public function checkInvoiceLines(string $invoiceKind, int $partyId, array $lines, ?Invoice $invoice): array
     {
-        $orderKind = collect(Order::kinds())->search(fn ($c) => $c['invoice_kind'] === $invoiceKind);
+        $orderKind = collect(Order::kinds())->search(fn ($c) => $c['invoice_kind'] === $invoiceKind && empty($c['quotation']));
         $errors = [];
         if (! $lines) {
             return [];

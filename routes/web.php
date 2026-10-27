@@ -245,6 +245,7 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
     Route::post('/orders/{order}/close', [OrderController::class, 'close'])->name('orders.close');
     Route::post('/orders/{order}/reopen', [OrderController::class, 'reopen'])->name('orders.reopen');
+    Route::post('/orders/{order}/convert', [OrderController::class, 'convert'])->name('orders.convert');
 
     // Delivery notes and goods receipt notes (permissions checked per kind in the controller)
     Route::get('/notes', [DeliveryNoteController::class, 'index'])->name('notes.index');

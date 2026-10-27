@@ -4,6 +4,8 @@
 @php($q = fn ($milli, $p) => \App\Services\Inventory\StockLedger::qty($milli).($p->item->unit ? ' '.$p->item->unit : ''))
 @php($m = fn ($p) => \App\Support\Money::format($p, paiseInput: true))
 @php($pendingTotal = $progress->sum('pending_value'))
+@php($quote = $order->isQuotation())
+@php($noun = mb_strtolower($config['label']))
 
 @section('title', $config['label'].' '.$order->number)
 
@@ -14,11 +16,14 @@
         <p class="text-secondary mb-0">{{ $order->date->format('d M Y') }} · {{ $order->party_name }} · Entered by {{ $order->creator?->name ?? '—' }}</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
-        @if ($order->isOpen() && $pendingTotal + $progress->sum('pending') > 0 && $user->can($config['module'].'.create'))
+        @if ($quote && $order->isOpen() && $user->can(\App\Models\Order::kindConfig($config['converts_to'])['module'].'.create'))
+            <form method="POST" action="{{ route('orders.convert', $order) }}" data-confirm="Convert quotation {{ $order->number }} to a sales order?">@csrf<button class="btn btn-primary"><i class="bi bi-arrow-right-circle me-1"></i>Convert to {{ mb_strtolower(\App\Models\Order::kindConfig($config['converts_to'])['label']) }}</button></form>
+        @endif
+        @if (! $quote && $order->isOpen() && $pendingTotal + $progress->sum('pending') > 0 && $user->can($config['module'].'.create'))
             <a href="{{ route('invoices.create', ['kind' => $config['invoice_kind'], 'order' => $order->id]) }}" class="btn btn-primary"><i class="bi bi-receipt me-1"></i>{{ $config['invoice_kind'] === 'sales' ? 'Make sales invoice' : 'Make purchase bill' }}</a>
         @endif
         @php($noteKind = $config['invoice_kind'] === 'sales' ? 'delivery_note' : 'receipt_note')
-        @if ($order->isOpen() && $progress->contains(fn ($p) => $p->pending > 0 && $p->item->stock_item_id) && $user->can($config['module'].'.create'))
+        @if (! $quote && $order->isOpen() && $progress->contains(fn ($p) => $p->pending > 0 && $p->item->stock_item_id) && $user->can($config['module'].'.create'))
             <a href="{{ route('notes.create', ['kind' => $noteKind, 'order' => $order->id]) }}" class="btn btn-outline-primary"><i class="bi bi-box-seam me-1"></i>{{ $config['invoice_kind'] === 'sales' ? 'Make delivery note' : 'Make goods receipt note' }}</a>
         @endif
         <a href="{{ route('orders.print', $order) }}" class="btn btn-outline-secondary" target="_blank" rel="noopener"><i class="bi bi-printer me-1"></i>Print</a>
@@ -27,13 +32,13 @@
             <a href="{{ route('orders.edit', $order) }}" class="btn btn-outline-primary"><i class="bi bi-pencil me-1"></i>Alter</a>
         @endif
         @if ($order->isOpen() && $user->can($config['module'].'.edit'))
-            <button class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#close-panel" aria-expanded="false">Close order</button>
+            <button class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#close-panel" aria-expanded="false">Close {{ $noun }}</button>
         @endif
-        @if ($order->status === 'closed' && $user->can($config['module'].'.edit'))
+        @if ($order->status === 'closed' && $conversions->isEmpty() && $user->can($config['module'].'.edit'))
             <form method="POST" action="{{ route('orders.reopen', $order) }}">@csrf<button class="btn btn-outline-secondary">Reopen</button></form>
         @endif
         @if ($order->isOpen() && $invoices->where(fn ($i) => $i->status() === 'posted')->isEmpty() && $user->can($config['module'].'.delete'))
-            <button class="btn btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#cancel-panel" aria-expanded="false">Cancel order</button>
+            <button class="btn btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#cancel-panel" aria-expanded="false">Cancel {{ $noun }}</button>
         @endif
     </div>
 </div>
@@ -44,23 +49,29 @@
     <div class="collapse" id="close-panel">
         <form method="POST" action="{{ route('orders.close', $order) }}" class="erp-card p-3 mb-3" style="max-width: 560px">
             @csrf
-            <p class="small mb-2">Closing stops further invoicing; the pending quantity is dropped from the pending orders report. You can reopen it later.</p>
+            <p class="small mb-2">@if ($quote)Closing marks the quotation as not accepted. You can reopen it later.@else Closing stops further invoicing; the pending quantity is dropped from the pending orders report. You can reopen it later.@endif</p>
             <label for="close-reason" class="form-label">Reason</label>
             <input id="close-reason" name="reason" class="form-control mb-2" required maxlength="255" placeholder="E.g. customer cancelled the balance">
-            <button class="btn btn-secondary">Close order</button>
+            <button class="btn btn-secondary">Close {{ $noun }}</button>
         </form>
     </div>
     <div class="collapse" id="cancel-panel">
-        <form method="POST" action="{{ route('orders.cancel', $order) }}" class="erp-card p-3 mb-3" style="max-width: 560px" data-confirm="Cancel order {{ $order->number }}?">
+        <form method="POST" action="{{ route('orders.cancel', $order) }}" class="erp-card p-3 mb-3" style="max-width: 560px" data-confirm="Cancel {{ $noun }} {{ $order->number }}?">
             @csrf
             <label for="cancel-reason" class="form-label">Reason for cancelling</label>
             <input id="cancel-reason" name="reason" class="form-control mb-2" required maxlength="255">
-            <button class="btn btn-danger">Cancel order</button>
+            <button class="btn btn-danger">Cancel {{ $noun }}</button>
         </form>
     </div>
 @else
     <div class="alert alert-{{ $order->status === 'cancelled' ? 'danger' : 'secondary' }} small">{{ ucfirst($order->status) }} {{ $order->status_at?->format('d M Y H:i') }}@if ($order->statusUser) by {{ $order->statusUser->name }}@endif: {{ $order->status_reason }}</div>
 @endif
+@if ($order->source)
+    <div class="alert alert-light border small">Made from quotation <a href="{{ route('orders.show', $order->source) }}">{{ $order->source->number }}</a> of {{ $order->source->date->format('d M Y') }}.</div>
+@endif
+@foreach ($conversions as $c)
+    <div class="alert alert-success small">Converted to {{ mb_strtolower($c->config()['label']) }} <a href="{{ route('orders.show', $c) }}">{{ $c->number }}</a> on {{ $c->created_at->format('d M Y') }}.</div>
+@endforeach
 @if ($order->isOpen() && $locked)
     <div class="alert alert-info small">Invoices have been made against this order, so its lines are fixed. Close it if the rest will not be supplied.</div>
 @endif
@@ -77,11 +88,11 @@
     <div class="col-12 col-lg-8">
         <div class="erp-card p-3 h-100">
             <div class="row g-2 small">
-                <div class="col-6 col-md-4"><div class="text-secondary">Delivery by</div>{{ $order->delivery_date?->format('d M Y') ?? '—' }}
-                    @if ($order->isOpen() && $order->delivery_date && $order->delivery_date->isPast() && $label !== 'Delivered')<span class="badge text-bg-danger">Overdue</span>@endif</div>
+                <div class="col-6 col-md-4"><div class="text-secondary">{{ $config['date_label'] ?? 'Delivery by' }}</div>{{ $order->delivery_date?->format('d M Y') ?? '—' }}
+                    @if (! $quote && $order->isOpen() && $order->delivery_date && $order->delivery_date->isPast() && $label !== 'Delivered')<span class="badge text-bg-danger">Overdue</span>@endif</div>
                 <div class="col-6 col-md-4"><div class="text-secondary">Reference</div>{{ $order->reference ?? '—' }} {{ $order->reference_date?->format('d-m-Y') }}</div>
                 <div class="col-6 col-md-4"><div class="text-secondary">Tax</div>{{ ['intra' => 'CGST + SGST', 'inter' => 'IGST', 'none' => 'No GST'][$order->tax_mode] }}@if ($order->place_of_supply) · {{ $order->place_of_supply }}@endif</div>
-                <div class="col-6 col-md-4"><div class="text-secondary">Pending value</div>{{ $m($pendingTotal) }}</div>
+                @unless ($quote)<div class="col-6 col-md-4"><div class="text-secondary">Pending value</div>{{ $m($pendingTotal) }}</div>@endunless
             </div>
         </div>
     </div>
@@ -90,15 +101,17 @@
 <div class="erp-card mb-3">
     <div class="table-responsive">
         <table class="table align-middle mb-0 table-stack">
-            <thead class="table-light"><tr><th>#</th><th>Description</th><th class="text-end">Ordered</th><th class="text-end">Delivered</th><th class="text-end">Pending</th><th class="text-end">Rate</th><th class="text-end">GST %</th><th class="text-end">Amount</th></tr></thead>
+            <thead class="table-light"><tr><th>#</th><th>Description</th><th class="text-end">{{ $quote ? 'Quantity' : 'Ordered' }}</th>@unless ($quote)<th class="text-end">Delivered</th><th class="text-end">Pending</th>@endunless<th class="text-end">Rate</th><th class="text-end">GST %</th><th class="text-end">Amount</th></tr></thead>
             <tbody>
             @foreach ($progress as $p)
                 <tr>
                     <td data-label="#">{{ $p->item->line_no }}</td>
                     <td data-label="Description">{{ $p->item->description }}@if ($p->item->hsn_sac)<div class="small text-secondary">HSN {{ $p->item->hsn_sac }}</div>@endif</td>
-                    <td data-label="Ordered" class="text-end">{{ $q($p->ordered, $p) }}</td>
+                    <td data-label="{{ $quote ? 'Quantity' : 'Ordered' }}" class="text-end">{{ $q($p->ordered, $p) }}</td>
+                    @unless ($quote)
                     <td data-label="Delivered" class="text-end">{{ $q($p->delivered, $p) }}</td>
                     <td data-label="Pending" class="text-end fw-semibold">{{ $q($p->pending, $p) }}</td>
+                    @endunless
                     <td data-label="Rate" class="amount">{{ \App\Support\Money::format($p->item->rate) }}@if ((float) $p->item->discount_percent)<div class="small text-secondary">less {{ \App\Support\Decimal::trim($p->item->discount_percent) }}%</div>@endif</td>
                     <td data-label="GST %" class="text-end">{{ \App\Support\Decimal::trim($p->item->gst_rate) }}</td>
                     <td data-label="Amount" class="amount">{{ \App\Support\Money::format($p->item->total_amount) }}</td>
@@ -111,6 +124,7 @@
 
 <div class="row g-3">
     <div class="col-12 col-lg-7">
+        @unless ($quote)
         <div class="erp-card mb-3">
             <div class="erp-card-header">{{ $config['invoice_kind'] === 'sales' ? 'Sales invoices' : 'Purchase bills' }} against this order</div>
             <div class="table-responsive">
@@ -131,6 +145,7 @@
                 </table>
             </div>
         </div>
+        @endunless
         @if ($notes->isNotEmpty())
             <div class="erp-card p-3 mb-3 small"><span class="text-secondary">{{ $config['invoice_kind'] === 'sales' ? 'Delivery notes' : 'Goods receipt notes' }}:</span>
                 @foreach ($notes as $n)<a href="{{ route('notes.show', $n) }}" class="me-2">{{ $n->number }}{{ $n->isPosted() ? '' : ' (cancelled)' }}</a>@endforeach

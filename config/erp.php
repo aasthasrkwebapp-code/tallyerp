@@ -95,7 +95,7 @@ return [
         'delivery_note_items' => null,
         'delivery_notes' => null,
         'order_items' => null,
-        'orders' => null,
+        'orders' => 'source_id',
         'parties' => null,
         'stock_journal_lines' => null,
         'stock_journals' => null,
@@ -183,6 +183,7 @@ return [
 
     // Sales and purchase orders: the invoice kind that fulfils each.
     'order_kinds' => [
+        'quotation' => ['label' => 'Quotation', 'plural' => 'Quotations', 'prefix' => 'QT', 'invoice_kind' => 'sales', 'module' => 'sales', 'party_group' => 'sundry_debtors', 'quotation' => true, 'converts_to' => 'sales_order', 'date_label' => 'Valid until'],
         'sales_order' => ['label' => 'Sales Order', 'plural' => 'Sales Orders', 'prefix' => 'SO', 'invoice_kind' => 'sales', 'module' => 'sales', 'party_group' => 'sundry_debtors'],
         'purchase_order' => ['label' => 'Purchase Order', 'plural' => 'Purchase Orders', 'prefix' => 'PO', 'invoice_kind' => 'purchase', 'module' => 'purchases', 'party_group' => 'sundry_creditors'],
     ],
@@ -222,6 +223,7 @@ return [
         ['label' => 'Units, Groups & Godowns', 'icon' => 'boxes', 'route' => 'inventory-masters.index', 'can' => 'inventory.view', 'params' => ['master' => 'units']],
         ['heading' => 'Transactions'],
         ['label' => 'Vouchers', 'icon' => 'journal-text', 'route' => 'vouchers.index', 'can' => 'vouchers.view'],
+        ['label' => 'Quotations', 'icon' => 'chat-square-quote', 'route' => 'orders.index', 'can' => 'sales.view', 'params' => ['kind' => 'quotation']],
         ['label' => 'Sales Orders', 'icon' => 'clipboard-plus', 'route' => 'orders.index', 'can' => 'sales.view', 'params' => ['kind' => 'sales_order']],
         ['label' => 'Delivery Notes', 'icon' => 'box-arrow-right', 'route' => 'notes.index', 'can' => 'sales.view', 'params' => ['kind' => 'delivery_note']],
         ['label' => 'Sales Invoices', 'icon' => 'receipt', 'route' => 'invoices.index', 'can' => 'sales.view', 'params' => ['kind' => 'sales']],

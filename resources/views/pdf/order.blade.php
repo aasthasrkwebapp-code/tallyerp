@@ -27,7 +27,7 @@
             @if (! $order->isOpen())<div class="stamp">{{ strtoupper($order->status) }}</div>@endif
             <div>No. <b>{{ $order->number }}</b></div>
             <div>Date {{ $order->date->format('d-m-Y') }}</div>
-            @if ($order->delivery_date)<div>Delivery by {{ $order->delivery_date->format('d-m-Y') }}</div>@endif
+            @if ($order->delivery_date)<div>{{ $config['date_label'] ?? 'Delivery by' }} {{ $order->delivery_date->format('d-m-Y') }}</div>@endif
         </td>
     </tr>
 </table>
@@ -41,7 +41,7 @@
             @if ($details?->gstin)<div>GSTIN: {{ $details->gstin }}</div>@endif
         </td>
         <td>
-            @if ($order->reference)<div>{{ $config['invoice_kind'] === 'sales' ? "Customer's PO" : 'Quotation' }}: {{ $order->reference }} {{ $order->reference_date?->format('d-m-Y') }}</div>@endif
+            @if ($order->reference)<div>{{ ($config['quotation'] ?? false) ? 'Enquiry' : ($config['invoice_kind'] === 'sales' ? "Customer's PO" : 'Quotation') }}: {{ $order->reference }} {{ $order->reference_date?->format('d-m-Y') }}</div>@endif
             @if ($order->place_of_supply)<div>Place of supply: {{ $order->place_of_supply }}</div>@endif
         </td>
     </tr>

@@ -151,6 +151,9 @@ class DeliveryNoteService
     /** Note form input for the pending lines of an open order. */
     public function orderInput(Order $order): array
     {
+        if ($order->isQuotation()) {
+            throw ValidationException::withMessages(['order' => 'Convert the quotation to a sales order before delivering it.']);
+        }
         $godown = Godown::defaultId();
         $lines = $this->orders->progress($order)->filter(fn ($p) => $p->pending > 0 && $p->item->stock_item_id)->map(fn ($p) => [
             'order_item_id' => $p->item->id,

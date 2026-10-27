@@ -9,7 +9,7 @@
         <p class="text-secondary mb-0">Orders do not post to the accounts or move stock; the {{ $config['invoice_kind'] === 'sales' ? 'sales invoices' : 'purchase bills' }} made against them do.</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
-        <a href="{{ route('orders.pending', ['kind' => $kind]) }}" class="btn btn-outline-secondary"><i class="bi bi-hourglass me-1"></i>Pending</a>
+        @unless ($config['quotation'] ?? false)<a href="{{ route('orders.pending', ['kind' => $kind]) }}" class="btn btn-outline-secondary"><i class="bi bi-hourglass me-1"></i>Pending</a>@endunless
         @can($config['module'].'.create')
             <a href="{{ route('orders.create', ['kind' => $kind]) }}" class="btn btn-primary" data-shortcut="c"><i class="bi bi-plus-lg me-1"></i>New {{ mb_strtolower($config['label']) }}</a>
         @endcan
@@ -45,7 +45,7 @@
 <div class="erp-card">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0 table-stack">
-            <thead class="table-light"><tr><th>Number</th><th>Date</th><th>Party</th><th>Reference</th><th>Delivery by</th><th>Status</th><th class="text-end">Total</th></tr></thead>
+            <thead class="table-light"><tr><th>Number</th><th>Date</th><th>Party</th><th>Reference</th><th>{{ $config['date_label'] ?? 'Delivery by' }}</th><th>Status</th><th class="text-end">Total</th></tr></thead>
             <tbody>
             @forelse ($orders as $o)
                 <tr class="{{ $o->status === 'cancelled' ? 'text-secondary text-decoration-line-through' : '' }}">
@@ -53,7 +53,7 @@
                     <td data-label="Date">{{ $o->date->format('d-m-Y') }}</td>
                     <td data-label="Party">{{ $o->party_name }}</td>
                     <td data-label="Reference">{{ $o->reference ?? '—' }}</td>
-                    <td data-label="Delivery by">{{ $o->delivery_date?->format('d-m-Y') ?? '—' }}</td>
+                    <td data-label="{{ $config['date_label'] ?? 'Delivery by' }}">{{ $o->delivery_date?->format('d-m-Y') ?? '—' }}</td>
                     <td data-label="Status">@include('billing.orders._status', ['label' => $labels[$o->id]])</td>
                     <td data-label="Total" class="amount fw-semibold">{{ \App\Support\Money::format($o->grand_total) }}</td>
                 </tr>
