@@ -11,7 +11,8 @@ code and database schema.
 |-----------|---------|
 | PHP | 8.2 or 8.3 (tested on **PHP 8.3.6**) |
 | Laravel | 12.x |
-| Database | MySQL 8 (production) · SQLite in-memory (automated tests) |
+| Database | MySQL 8.0 (production, suite verified) · SQLite in-memory (default for tests) |
+| PDF / Excel | barryvdh/laravel-dompdf 3.1 · phpoffice/phpspreadsheet 5.x |
 | UI | Blade, Bootstrap 5.3 (CDN), Bootstrap Icons, vanilla JavaScript |
 | Tests | PHPUnit 11 |
 
@@ -58,6 +59,13 @@ php artisan test
 ```
 
 Tests use an in-memory SQLite database (see `phpunit.xml`) and never touch your MySQL data.
+To run them on MySQL, point `DB_CONNECTION=mysql` and the `DB_*` variables at an empty test
+database. CI runs both on PHP 8.2 and 8.3.
+
+## Deployment
+
+See [`docs/deployment.md`](docs/deployment.md) for the production checklist (server, `.env`,
+scheduler, backups).
 
 ## Module status
 
