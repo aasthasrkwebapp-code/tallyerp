@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'company' => \App\Http\Middleware\EnsureCompanySelected::class,
         ]);
+        $middleware->web(append: [\App\Http\Middleware\SecurityHeaders::class]);
 
         // The active company must be resolved before route-model binding so the
         // tenant scope applies to bound models (cross-company ids give 404).

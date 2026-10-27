@@ -28,6 +28,9 @@ class BackupService
 {
     public const FORMAT = 1;
 
+    /** Refuse archives that unpack to more than this (protects memory during verify and restore). */
+    public const MAX_UNPACKED_BYTES = 1024 * 1024 * 1024;
+
     /** Company fields saved in the manifest and put back on restore. */
     protected const COMPANY_FIELDS = [
         'name', 'legal_name', 'mailing_name', 'pan', 'cin', 'tan', 'email', 'phone', 'website',
@@ -224,8 +227,11 @@ class BackupService
             }
             DB::table('companies')->where('id', $company->id)->update($fields + ['updated_at' => now()]);
 
-            if (! empty($manifest['logo']) && ($logo = $zip->getFromName($manifest['logo'])) !== false) {
-                $path = "logos/{$company->id}/".basename($manifest['logo']);
+            $logo = ! empty($manifest['logo']) ? $zip->getFromName((string) $manifest['logo']) : false;
+            $extension = strtolower(pathinfo((string) ($manifest['logo'] ?? ''), PATHINFO_EXTENSION));
+            // Only a real image with an image extension is written to the public disk.
+            if ($logo !== false && in_array($extension, ['png', 'jpg', 'jpeg', 'webp'], true) && @getimagesizefromstring($logo)) {
+                $path = "logos/{$company->id}/".Str::random(20).'.'.$extension;
                 Storage::disk('public')->put($path, $logo);
                 DB::table('companies')->where('id', $company->id)->update(['logo_path' => $path]);
             }
@@ -265,6 +271,13 @@ class BackupService
         $zip = $this->open($path);
         $manifest = $this->readManifest($path);
 
+        $unpacked = 0;
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $unpacked += (int) ($zip->statIndex($i)['size'] ?? 0);
+        }
+        if ($unpacked > self::MAX_UNPACKED_BYTES) {
+            return ['The backup is too large to restore here ('.round($unpacked / 1048576).' MB unpacked).'];
+        }
         if (($manifest['format'] ?? null) !== self::FORMAT) {
             return ['This file is not a backup made by this application, or it is from an unsupported version.'];
         }

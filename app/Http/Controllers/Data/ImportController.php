@@ -45,7 +45,8 @@ class ImportController extends Controller
         $this->authorizeType($request, $data['type']);
 
         $file = $request->file('file');
-        $extension = strtolower($file->getClientOriginalExtension()) ?: 'csv';
+        $extension = strtolower($file->getClientOriginalExtension());
+        $extension = in_array($extension, ['csv', 'txt', 'xlsx', 'xls', 'ods'], true) ? $extension : 'csv';
         $rows = $this->imports->read($file->getRealPath(), $extension, $data['type']);
 
         $token = Str::random(32);
