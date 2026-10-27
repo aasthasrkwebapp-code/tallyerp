@@ -25,12 +25,19 @@
         @if (($voucher->isDraft() || $voucher->isPending()) && auth()->user()->can('vouchers.delete'))
             <form method="POST" action="{{ route('vouchers.destroy', $voucher) }}" data-confirm="Delete this draft?">@csrf @method('DELETE')<button class="btn btn-outline-danger">Delete draft</button></form>
         @endif
+        @if (! $voucher->isCancelled() && ! $voucher->source_type && $voucher->type->isAutoNumbered() && auth()->user()->can('vouchers.create'))
+            <a href="{{ route('recurring-vouchers.create', ['voucher' => $voucher->id]) }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-repeat me-1"></i>Make recurring</a>
+        @endif
         @if ($voucher->isPosted() && auth()->user()->can('vouchers.cancel'))
             <button class="btn btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#cancel-panel" aria-expanded="false">Cancel / reverse</button>
         @endif
     </div>
 </div>
 
+@php($recurringRun = \App\Models\RecurringVoucherRun::query()->with('recurring')->where('voucher_id', $voucher->id)->first())
+@if ($recurringRun?->recurring)
+    <div class="alert alert-light border small no-print"><i class="bi bi-arrow-repeat me-1"></i>Made by the recurring voucher <a href="{{ route('recurring-vouchers.show', $recurringRun->recurring) }}">{{ $recurringRun->recurring->name }}</a> for {{ $recurringRun->date->format('d M Y') }}.</div>
+@endif
 @if ($voucher->source_type === \App\Models\Invoice::class && $voucher->source)
     <div class="alert alert-info small no-print"><i class="bi bi-receipt me-1"></i>Generated from
         <a href="{{ route('invoices.show', $voucher->source) }}">{{ $voucher->source->config()['label'] }} {{ $voucher->source->displayNumber() }}</a>. Alter or delete it from there.</div>

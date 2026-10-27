@@ -104,6 +104,9 @@ return [
         'stock_categories' => null,
         'stock_groups' => 'parent_id',
         'units' => null,
+        'recurring_voucher_runs' => null,
+        'recurring_voucher_lines' => null,
+        'recurring_vouchers' => null,
         'voucher_revisions' => null,
         'bill_allocations' => null,
         'voucher_entries' => null,
@@ -114,6 +117,7 @@ return [
     // Tables (=> column or columns) that reference a ledger; a ledger used in any of them cannot be deleted.
     'ledger_usage' => [
         'voucher_entries' => 'account_id',
+        'recurring_voucher_lines' => 'account_id',
         'bill_allocations' => 'account_id',
         'vouchers' => 'party_account_id',
         'invoices' => 'party_account_id',
@@ -223,6 +227,7 @@ return [
         ['label' => 'Units, Groups & Godowns', 'icon' => 'boxes', 'route' => 'inventory-masters.index', 'can' => 'inventory.view', 'params' => ['master' => 'units']],
         ['heading' => 'Transactions'],
         ['label' => 'Vouchers', 'icon' => 'journal-text', 'route' => 'vouchers.index', 'can' => 'vouchers.view'],
+        ['label' => 'Recurring Vouchers', 'icon' => 'arrow-repeat', 'route' => 'recurring-vouchers.index', 'can' => 'vouchers.view'],
         ['label' => 'Quotations', 'icon' => 'chat-square-quote', 'route' => 'orders.index', 'can' => 'sales.view', 'params' => ['kind' => 'quotation']],
         ['label' => 'Sales Orders', 'icon' => 'clipboard-plus', 'route' => 'orders.index', 'can' => 'sales.view', 'params' => ['kind' => 'sales_order']],
         ['label' => 'Delivery Notes', 'icon' => 'box-arrow-right', 'route' => 'notes.index', 'can' => 'sales.view', 'params' => ['kind' => 'delivery_note']],

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Accounting\VoucherController;
+use App\Http\Controllers\Accounting\RecurringVoucherController;
 use App\Http\Controllers\Accounting\VoucherTypeController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Banking\BankReconciliationController;
@@ -128,6 +129,17 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     Route::post('/vouchers/{voucher}/reverse', [VoucherController::class, 'reverse'])->name('vouchers.reverse')->middleware('can:vouchers.cancel');
     Route::delete('/vouchers/{voucher}', [VoucherController::class, 'destroy'])->name('vouchers.destroy')->middleware('can:vouchers.delete');
     Route::get('/ledgers/{ledger}/open-bills', [VoucherController::class, 'openBills'])->name('ledgers.open-bills')->middleware('can:vouchers.view');
+
+    // Recurring vouchers (templates with a schedule)
+    Route::get('/recurring-vouchers', [RecurringVoucherController::class, 'index'])->name('recurring-vouchers.index')->middleware('can:vouchers.view');
+    Route::post('/recurring-vouchers/run', [RecurringVoucherController::class, 'runAll'])->name('recurring-vouchers.run-all')->middleware('can:vouchers.create');
+    Route::get('/recurring-vouchers/create', [RecurringVoucherController::class, 'create'])->name('recurring-vouchers.create')->middleware('can:vouchers.create');
+    Route::post('/recurring-vouchers', [RecurringVoucherController::class, 'store'])->name('recurring-vouchers.store')->middleware('can:vouchers.create');
+    Route::get('/recurring-vouchers/{recurringVoucher}', [RecurringVoucherController::class, 'show'])->name('recurring-vouchers.show')->middleware('can:vouchers.view');
+    Route::get('/recurring-vouchers/{recurringVoucher}/edit', [RecurringVoucherController::class, 'edit'])->name('recurring-vouchers.edit')->middleware('can:vouchers.create');
+    Route::put('/recurring-vouchers/{recurringVoucher}', [RecurringVoucherController::class, 'update'])->name('recurring-vouchers.update')->middleware('can:vouchers.create');
+    Route::delete('/recurring-vouchers/{recurringVoucher}', [RecurringVoucherController::class, 'destroy'])->name('recurring-vouchers.destroy')->middleware('can:vouchers.delete');
+    Route::post('/recurring-vouchers/{recurringVoucher}/run', [RecurringVoucherController::class, 'run'])->name('recurring-vouchers.run')->middleware('can:vouchers.create');
 
     // Customers and suppliers (party ledgers with contact and GST details)
     foreach (['customers' => ['customer', 'sales'], 'suppliers' => ['supplier', 'purchases']] as $prefix => [$kind, $module]) {
