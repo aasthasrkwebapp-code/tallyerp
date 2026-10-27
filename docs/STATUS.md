@@ -19,6 +19,6 @@ Legend: **Done** = working end to end with tests · **Partial** = usable but inc
 | L. Data management | Partial | Done: company backups with checksums, verify, restore with safety backup, scheduled backups, integrity checks; CSV/Excel import of ledgers, parties, stock items and vouchers with preview, error report and duplicate detection; CSV/Excel export of masters, vouchers and every report. Missing: invoice import, Tally XML, off-site/encrypted backups, API sync. |
 | M. Dashboard & usability | Partial | Responsive layout, dashboard figures, Alt-key shortcuts. Missing: global search, configurable shortcuts. |
 
-Testing: run `php artisan test` (SQLite in memory). The suite has not yet been run against MySQL.
+Testing: run `php artisan test` (SQLite in memory by default). The full suite also passes on MySQL 8.0 (set `DB_CONNECTION=mysql` and the `DB_*` variables), and every migration rolls back cleanly on both. `.github/workflows/tests.yml` runs PHP 8.2 and 8.3 against SQLite and MySQL.
 
 Per-phase details and manual checklists: `docs/phase-*.md`.

@@ -38,8 +38,10 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('roles', function (Blueprint $table) {
+            // Drop the foreign key first: MySQL will not drop the index it relies on.
+            $table->dropForeign(['company_id']);
             $table->dropUnique(['company_id', 'name']);
-            $table->dropConstrainedForeignId('company_id');
+            $table->dropColumn('company_id');
             $table->dropColumn('is_system');
         });
 

@@ -32,6 +32,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('account_groups', function (Blueprint $table) {
+            // MySQL needs an index for the company foreign key once the composite ones are gone.
+            $table->index('company_id');
             $table->dropUnique(['company_id', 'name']);
             $table->dropUnique(['company_id', 'code']);
             $table->dropUnique(['company_id', 'system_key']);

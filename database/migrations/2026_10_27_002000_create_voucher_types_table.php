@@ -35,7 +35,7 @@ return new class extends Migration
             $table->foreignId('financial_year_id')->nullable()->constrained()->cascadeOnDelete();
             $table->unsignedInteger('next_number');
             $table->timestamps();
-            $table->unique(['voucher_type_id', 'financial_year_id']);
+            $table->unique(['voucher_type_id', 'financial_year_id'], 'vns_type_year_unique');
         });
     }
 

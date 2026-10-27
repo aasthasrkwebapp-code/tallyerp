@@ -128,8 +128,10 @@ return new class extends Migration
         Schema::dropIfExists('stock_journal_lines');
         Schema::dropIfExists('stock_journals');
         Schema::table('invoice_items', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('stock_item_id');
-            $table->dropConstrainedForeignId('godown_id');
+            $table->dropForeign(['stock_item_id']);
+            $table->dropForeign(['godown_id']);
+            $table->dropIndex(['stock_item_id']);
+            $table->dropColumn(['stock_item_id', 'godown_id']);
         });
         Schema::dropIfExists('stock_items');
         Schema::dropIfExists('godowns');
