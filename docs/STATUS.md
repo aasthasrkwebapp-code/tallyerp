@@ -17,7 +17,7 @@ Legend: **Done** = working end to end with tests · **Partial** = usable but inc
 | J. Transport | Partial | Done: vehicles, drivers with advance ledgers, routes, trips, expenses posting vouchers, freight bills as sales invoices, trip/vehicle/route/customer/driver reports. Missing: LR printing, e-way bill numbers, multi-trip bills, document expiry reminders, tyre tracking. |
 | K. Security & audit | Done (core) | Permissions per company, audit trail with old/new values, login/logout/failed login logs, maker-checker. Missing: 2FA, IP restrictions. |
 | L. Data management | Partial | Done: company backups with checksums, verify, restore with safety backup, scheduled backups, integrity checks; CSV/Excel import of ledgers, parties, stock items and vouchers with preview, error report and duplicate detection; CSV/Excel export of masters, vouchers and every report. Missing: invoice import, Tally XML, off-site/encrypted backups, API sync. |
-| M. Dashboard & usability | Partial | Responsive layout, dashboard figures, Alt-key shortcuts. Missing: global search, configurable shortcuts. |
+| M. Dashboard & usability | Partial | Responsive layout, dashboard figures, Alt-key shortcuts. Global search across ledgers, items, batches/serials, invoices, vouchers, orders, notes, employees and trips (permission-aware, `/` or Ctrl+K). Missing: search-as-you-type dropdown, configurable shortcuts. |
 
 Testing: run `php artisan test` (SQLite in memory by default). The full suite also passes on MySQL 8.0 (set `DB_CONNECTION=mysql` and the `DB_*` variables), and every migration rolls back cleanly on both. `.github/workflows/tests.yml` runs PHP 8.2 and 8.3 against SQLite and MySQL.
 

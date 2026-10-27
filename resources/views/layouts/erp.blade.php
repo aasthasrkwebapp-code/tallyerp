@@ -39,6 +39,13 @@
                 </div>
 
                 @isset($currentCompany)
+                    <form method="GET" action="{{ route('search') }}" class="d-none d-md-block erp-search" role="search">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                            <input type="search" name="q" id="global-search" class="form-control" placeholder="Search (/)" aria-label="Search ledgers, items, documents" value="{{ request()->routeIs('search') ? request('q') : '' }}" maxlength="100" autocomplete="off">
+                        </div>
+                    </form>
+                    <a href="{{ route('search') }}" class="btn btn-light d-md-none" aria-label="Search" data-search-link><i class="bi bi-search"></i></a>
                     @php($switchable = auth()->user()->companies()->wherePivot('is_active', true)->orderBy('name')->get(['companies.id', 'companies.name']))
                     @if ($switchable->count() > 1)
                         <div class="dropdown">
@@ -96,6 +103,7 @@
             <div class="modal-body">
                 <table class="table table-sm mb-0">
                     <tbody>
+                    <tr><td><kbd>/</kbd> or <kbd>Ctrl</kbd> + <kbd>K</kbd></td><td>Search</td></tr>
                     <tr><td><kbd>Alt</kbd> + <kbd>D</kbd></td><td>Dashboard</td></tr>
                     <tr><td><kbd>Alt</kbd> + <kbd>V</kbd></td><td>New voucher</td></tr>
                     <tr><td><kbd>Alt</kbd> + <kbd>L</kbd></td><td>Ledgers</td></tr>

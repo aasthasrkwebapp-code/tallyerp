@@ -9,6 +9,7 @@ use App\Http\Controllers\Billing\OrderController;
 use App\Http\Controllers\Billing\PartyController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\SearchController;
 use App\Http\Controllers\FinancialYearController;
 use App\Http\Controllers\Gst\GstReportController;
 use App\Http\Controllers\Inventory\InventoryMasterController;
@@ -61,6 +62,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 // Everything below runs inside the active company.
 Route::middleware(['auth', 'verified', 'company'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::get('/search', SearchController::class)->name('search');
 
     Route::middleware('can:company.edit')->group(function () {
         Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');

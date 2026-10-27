@@ -22,6 +22,19 @@
         if (msg && !window.confirm(msg)) e.preventDefault();
     });
 
+    // "/" or Ctrl+K jumps to the search box (or the search page on small screens).
+    document.addEventListener('keydown', function (e) {
+        var typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable;
+        var slash = e.key === '/' && !typing && !e.ctrlKey && !e.metaKey && !e.altKey;
+        var ctrlK = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k';
+        if (!slash && !ctrlK) return;
+        var box = document.getElementById('global-search');
+        e.preventDefault();
+        if (box && box.offsetParent !== null) { box.focus(); box.select(); return; }
+        var link = document.querySelector('[data-search-link]');
+        if (link) window.location = link.href;
+    });
+
     // Keyboard shortcuts (Alt + key), shown in the help modal.
     document.addEventListener('keydown', function (e) {
         if (!e.altKey || e.ctrlKey || e.metaKey) return;
