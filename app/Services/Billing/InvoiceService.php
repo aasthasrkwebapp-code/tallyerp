@@ -102,6 +102,7 @@ class InvoiceService
                     'account_id' => $item['account']->id,
                     'stock_item_id' => $item['stock_item_id'],
                     'godown_id' => $item['godown_id'],
+                    'order_item_id' => $item['order_item_id'],
                     'description' => $item['description'],
                     'hsn_sac' => $item['hsn_sac'],
                     'quantity' => $item['quantity'],
@@ -208,6 +209,7 @@ class InvoiceService
                 'account_id' => $i->account_id,
                 'stock_item_id' => $i->stock_item_id,
                 'godown_id' => $i->godown_id,
+                'order_item_id' => $i->order_item_id,
                 'description' => $i->description,
                 'hsn_sac' => $i->hsn_sac,
                 'quantity' => $i->quantity,
@@ -310,6 +312,7 @@ class InvoiceService
         $accounts = Account::query()->whereIn('id', array_column($rows, 'account_id'))->get()->keyBy('id');
         $items = [];
         $tracked = [];
+        $ordered = [];
         foreach ($rows as $i => $row) {
             if (empty($row['account_id']) && empty($row['stock_item_id']) && trim((string) ($row['description'] ?? '')) === '' && ($row['rate'] ?? '') === '') {
                 continue; // blank row
@@ -377,7 +380,12 @@ class InvoiceService
                 'discount_percent' => $discount,
                 'gst_rate' => $gstRate,
                 'batch_no' => null, 'mfg_date' => null, 'expiry_date' => null, 'serials' => null,
+                'order_item_id' => ! empty($row['order_item_id']) ? (int) $row['order_item_id'] : null,
             ];
+            if (! empty($row['order_item_id'])) {
+                $ordered[] = ['key' => "items.$i", 'label' => $line, 'order_item_id' => (int) $row['order_item_id'],
+                    'stock_item_id' => $stock?->id, 'quantity' => $quantity];
+            }
             if ($stock && $stock->tracking !== 'none') {
                 $tracked[count($items) - 1] = [
                     'key' => "items.$i", 'label' => $line, 'item' => $stock, 'godown_id' => $godownId,
@@ -388,6 +396,9 @@ class InvoiceService
             }
         }
 
+        if ($ordered && ! $errors) {
+            $errors += app(OrderService::class)->checkInvoiceLines($kind, $party->id, $ordered, $invoice?->exists ? $invoice : null);
+        }
         if ($tracked && ! $errors) {
             [$fields, $batchErrors] = $this->batches->check($tracked, $this->documentDate($data), $invoice?->exists ? ['invoice', $invoice->id] : null, $kind === 'sales');
             $errors += $batchErrors;

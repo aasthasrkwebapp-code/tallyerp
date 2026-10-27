@@ -94,7 +94,7 @@
             @foreach ($invoice->items as $item)
                 <tr>
                     <td data-label="#">{{ $item->line_no }}</td>
-                    <td data-label="Description">{{ $item->description }}<div class="small text-secondary">{{ $item->account->name }}</div>@include('inventory._tracking', ['line' => $item])</td>
+                    <td data-label="Description">{{ $item->description }}<div class="small text-secondary">{{ $item->account->name }}</div>@include('inventory._tracking', ['line' => $item])@if ($item->orderItem)<div class="small"><a href="{{ route('orders.show', $item->orderItem->order_id) }}">Order {{ $item->orderItem->order->number }}</a></div>@endif</td>
                     <td data-label="HSN/SAC">{{ $item->hsn_sac ?? '—' }}</td>
                     <td data-label="Qty" class="text-end">{{ \App\Support\Decimal::trim($item->quantity) }} {{ $item->unit }}</td>
                     <td data-label="Rate" class="amount">{{ \App\Support\Money::format($item->rate) }}</td>

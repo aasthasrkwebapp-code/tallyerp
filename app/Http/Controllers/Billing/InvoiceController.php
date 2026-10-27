@@ -88,6 +88,15 @@ class InvoiceController extends Controller
                 'narration' => null,
                 'terms' => null,
             ]);
+        } elseif ($request->filled('order')) {
+            // "Invoice against order X": the pending lines of the order.
+            $order = \App\Models\Order::query()->findOrFail($request->integer('order'));
+            abort_unless($order->config()['invoice_kind'] === $kind, 404);
+            try {
+                $input = array_merge($input, app(\App\Services\Billing\OrderService::class)->invoiceInput($order));
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                return redirect()->route('orders.show', $order)->with('error', collect($e->errors())->flatten()->first());
+            }
         } elseif ($request->filled('party')) {
             $input['party_account_id'] = $request->integer('party');
         }
@@ -110,7 +119,7 @@ class InvoiceController extends Controller
     public function show(Request $request, Invoice $invoice)
     {
         $this->authorizeKind($request, $invoice->kind, 'view');
-        $invoice->load(['items.account', 'voucher.type', 'party.partyDetails', 'originalInvoice.voucher', 'creator']);
+        $invoice->load(['items.account', 'items.orderItem.order', 'voucher.type', 'party.partyDetails', 'originalInvoice.voucher', 'creator']);
 
         return view('billing.invoices.show', [
             'invoice' => $invoice,
@@ -265,6 +274,8 @@ class InvoiceController extends Controller
                     'tracking' => $s->tracking, 'expiry' => $s->track_expiry,
                 ])->values(),
             'batchOptions' => $this->batchOptions($invoice),
+            'orderLines' => \App\Models\OrderItem::query()->with('order')->whereIn('id', array_filter(array_column($input['items'] ?? [], 'order_item_id')))->get()
+                ->mapWithKeys(fn ($oi) => [$oi->id => $oi->order->number.' · line '.$oi->line_no])->all(),
             'godowns' => Godown::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('name')->get(['id', 'name']),
             'originals' => $originals->map(fn (Invoice $i) => [
                 'id' => $i->id, 'party' => $i->party_account_id,
@@ -341,6 +352,7 @@ class InvoiceController extends Controller
             'items.*.rate' => ['nullable', 'string', 'max:20'],
             'items.*.discount_percent' => ['nullable', 'string', 'max:10'],
             'items.*.gst_rate' => ['nullable', 'string', 'max:10'],
+            'items.*.order_item_id' => ['nullable', 'integer'],
             'items.*.batch_no' => ['nullable', 'string', 'max:50'],
             'items.*.mfg_date' => ['nullable', 'string', 'max:10'],
             'items.*.expiry_date' => ['nullable', 'string', 'max:10'],

@@ -1,5 +1,10 @@
 {{-- One invoice item row. $i is the index (or __I__ in the template), $item the values. --}}
 <div class="voucher-line invoice-item border-bottom pb-2 mb-2" data-index="{{ $i }}">
+    @if (! empty($item['order_item_id']))
+        <input type="hidden" name="items[{{ $i }}][order_item_id]" value="{{ $item['order_item_id'] }}">
+        <div class="small mb-1"><span class="badge text-bg-light border"><i class="bi bi-clipboard-check"></i> Order {{ $orderLines[$item['order_item_id']] ?? '#'.$item['order_item_id'] }}</span></div>
+    @endif
+    @error("items.$i.order_item_id")<div class="text-danger small mb-1">{{ $message }}</div>@enderror
     <div class="row g-2 align-items-end">
         @if ($stockItems->isNotEmpty())
             <div class="col-12 col-md-3">

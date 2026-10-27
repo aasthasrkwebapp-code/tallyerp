@@ -5,6 +5,7 @@ use App\Http\Controllers\Accounting\VoucherTypeController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Banking\BankReconciliationController;
 use App\Http\Controllers\Billing\InvoiceController;
+use App\Http\Controllers\Billing\OrderController;
 use App\Http\Controllers\Billing\PartyController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\DashboardController;
@@ -229,6 +230,20 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     Route::post('/invoices/{invoice}/post', [InvoiceController::class, 'post'])->name('invoices.post');
     Route::post('/invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('invoices.cancel');
     Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('invoices.destroy');
+
+    // Sales and purchase orders (permissions checked per kind in the controller)
+    Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
+    Route::get('/orders/pending', [OrderController::class, 'pending'])->name('orders.pending');
+    Route::get('/orders/create', [OrderController::class, 'create'])->name('orders.create');
+    Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
+    Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
+    Route::get('/orders/{order}/edit', [OrderController::class, 'edit'])->name('orders.edit');
+    Route::put('/orders/{order}', [OrderController::class, 'update'])->name('orders.update');
+    Route::get('/orders/{order}/print', [OrderController::class, 'print'])->name('orders.print');
+    Route::get('/orders/{order}/pdf', [OrderController::class, 'pdf'])->name('orders.pdf');
+    Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
+    Route::post('/orders/{order}/close', [OrderController::class, 'close'])->name('orders.close');
+    Route::post('/orders/{order}/reopen', [OrderController::class, 'reopen'])->name('orders.reopen');
 
     // Banking: reconciliation and statement import
     Route::get('/banking', [BankReconciliationController::class, 'index'])->name('bank-reconciliation.index')->middleware('can:banking.view');

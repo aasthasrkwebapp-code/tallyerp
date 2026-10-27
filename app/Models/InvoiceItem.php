@@ -11,7 +11,7 @@ class InvoiceItem extends Model
     use BelongsToCompany;
 
     protected $fillable = [
-        'company_id', 'invoice_id', 'line_no', 'account_id', 'stock_item_id', 'godown_id', 'description', 'hsn_sac', 'quantity', 'unit',
+        'company_id', 'invoice_id', 'line_no', 'account_id', 'stock_item_id', 'godown_id', 'order_item_id', 'description', 'hsn_sac', 'quantity', 'unit',
         'rate', 'discount_percent', 'gross_amount', 'discount_amount', 'taxable_amount', 'gst_rate',
         'cgst_amount', 'sgst_amount', 'igst_amount', 'total_amount', 'batch_no', 'mfg_date', 'expiry_date', 'serials',
     ];
@@ -39,6 +39,11 @@ class InvoiceItem extends Model
     public function serialList(): array
     {
         return \App\Services\Inventory\BatchTracker::splitSerials($this->serials);
+    }
+
+    public function orderItem(): BelongsTo
+    {
+        return $this->belongsTo(OrderItem::class);
     }
 
     public function invoice(): BelongsTo

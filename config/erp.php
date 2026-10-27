@@ -92,6 +92,8 @@ return [
         'bank_statement_lines' => null,
         'invoice_items' => null,
         'invoices' => 'original_invoice_id',
+        'order_items' => null,
+        'orders' => null,
         'parties' => null,
         'stock_journal_lines' => null,
         'stock_journals' => null,
@@ -113,6 +115,7 @@ return [
         'bill_allocations' => 'account_id',
         'vouchers' => 'party_account_id',
         'invoices' => 'party_account_id',
+        'orders' => 'party_account_id',
         'invoice_items' => 'account_id',
         'bank_statement_lines' => 'account_id',
         'stock_items' => ['sales_account_id', 'purchase_account_id'],
@@ -175,6 +178,12 @@ return [
         'debit_note' => ['label' => 'Debit Note', 'plural' => 'Debit Notes (Purchase Returns)', 'base' => 'debit_note', 'module' => 'purchases', 'party_group' => 'sundry_creditors', 'item_type' => 'purchase', 'tax' => 'input'],
     ],
 
+    // Sales and purchase orders: the invoice kind that fulfils each.
+    'order_kinds' => [
+        'sales_order' => ['label' => 'Sales Order', 'plural' => 'Sales Orders', 'prefix' => 'SO', 'invoice_kind' => 'sales', 'module' => 'sales', 'party_group' => 'sundry_debtors'],
+        'purchase_order' => ['label' => 'Purchase Order', 'plural' => 'Purchase Orders', 'prefix' => 'PO', 'invoice_kind' => 'purchase', 'module' => 'purchases', 'party_group' => 'sundry_creditors'],
+    ],
+
     // Base voucher types and their behaviour.
     'voucher_base_types' => [
         'journal' => 'Journal',
@@ -204,8 +213,10 @@ return [
         ['label' => 'Units, Groups & Godowns', 'icon' => 'boxes', 'route' => 'inventory-masters.index', 'can' => 'inventory.view', 'params' => ['master' => 'units']],
         ['heading' => 'Transactions'],
         ['label' => 'Vouchers', 'icon' => 'journal-text', 'route' => 'vouchers.index', 'can' => 'vouchers.view'],
+        ['label' => 'Sales Orders', 'icon' => 'clipboard-plus', 'route' => 'orders.index', 'can' => 'sales.view', 'params' => ['kind' => 'sales_order']],
         ['label' => 'Sales Invoices', 'icon' => 'receipt', 'route' => 'invoices.index', 'can' => 'sales.view', 'params' => ['kind' => 'sales']],
         ['label' => 'Credit Notes', 'icon' => 'arrow-return-left', 'route' => 'invoices.index', 'can' => 'sales.view', 'params' => ['kind' => 'credit_note']],
+        ['label' => 'Purchase Orders', 'icon' => 'clipboard-check', 'route' => 'orders.index', 'can' => 'purchases.view', 'params' => ['kind' => 'purchase_order']],
         ['label' => 'Purchase Bills', 'icon' => 'cart3', 'route' => 'invoices.index', 'can' => 'purchases.view', 'params' => ['kind' => 'purchase']],
         ['label' => 'Debit Notes', 'icon' => 'arrow-return-right', 'route' => 'invoices.index', 'can' => 'purchases.view', 'params' => ['kind' => 'debit_note']],
         ['label' => 'Stock Journals', 'icon' => 'arrow-left-right', 'route' => 'stock-journals.index', 'can' => 'inventory.view'],
@@ -220,6 +231,8 @@ return [
         ['label' => 'Cash / Bank Book', 'icon' => 'cash-stack', 'route' => 'reports.ledger', 'can' => 'reports.view', 'params' => ['book' => 'cash']],
         ['label' => 'Receivables', 'icon' => 'hourglass-split', 'route' => 'reports.outstanding', 'can' => 'reports.view', 'params' => ['type' => 'receivable']],
         ['label' => 'Payables', 'icon' => 'hourglass-bottom', 'route' => 'reports.outstanding', 'can' => 'reports.view', 'params' => ['type' => 'payable']],
+        ['label' => 'Pending Sales Orders', 'icon' => 'hourglass', 'route' => 'orders.pending', 'can' => 'sales.view', 'params' => ['kind' => 'sales_order']],
+        ['label' => 'Pending Purchase Orders', 'icon' => 'hourglass-top', 'route' => 'orders.pending', 'can' => 'purchases.view', 'params' => ['kind' => 'purchase_order']],
         ['label' => 'Stock Summary', 'icon' => 'clipboard-check', 'route' => 'stock-summary', 'can' => 'inventory.view'],
         ['label' => 'Reorder Status', 'icon' => 'arrow-repeat', 'route' => 'stock-reorder', 'can' => 'inventory.view'],
         ['label' => 'Batches & Expiry', 'icon' => 'calendar2-x', 'route' => 'stock-batches', 'can' => 'inventory.view'],

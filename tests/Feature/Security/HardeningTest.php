@@ -28,7 +28,7 @@ class HardeningTest extends TestCase
     /** Every signed-in route checks a permission, in middleware or in its controller. */
     public function test_every_business_route_is_permission_checked(): void
     {
-        $inController = ['companies', 'dashboard', 'invoices', 'vouchers/{voucher}', 'profile', 'password', 'logout', 'verify-email', 'email', 'confirm-password'];
+        $inController = ['companies', 'dashboard', 'invoices', 'orders', 'vouchers/{voucher}', 'profile', 'password', 'logout', 'verify-email', 'email', 'confirm-password'];
         $unchecked = collect(Route::getRoutes()->getRoutes())
             ->filter(fn ($r) => in_array('auth', $r->gatherMiddleware(), true))
             ->reject(fn ($r) => collect($r->gatherMiddleware())->contains(fn ($m) => is_string($m) && str_starts_with($m, 'can:')))

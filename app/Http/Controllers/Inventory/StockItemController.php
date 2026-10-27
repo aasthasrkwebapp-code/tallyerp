@@ -110,6 +110,9 @@ class StockItemController extends Controller
         if ($stockItem->hasMovements()) {
             return back()->with('error', 'This item appears in invoices or stock journals and cannot be deleted. Mark it inactive instead.');
         }
+        if (\App\Models\OrderItem::query()->where('stock_item_id', $stockItem->id)->exists()) {
+            return back()->with('error', 'This item appears in sales or purchase orders and cannot be deleted. Mark it inactive instead.');
+        }
 
         $stockItem->delete();
 
