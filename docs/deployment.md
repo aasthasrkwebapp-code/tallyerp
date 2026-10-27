@@ -1,7 +1,8 @@
 # Deployment checklist (production)
 
-Tested with PHP 8.3.6 and the dependency set in `composer.lock` (also resolvable on PHP 8.2:
-`composer why-not php 8.2.0` reports nothing). MySQL 8.0: the full test suite passes and every
+Tested with PHP 8.3.6 and the dependency set in `composer.lock`. `composer.json` sets
+`config.platform.php = 8.2.0`, so the lock only holds packages that install on PHP 8.2 (for
+example zipstream-php 3.1, since 3.2 needs PHP 8.3); CI installs and tests it on 8.2 and 8.3. MySQL 8.0: the full test suite passes and every
 migration rolls back cleanly (`.github/workflows/tests.yml` checks PHP 8.2/8.3 × SQLite/MySQL).
 
 ## Server

@@ -3,7 +3,7 @@
 Menu **Data → Import** (permission `data.import`, owner and admin) and **Data → Export**
 (`data.export`, also accountants). Excel files are read and written with
 [PhpSpreadsheet](https://github.com/PHPOffice/PhpSpreadsheet) 5.x (requires PHP 8.2+, extensions
-zip, xml, gd, mbstring; checked against PHP 8.2 with `composer why-not php 8.2.0`).
+zip, xml, gd, mbstring; installed and tested on PHP 8.2 and 8.3 in CI; the lock is resolved for PHP 8.2).
 
 ## Import (`App\Services\Data\ImportService`)
 

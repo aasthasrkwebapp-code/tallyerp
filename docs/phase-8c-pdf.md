@@ -1,7 +1,7 @@
 # Phase 8c — PDF documents and report PDFs
 
 PDFs are produced with [laravel-dompdf](https://github.com/barryvdh/laravel-dompdf) 3.1
-(dompdf 3.1, PHP 8.1+; checked against PHP 8.2 with `composer why-not php 8.2.0`). Templates
+(dompdf 3.1, PHP 8.1+; installed and tested on PHP 8.2 and 8.3 in CI; the lock is resolved for PHP 8.2). Templates
 are in `resources/views/pdf/` and use the DejaVu Sans font bundled with dompdf (it has the ₹ sign).
 
 | Document | Where | Notes |
