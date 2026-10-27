@@ -26,7 +26,7 @@
             <tbody>
             @foreach ($journal->lines as $line)
                 <tr>
-                    <td data-label="Item"><a href="{{ route('stock-items.show', $line->stock_item_id) }}">{{ $line->item->name }}</a></td>
+                    <td data-label="Item"><a href="{{ route('stock-items.show', $line->stock_item_id) }}">{{ $line->item->name }}</a>@include('inventory._tracking', ['line' => $line])</td>
                     <td data-label="Godown">{{ $line->godown->name }}</td>
                     <td data-label="Direction">{!! $line->direction === 'in' ? '<span class="text-success">In</span>' : '<span class="text-danger">Out</span>' !!}</td>
                     <td data-label="Quantity" class="text-end">{{ \App\Services\Inventory\StockLedger::qty(\App\Support\Decimal::toScaled($line->quantity, 3), $line->item->unit) }}</td>

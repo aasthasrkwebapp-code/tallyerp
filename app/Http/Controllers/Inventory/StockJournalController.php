@@ -6,8 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Godown;
 use App\Models\StockItem;
 use App\Models\StockJournal;
+use App\Services\Inventory\BatchTracker;
 use App\Services\Inventory\StockJournalService;
+use App\Services\Inventory\StockLedger;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class StockJournalController extends Controller
 {
@@ -37,9 +40,28 @@ class StockJournalController extends Controller
 
         return view('inventory.journals.form', [
             'purpose' => old('purpose', $purpose),
-            'items' => StockItem::query()->with('unit')->where('is_active', true)->orderBy('name')->get(),
-            'godowns' => Godown::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('name')->get(),
+            'items' => $items = StockItem::query()->with('unit')->where('is_active', true)->orderBy('name')->get(),
+            'godowns' => $godowns = Godown::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('name')->get(),
+            'anyTracked' => $items->contains(fn ($i) => $i->tracking !== 'none'),
+            'batchOptions' => $this->batchOptions($items, $godowns),
         ]);
+    }
+
+    /** Batches in stock per item for the batch picker: [item id => [[batch, label]]]. */
+    protected function batchOptions($items, $godowns): array
+    {
+        $tracked = $items->where('tracking', 'batch')->keyBy('id');
+        if ($tracked->isEmpty()) {
+            return [];
+        }
+        $names = $godowns->pluck('name', 'id');
+        $out = [];
+        foreach (app(BatchTracker::class)->batches(null, $tracked->keys()->all())->filter(fn ($b) => $b->quantity > 0) as $b) {
+            $out[$b->stock_item_id][] = ['batch' => $b->batch_no, 'label' => $b->batch_no.' · '.StockLedger::qty($b->quantity, $tracked[$b->stock_item_id]->unit)
+                .($b->expiry_date ? ' · exp '.Carbon::parse($b->expiry_date)->format('d-m-Y') : '').($names->count() > 1 ? ' · '.($names[$b->godown_id] ?? '') : '')];
+        }
+
+        return $out;
     }
 
     public function store(Request $request)

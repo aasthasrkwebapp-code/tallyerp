@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\Voucher;
 use App\Models\VoucherType;
 use App\Services\Accounting\VoucherService;
+use App\Services\Inventory\BatchTracker;
 use App\Support\CurrentCompany;
 use App\Support\Decimal;
 use App\Support\Money;
@@ -30,7 +31,8 @@ use Illuminate\Validation\ValidationException;
  * Input: voucher_type_id, voucher_number (manual numbering), date, due_date,
  * party_account_id, reference, reference_date, original_invoice_id,
  * place_of_supply, billing_address, shipping_address, narration, terms,
- * items: [account_id, description, hsn_sac, quantity, unit, rate, discount_percent, gst_rate]
+ * items: [account_id, stock_item_id, godown_id, description, hsn_sac, quantity, unit, rate, discount_percent, gst_rate,
+ *   batch_no, mfg_date, expiry_date, serials (for items tracked by batch or serial)]
  */
 class InvoiceService
 {
@@ -38,6 +40,7 @@ class InvoiceService
         protected CurrentCompany $current,
         protected VoucherService $vouchers,
         protected InvoiceCalculator $calculator,
+        protected BatchTracker $batches,
     ) {}
 
     /** @param string $intent "post" or "draft" */
@@ -113,6 +116,10 @@ class InvoiceService
                     'sgst_amount' => Money::fromPaise($line['sgst']),
                     'igst_amount' => Money::fromPaise($line['igst']),
                     'total_amount' => Money::fromPaise($line['total']),
+                    'batch_no' => $item['batch_no'],
+                    'mfg_date' => $item['mfg_date'],
+                    'expiry_date' => $item['expiry_date'],
+                    'serials' => $item['serials'],
                 ]);
             }
 
@@ -208,6 +215,10 @@ class InvoiceService
                 'rate' => $i->rate,
                 'discount_percent' => $i->discount_percent,
                 'gst_rate' => $i->gst_rate,
+                'batch_no' => $i->batch_no,
+                'mfg_date' => $i->mfg_date?->toDateString(),
+                'expiry_date' => $i->expiry_date?->toDateString(),
+                'serials' => $i->serials,
             ])->all(),
         ];
     }
@@ -298,6 +309,7 @@ class InvoiceService
 
         $accounts = Account::query()->whereIn('id', array_column($rows, 'account_id'))->get()->keyBy('id');
         $items = [];
+        $tracked = [];
         foreach ($rows as $i => $row) {
             if (empty($row['account_id']) && empty($row['stock_item_id']) && trim((string) ($row['description'] ?? '')) === '' && ($row['rate'] ?? '') === '') {
                 continue; // blank row
@@ -364,7 +376,24 @@ class InvoiceService
                 'rate' => $rate,
                 'discount_percent' => $discount,
                 'gst_rate' => $gstRate,
+                'batch_no' => null, 'mfg_date' => null, 'expiry_date' => null, 'serials' => null,
             ];
+            if ($stock && $stock->tracking !== 'none') {
+                $tracked[count($items) - 1] = [
+                    'key' => "items.$i", 'label' => $line, 'item' => $stock, 'godown_id' => $godownId,
+                    'direction' => in_array($kind, ['sales', 'debit_note'], true) ? 'out' : 'in', 'quantity' => $quantity,
+                    'batch_no' => $row['batch_no'] ?? null, 'mfg_date' => $row['mfg_date'] ?? null,
+                    'expiry_date' => $row['expiry_date'] ?? null, 'serials' => $row['serials'] ?? null,
+                ];
+            }
+        }
+
+        if ($tracked && ! $errors) {
+            [$fields, $batchErrors] = $this->batches->check($tracked, $this->documentDate($data), $invoice?->exists ? ['invoice', $invoice->id] : null, $kind === 'sales');
+            $errors += $batchErrors;
+            foreach ($fields as $n => $f) {
+                $items[$n] = array_merge($items[$n], $f);
+            }
         }
 
         if ($items === [] && ! $errors) {
@@ -471,6 +500,16 @@ class InvoiceService
     public function billRef(Invoice $invoice): string
     {
         return $invoice->kind === 'purchase' && $invoice->reference ? $invoice->reference : (string) $invoice->number();
+    }
+
+    /** The document date as Y-m-d (today when missing or invalid; the voucher rejects bad dates). */
+    protected function documentDate(array $data): string
+    {
+        try {
+            return Carbon::parse((string) ($data['date'] ?? 'today'))->toDateString();
+        } catch (\Throwable) {
+            return now()->toDateString();
+        }
     }
 
     protected function company(): Company

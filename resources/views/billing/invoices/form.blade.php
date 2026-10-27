@@ -188,6 +188,7 @@
 window.invoiceForm = {
     parties: @json($parties),
     stockItems: @json($stockItems),
+    batchOptions: @json((object) $batchOptions),
     companyState: @json($company->state),
     gstEnabled: @json($gstEnabled),
     purchase: @json($config['tax'] === 'input'),

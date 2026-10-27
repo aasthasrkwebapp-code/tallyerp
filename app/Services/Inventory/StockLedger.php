@@ -42,7 +42,8 @@ class StockLedger
      * Movement rows, oldest first.
      *
      * @return Collection<int, object{stock_item_id:int, godown_id:?int, date:string, kind:string, quantity:int, value:int, doc_type:string, doc_id:int, number:?string}>
-     *   quantity is signed (+ in, − out); value is the cost-relevant value (purchases, purchase returns, valued journal inwards), signed like quantity.
+     *   Also batch_no, mfg_date, expiry_date and serials (list).
+ *   quantity is signed (+ in, − out); value is the cost-relevant value (purchases, purchase returns, valued journal inwards), signed like quantity.
      */
     public function movements(?array $itemIds = null, ?string $to = null, ?string $from = null, ?int $godownId = null): Collection
     {
@@ -56,7 +57,7 @@ class StockLedger
             ->when($to, fn ($q) => $q->where('i.date', '<=', $to))
             ->when($from, fn ($q) => $q->where('i.date', '>=', $from))
             ->when($godownId, fn ($q) => $q->where('ii.godown_id', $godownId))
-            ->get(['ii.stock_item_id', 'ii.godown_id', 'i.date', 'i.kind', 'ii.quantity', 'ii.taxable_amount', 'i.id as doc_id', 'v.voucher_number as number', 'i.party_name', 'ii.id as line_id'])
+            ->get(['ii.stock_item_id', 'ii.godown_id', 'i.date', 'i.kind', 'ii.quantity', 'ii.taxable_amount', 'i.id as doc_id', 'v.voucher_number as number', 'i.party_name', 'ii.id as line_id', 'ii.batch_no', 'ii.mfg_date', 'ii.expiry_date', 'ii.serials'])
             ->map(function ($r) {
                 $qty = Decimal::toScaled($r->quantity, 3);
                 [$kind, $sign, $valued] = match ($r->kind) {
@@ -66,12 +67,12 @@ class StockLedger
                     'debit_note' => ['purchase_return', -1, true],
                 };
 
-                return (object) [
+                return (object) ([
                     'stock_item_id' => (int) $r->stock_item_id, 'godown_id' => $r->godown_id ? (int) $r->godown_id : null,
                     'date' => substr((string) $r->date, 0, 10), 'kind' => $kind, 'quantity' => $sign * $qty,
                     'value' => $valued ? $sign * Money::toPaise($r->taxable_amount) : 0,
                     'doc_type' => 'invoice', 'doc_id' => (int) $r->doc_id, 'number' => $r->number, 'party' => $r->party_name, 'line_id' => (int) $r->line_id,
-                ];
+                ] + self::tracking($r));
             });
 
         $journals = DB::table('stock_journal_lines as l')
@@ -82,24 +83,48 @@ class StockLedger
             ->when($to, fn ($q) => $q->where('j.date', '<=', $to))
             ->when($from, fn ($q) => $q->where('j.date', '>=', $from))
             ->when($godownId, fn ($q) => $q->where('l.godown_id', $godownId))
-            ->get(['l.stock_item_id', 'l.godown_id', 'j.date', 'j.purpose', 'l.direction', 'l.quantity', 'l.value', 'j.id as doc_id', 'j.number', 'l.id as line_id'])
+            ->get(['l.stock_item_id', 'l.godown_id', 'j.date', 'j.purpose', 'l.direction', 'l.quantity', 'l.value', 'j.id as doc_id', 'j.number', 'l.id as line_id', 'l.batch_no', 'l.mfg_date', 'l.expiry_date', 'l.serials'])
             ->map(function ($r) {
                 $in = $r->direction === 'in';
                 $transfer = $r->purpose === 'transfer';
 
-                return (object) [
+                return (object) ([
                     'stock_item_id' => (int) $r->stock_item_id, 'godown_id' => (int) $r->godown_id,
                     'date' => substr((string) $r->date, 0, 10),
                     'kind' => $transfer ? ($in ? 'transfer_in' : 'transfer_out') : ($in ? 'journal_in' : 'journal_out'),
                     'quantity' => ($in ? 1 : -1) * Decimal::toScaled($r->quantity, 3),
                     'value' => $in && ! $transfer ? Money::toPaise($r->value) : 0,
                     'doc_type' => 'stock_journal', 'doc_id' => (int) $r->doc_id, 'number' => $r->number, 'party' => null, 'line_id' => (int) $r->line_id,
-                ];
+                ] + self::tracking($r));
             });
 
         return $invoices->concat($journals)
-            ->sortBy(fn ($m) => $m->date.'|'.(in_array($m->kind, self::INWARD, true) ? '0' : '1').'|'.str_pad((string) $m->line_id, 12, '0', STR_PAD_LEFT))
+            ->sortBy(fn ($m) => $m->date.'|'.self::rank($m->kind).'|'.str_pad((string) $m->line_id, 12, '0', STR_PAD_LEFT))
             ->values();
+    }
+
+    /**
+     * Order of movements on the same day: receipts first, then transfers
+     * (each transfer's out line before its in line), then issues.
+     */
+    protected static function rank(string $kind): string
+    {
+        return match (true) {
+            in_array($kind, ['transfer_in', 'transfer_out'], true) => '1',
+            in_array($kind, self::INWARD, true) => '0',
+            default => '2',
+        };
+    }
+
+    /** Batch and serial fields of a movement row. */
+    protected static function tracking(object $r): array
+    {
+        return [
+            'batch_no' => $r->batch_no,
+            'mfg_date' => $r->mfg_date ? substr((string) $r->mfg_date, 0, 10) : null,
+            'expiry_date' => $r->expiry_date ? substr((string) $r->expiry_date, 0, 10) : null,
+            'serials' => BatchTracker::splitSerials($r->serials),
+        ];
     }
 
     /**

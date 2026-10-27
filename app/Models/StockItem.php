@@ -11,10 +11,27 @@ class StockItem extends Model
 {
     use Auditable, BelongsToCompany;
 
+    public const TRACKING = [
+        'none' => 'No batches or serial numbers',
+        'batch' => 'Batch / lot numbers',
+        'serial' => 'Serial numbers (one per unit)',
+    ];
+
+    public function tracksBatches(): bool
+    {
+        return $this->tracking === 'batch';
+    }
+
+    public function tracksSerials(): bool
+    {
+        return $this->tracking === 'serial';
+    }
+
     protected $fillable = [
         'company_id', 'name', 'alias', 'code', 'stock_group_id', 'stock_category_id', 'unit_id', 'hsn_sac', 'gst_rate',
         'sales_account_id', 'purchase_account_id', 'sales_rate', 'purchase_rate', 'opening_quantity', 'opening_value',
-        'opening_godown_id', 'reorder_level', 'is_active', 'description',
+        'opening_godown_id', 'reorder_level', 'is_active', 'description', 'tracking', 'track_expiry',
+        'opening_batch_no', 'opening_mfg_date', 'opening_expiry_date', 'opening_serials',
     ];
 
     protected function casts(): array
@@ -27,6 +44,9 @@ class StockItem extends Model
             'opening_value' => 'decimal:2',
             'reorder_level' => 'decimal:3',
             'is_active' => 'boolean',
+            'track_expiry' => 'boolean',
+            'opening_mfg_date' => 'date',
+            'opening_expiry_date' => 'date',
         ];
     }
 

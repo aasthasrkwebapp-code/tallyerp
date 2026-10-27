@@ -73,4 +73,36 @@
             <input class="form-control form-control-sm text-end item-amount bg-light" readonly tabindex="-1" aria-label="Taxable value">
         </div>
     </div>
+    @if ($stockItems->isNotEmpty())
+        @php
+            $trackedItem = collect($stockItems)->firstWhere('id', (int) ($item['stock_item_id'] ?? 0));
+            $tracking = $trackedItem['tracking'] ?? 'none';
+            $inward = ! in_array($kind, ['sales', 'debit_note'], true);
+        @endphp
+        <div class="row g-2 mt-0 item-tracking {{ $tracking === 'none' ? 'd-none' : '' }}" data-inward="{{ $inward ? 1 : 0 }}">
+            <div class="col-12 col-md-3 track-batch {{ $tracking === 'batch' ? '' : 'd-none' }}">
+                <label class="form-label small mb-0">Batch no.</label>
+                <input name="items[{{ $i }}][batch_no]" value="{{ $item['batch_no'] ?? '' }}" list="batches-{{ $i }}" class="form-control form-control-sm item-batch @error("items.$i.batch_no") is-invalid @enderror" maxlength="50" autocomplete="off" placeholder="{{ $inward ? 'New or existing batch' : 'Batch in stock' }}">
+                <datalist id="batches-{{ $i }}"></datalist>
+                @error("items.$i.batch_no")<div class="invalid-feedback">{{ $message }}</div>@enderror
+            </div>
+            @if ($inward)
+                <div class="col-6 col-md-2 track-batch {{ $tracking === 'batch' ? '' : 'd-none' }}">
+                    <label class="form-label small mb-0">Mfg date</label>
+                    <input type="date" name="items[{{ $i }}][mfg_date]" value="{{ $item['mfg_date'] ?? '' }}" class="form-control form-control-sm @error("items.$i.mfg_date") is-invalid @enderror">
+                    @error("items.$i.mfg_date")<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+                <div class="col-6 col-md-2 track-batch {{ $tracking === 'batch' ? '' : 'd-none' }}">
+                    <label class="form-label small mb-0">Expiry date</label>
+                    <input type="date" name="items[{{ $i }}][expiry_date]" value="{{ $item['expiry_date'] ?? '' }}" class="form-control form-control-sm @error("items.$i.expiry_date") is-invalid @enderror">
+                    @error("items.$i.expiry_date")<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+            @endif
+            <div class="col-12 col-md-6 track-serial {{ $tracking === 'serial' ? '' : 'd-none' }}">
+                <label class="form-label small mb-0">Serial numbers <span class="text-body-secondary">(one per line or comma separated, one per unit)</span></label>
+                <textarea name="items[{{ $i }}][serials]" rows="2" class="form-control form-control-sm item-serials @error("items.$i.serials") is-invalid @enderror">{{ $item['serials'] ?? '' }}</textarea>
+                @error("items.$i.serials")<div class="invalid-feedback">{{ $message }}</div>@enderror
+            </div>
+        </div>
+    @endif
 </div>

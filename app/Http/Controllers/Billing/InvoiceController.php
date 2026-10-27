@@ -262,7 +262,9 @@ class InvoiceController extends Controller
                     'gst' => $s->gst_rate !== null ? Decimal::trim($s->gst_rate) : null,
                     'rate' => ($r = $config['item_type'] === 'sales' ? $s->sales_rate : $s->purchase_rate) !== null ? Decimal::trim($r) : null,
                     'ledger' => $config['item_type'] === 'sales' ? $s->sales_account_id : $s->purchase_account_id,
+                    'tracking' => $s->tracking, 'expiry' => $s->track_expiry,
                 ])->values(),
+            'batchOptions' => $this->batchOptions($invoice),
             'godowns' => Godown::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('name')->get(['id', 'name']),
             'originals' => $originals->map(fn (Invoice $i) => [
                 'id' => $i->id, 'party' => $i->party_account_id,
@@ -273,6 +275,32 @@ class InvoiceController extends Controller
             'gstRates' => config('erp.gst_rates'),
             'gstEnabled' => (bool) $company->setting('enable_gst'),
         ]);
+    }
+
+    /**
+     * Batches in stock for outward documents, for the batch picker:
+     * [item id => [[batch, godown id, label]]]. Inward documents enter new batches.
+     */
+    protected function batchOptions(Invoice $invoice): array
+    {
+        if (! in_array($invoice->kind, ['sales', 'debit_note'], true)) {
+            return [];
+        }
+        $godowns = Godown::query()->pluck('name', 'id');
+        $out = [];
+        $batches = app(\App\Services\Inventory\BatchTracker::class)->batches(null, null, $invoice->exists ? ['invoice', $invoice->id] : null)
+            ->filter(fn ($b) => $b->quantity > 0)->sortBy(fn ($b) => ($b->expiry_date ?? '9999').$b->batch_no);
+        $units = StockItem::query()->with('unit')->whereIn('id', $batches->pluck('stock_item_id')->unique())->get()->keyBy('id');
+        foreach ($batches as $b) {
+            $out[$b->stock_item_id][] = [
+                'batch' => $b->batch_no, 'godown' => $b->godown_id,
+                'label' => $b->batch_no.' · '.\App\Services\Inventory\StockLedger::qty($b->quantity, $units[$b->stock_item_id]->unit ?? null)
+                    .($b->expiry_date ? ' · exp '.\Illuminate\Support\Carbon::parse($b->expiry_date)->format('d-m-Y') : '')
+                    .($godowns->count() > 1 ? ' · '.($godowns[$b->godown_id] ?? '') : ''),
+            ];
+        }
+
+        return $out;
     }
 
     protected function oldInput(): array
@@ -313,6 +341,10 @@ class InvoiceController extends Controller
             'items.*.rate' => ['nullable', 'string', 'max:20'],
             'items.*.discount_percent' => ['nullable', 'string', 'max:10'],
             'items.*.gst_rate' => ['nullable', 'string', 'max:10'],
+            'items.*.batch_no' => ['nullable', 'string', 'max:50'],
+            'items.*.mfg_date' => ['nullable', 'string', 'max:10'],
+            'items.*.expiry_date' => ['nullable', 'string', 'max:10'],
+            'items.*.serials' => ['nullable', 'string', 'max:20000'],
         ], [
             'party_account_id.required' => 'Select the party.',
             'items.required' => 'Add at least one item.',

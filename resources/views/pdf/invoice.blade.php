@@ -59,7 +59,7 @@
     @foreach ($invoice->items as $item)
         <tr>
             <td>{{ $item->line_no }}</td>
-            <td>{{ $item->description }}</td>
+            <td>{{ $item->description }}@if ($item->batch_no)<br><small>Batch {{ $item->batch_no }}@if ($item->expiry_date) · exp {{ $item->expiry_date->format('d-m-Y') }}@endif</small>@endif @if ($item->serials)<br><small>S/N: {{ implode(', ', $item->serialList()) }}</small>@endif</td>
             <td>{{ $item->hsn_sac }}</td>
             <td class="num">{{ Decimal::trim($item->quantity) }} {{ $item->unit }}</td>
             <td class="num">{{ Money::format($item->rate) }}</td>

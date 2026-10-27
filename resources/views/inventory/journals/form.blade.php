@@ -52,7 +52,7 @@
     <div class="table-responsive">
         <table class="table align-middle table-stack mb-2">
             <thead class="table-light">
-                <tr><th>Item</th><th class="adjust-only">Godown</th><th class="adjust-only">In / out</th><th class="text-end">Quantity</th><th class="text-end adjust-only">Rate <small class="text-secondary fw-normal">(in only)</small></th><th></th></tr>
+                <tr><th>Item</th><th class="adjust-only">Godown</th><th class="adjust-only">In / out</th><th class="text-end">Quantity</th><th class="text-end adjust-only">Rate <small class="text-secondary fw-normal">(in only)</small></th>@if ($anyTracked)<th>Batch / serials</th>@endif<th></th></tr>
             </thead>
             <tbody id="journal-lines">
             @foreach ($lines as $i => $line)
@@ -61,6 +61,9 @@
             </tbody>
         </table>
     </div>
+    @foreach ($batchOptions as $itemId => $options)
+        <datalist id="journal-batches-{{ $itemId }}">@foreach ($options as $o)<option value="{{ $o['batch'] }}" label="{{ $o['label'] }}">{{ $o['label'] }}</option>@endforeach</datalist>
+    @endforeach
     <template id="line-template">@include('inventory.journals._line', ['i' => '__INDEX__', 'line' => []])</template>
     @error('lines')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
     <button type="button" class="btn btn-sm btn-outline-secondary mb-3" id="add-line"><i class="bi bi-plus-lg"></i> Add line</button>
@@ -87,11 +90,30 @@
     var template = document.getElementById('line-template');
     var next = body.querySelectorAll('tr').length;
 
+    // Batch and serial fields follow the item; a new batch's expiry is asked only for stock coming in.
+    function tracking(tr) {
+        var item = tr.querySelector('select[name$="[stock_item_id]"]');
+        var cell = tr.querySelector('.line-tracking');
+        if (!item || !cell) return;
+        var opt = item.options[item.selectedIndex];
+        var t = opt ? (opt.dataset.tracking || 'none') : 'none';
+        cell.querySelector('.track-batch').classList.toggle('d-none', t !== 'batch');
+        cell.querySelector('.track-serial').classList.toggle('d-none', t !== 'serial');
+        cell.querySelector('.line-batch').setAttribute('list', 'journal-batches-' + (item.value || 0));
+        var dir = tr.querySelector('select[name$="[direction]"]');
+        var inward = purpose.value !== 'transfer' && dir && dir.value === 'in';
+        cell.querySelector('.in-only').hidden = !inward;
+    }
     function mode() {
         var transfer = purpose.value === 'transfer';
         form.querySelectorAll('.transfer-only').forEach(function (el) { el.hidden = !transfer; });
         form.querySelectorAll('.adjust-only').forEach(function (el) { el.hidden = transfer; });
+        body.querySelectorAll('tr').forEach(tracking);
     }
+    body.addEventListener('change', function (e) {
+        var tr = e.target.closest('tr');
+        if (tr) tracking(tr);
+    });
     document.getElementById('add-line').addEventListener('click', function () {
         body.insertAdjacentHTML('beforeend', template.innerHTML.replace(/__INDEX__/g, String(next++)));
         mode();

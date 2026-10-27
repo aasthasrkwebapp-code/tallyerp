@@ -107,6 +107,33 @@
         recalc();
     }
 
+    // Batch and serial fields follow the chosen stock item; outward documents list the batches in stock.
+    function tracking(row) {
+        var box = row.querySelector('.item-tracking');
+        var stock = row.querySelector('.item-stock');
+        if (!box || !stock) return;
+        var id = parseInt(stock.value, 10);
+        var s = (cfg.stockItems || []).find(function (x) { return x.id === id; });
+        var mode = s ? s.tracking : 'none';
+        box.classList.toggle('d-none', mode === 'none');
+        box.querySelectorAll('.track-batch').forEach(function (el) { el.classList.toggle('d-none', mode !== 'batch'); });
+        box.querySelectorAll('.track-serial').forEach(function (el) { el.classList.toggle('d-none', mode !== 'serial'); });
+        var list = box.querySelector('datalist');
+        if (list) {
+            var godown = row.querySelector('.item-godown');
+            var g = godown ? parseInt(godown.value, 10) : null;
+            list.innerHTML = '';
+            ((cfg.batchOptions || {})[id] || []).forEach(function (b) {
+                if (g && b.godown !== g) return;
+                var o = document.createElement('option');
+                o.value = b.batch;
+                o.label = b.label;
+                o.textContent = b.label;
+                list.appendChild(o);
+            });
+        }
+    }
+
     function bindRow(row) {
         row.querySelector('.item-remove').addEventListener('click', function () {
             if (itemsBox.querySelectorAll('.invoice-item').length > 1) {
@@ -133,8 +160,12 @@
                 set('.item-hsn', s.hsn);
                 set('.item-gst', s.gst);
                 set('.item-rate', s.rate);
+                tracking(row);
                 recalc();
             });
+            var godown = row.querySelector('.item-godown');
+            if (godown) godown.addEventListener('change', function () { tracking(row); });
+            tracking(row);
         }
         var ledger = row.querySelector('.item-ledger');
         ledger.addEventListener('change', function () {

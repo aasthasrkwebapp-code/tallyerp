@@ -6,11 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\Godown;
 use App\Models\StockGroup;
 use App\Models\StockItem;
+use App\Services\Inventory\BatchTracker;
 use App\Services\Inventory\StockLedger;
 use App\Support\CsvExport;
 use App\Support\Decimal;
 use App\Support\Money;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class StockReportController extends Controller
 {
@@ -56,6 +58,101 @@ class StockReportController extends Controller
             'godownId' => $godownId,
             'godowns' => Godown::query()->orderBy('name')->get(),
             'filters' => $filters,
+        ]);
+    }
+
+    /** Batch-wise stock with expiry status. */
+    public function batches(Request $request)
+    {
+        $filters = $request->validate([
+            'to' => ['nullable', 'date'],
+            'item' => ['nullable', 'integer'],
+            'godown' => ['nullable', 'integer'],
+            'status' => ['nullable', 'in:in_stock,expired,expiring,all'],
+            'days' => ['nullable', 'integer', 'min:1', 'max:3650'],
+        ]);
+        $asOf = Carbon::parse($filters['to'] ?? now())->toDateString();
+        $status = $filters['status'] ?? 'in_stock';
+        $days = (int) ($filters['days'] ?? 30);
+        $soon = Carbon::parse($asOf)->addDays($days)->toDateString();
+
+        $items = StockItem::query()->with('unit')->where('tracking', 'batch')->orderBy('name')->get()->keyBy('id');
+        $godowns = Godown::query()->orderBy('name')->get();
+        $rows = app(BatchTracker::class)->batches($asOf, isset($filters['item']) ? [(int) $filters['item']] : $items->keys()->all())
+            ->filter(fn ($b) => $items->has($b->stock_item_id))
+            ->when(isset($filters['godown']), fn ($c) => $c->where('godown_id', (int) $filters['godown']))
+            ->filter(fn ($b) => $status === 'all' || $b->quantity > 0)
+            ->map(function ($b) use ($items, $asOf, $soon) {
+                $b->item = $items[$b->stock_item_id];
+                $b->state = ! $b->expiry_date ? 'none' : ($b->expiry_date < $asOf ? 'expired' : ($b->expiry_date <= $soon ? 'expiring' : 'ok'));
+                $b->days_left = $b->expiry_date ? (int) Carbon::parse($asOf)->diffInDays(Carbon::parse($b->expiry_date), false) : null;
+
+                return $b;
+            })
+            ->filter(fn ($b) => ! in_array($status, ['expired', 'expiring'], true) || $b->state === $status)
+            ->sortBy(fn ($b) => $b->item->name.'|'.($b->expiry_date ?? '9999-99-99').'|'.$b->batch_no)->values();
+
+        if (CsvExport::requested($request)) {
+            $this->authorize('reports.export');
+            $names = $godowns->pluck('name', 'id');
+
+            return CsvExport::download("batch-stock-{$asOf}.csv", ['Item', 'Batch', 'Godown', 'Quantity', 'Unit', 'Mfg date', 'Expiry date', 'Days to expiry'],
+                $rows->map(fn ($b) => [
+                    $b->item->name, $b->batch_no, $names[$b->godown_id] ?? '', Decimal::trim(Decimal::fromScaled($b->quantity, 3)), $b->item->unit->symbol,
+                    $b->mfg_date ?? '', $b->expiry_date ?? '', $b->days_left ?? '',
+                ]));
+        }
+
+        return view('inventory.reports.batches', [
+            'rows' => $rows, 'items' => $items, 'godowns' => $godowns, 'filters' => $filters,
+            'asOf' => $asOf, 'status' => $status, 'days' => $days,
+            'counts' => ['expired' => $rows->where('state', 'expired')->count(), 'expiring' => $rows->where('state', 'expiring')->count()],
+        ]);
+    }
+
+    /** Serial numbers: where each one is, and the history of one serial. */
+    public function serials(Request $request)
+    {
+        $filters = $request->validate([
+            'item' => ['nullable', 'integer'],
+            'status' => ['nullable', 'in:in_stock,out,all'],
+            'q' => ['nullable', 'string', 'max:50'],
+        ]);
+        $status = $filters['status'] ?? 'in_stock';
+        $search = mb_strtoupper(trim($filters['q'] ?? ''));
+        $items = StockItem::query()->with('unit')->where('tracking', 'serial')->orderBy('name')->get()->keyBy('id');
+        $ids = isset($filters['item']) ? [(int) $filters['item']] : $items->keys()->all();
+        $tracker = app(BatchTracker::class);
+
+        $rows = collect();
+        foreach ($tracker->serialStates($ids) as $itemId => $serials) {
+            foreach ($serials as $serial => $state) {
+                if (! $items->has($itemId)) {
+                    continue;
+                }
+                $rows->push((object) (['serial' => (string) $serial, 'item' => $items[$itemId]] + (array) $state));
+            }
+        }
+        $rows = $rows
+            ->filter(fn ($r) => $status === 'all' || ($status === 'in_stock') === $r->in_stock)
+            ->filter(fn ($r) => $search === '' || str_contains($r->serial, $search))
+            ->sortBy(fn ($r) => $r->item->name.'|'.$r->serial)->values();
+        $history = $search !== '' ? $tracker->serialHistory($search, $ids) : collect();
+        $godowns = Godown::query()->pluck('name', 'id');
+
+        if (CsvExport::requested($request)) {
+            $this->authorize('reports.export');
+
+            return CsvExport::download('serial-numbers-'.now()->toDateString().'.csv', ['Item', 'Serial', 'Status', 'Godown', 'Last movement', 'Date', 'Document', 'Party'],
+                $rows->map(fn ($r) => [
+                    $r->item->name, $r->serial, $r->in_stock ? 'In stock' : 'Out', $r->in_stock ? ($godowns[$r->godown_id] ?? '') : '',
+                    StockLedger::LABELS[$r->kind] ?? $r->kind, $r->kind === 'opening' ? '' : $r->date, $r->number ?? '', $r->party ?? '',
+                ]));
+        }
+
+        return view('inventory.reports.serials', [
+            'rows' => $rows, 'items' => $items, 'filters' => $filters, 'status' => $status, 'search' => $search,
+            'history' => $history, 'godowns' => $godowns,
         ]);
     }
 

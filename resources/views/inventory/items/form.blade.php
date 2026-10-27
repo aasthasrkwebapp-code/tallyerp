@@ -93,6 +93,25 @@
             @error('purchase_account_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>
 
+        @php($locked = $item->exists && $item->hasMovements())
+        @php($dateVal = fn ($name) => old($name, $item->{$name}?->toDateString()))
+        <div class="col-12"><h2 class="h6 fw-bold mb-0 mt-2">Batches and serial numbers</h2></div>
+        <div class="col-12 col-md-6">
+            <label for="tracking" class="form-label">Track this item by</label>
+            <select id="tracking" name="tracking" class="form-select @error('tracking') is-invalid @enderror" @disabled($locked)>
+                @foreach (\App\Models\StockItem::TRACKING as $key => $label)<option value="{{ $key }}" @selected($v('tracking', 'none') === $key)>{{ $label }}</option>@endforeach
+            </select>
+            @if ($locked)<input type="hidden" name="tracking" value="{{ $item->tracking }}"><div class="form-text">Fixed: documents already move this item.</div>@endif
+            @error('tracking')<div class="invalid-feedback">{{ $message }}</div>@enderror
+        </div>
+        <div class="col-12 col-md-6 d-flex align-items-end batch-only">
+            <div class="form-check mb-2">
+                <input type="hidden" name="track_expiry" value="0">
+                <input class="form-check-input" type="checkbox" name="track_expiry" value="1" id="track_expiry" @checked($v('track_expiry'))>
+                <label class="form-check-label" for="track_expiry">Batches have expiry dates (required on purchases)</label>
+            </div>
+        </div>
+
         <div class="col-12"><h2 class="h6 fw-bold mb-0 mt-2">Opening stock <small class="text-secondary fw-normal">(as at the books beginning date)</small></h2></div>
         <div class="col-6 col-md-3">
             <label for="opening_quantity" class="form-label">Quantity</label>
@@ -114,6 +133,27 @@
             <select id="opening_godown_id" name="opening_godown_id" class="form-select">
                 @foreach ($godowns as $g)<option value="{{ $g->id }}" @selected((int) $v('opening_godown_id') === $g->id)>{{ $g->name }}</option>@endforeach
             </select>
+        </div>
+
+        <div class="col-12 col-md-4 batch-only">
+            <label for="opening_batch_no" class="form-label">Opening batch no.</label>
+            <input id="opening_batch_no" name="opening_batch_no" value="{{ $v('opening_batch_no') }}" class="form-control @error('opening_batch_no') is-invalid @enderror" maxlength="50" @readonly($locked)>
+            @error('opening_batch_no')<div class="invalid-feedback">{{ $message }}</div>@enderror
+        </div>
+        <div class="col-6 col-md-4 batch-only">
+            <label for="opening_mfg_date" class="form-label">Mfg date</label>
+            <input type="date" id="opening_mfg_date" name="opening_mfg_date" value="{{ $dateVal('opening_mfg_date') }}" class="form-control @error('opening_mfg_date') is-invalid @enderror" @readonly($locked)>
+            @error('opening_mfg_date')<div class="invalid-feedback">{{ $message }}</div>@enderror
+        </div>
+        <div class="col-6 col-md-4 batch-only">
+            <label for="opening_expiry_date" class="form-label">Expiry date</label>
+            <input type="date" id="opening_expiry_date" name="opening_expiry_date" value="{{ $dateVal('opening_expiry_date') }}" class="form-control @error('opening_expiry_date') is-invalid @enderror" @readonly($locked)>
+            @error('opening_expiry_date')<div class="invalid-feedback">{{ $message }}</div>@enderror
+        </div>
+        <div class="col-12 serial-only">
+            <label for="opening_serials" class="form-label">Opening serial numbers <span class="text-secondary">(one per unit; one per line or comma separated)</span></label>
+            <textarea id="opening_serials" name="opening_serials" rows="2" class="form-control @error('opening_serials') is-invalid @enderror" @readonly($locked)>{{ $v('opening_serials') }}</textarea>
+            @error('opening_serials')<div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>
 
         <div class="col-6 col-md-3">
@@ -155,6 +195,14 @@
     }
     qty.addEventListener('input', fill);
     rate.addEventListener('input', fill);
+
+    var tracking = document.getElementById('tracking');
+    function track() {
+        document.querySelectorAll('.batch-only').forEach(function (el) { el.hidden = tracking.value !== 'batch'; });
+        document.querySelectorAll('.serial-only').forEach(function (el) { el.hidden = tracking.value !== 'serial'; });
+    }
+    tracking.addEventListener('change', track);
+    track();
 })();
 </script>
 @endpush

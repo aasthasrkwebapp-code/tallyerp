@@ -37,7 +37,7 @@ class StockJournalService
             throw ValidationException::withMessages(['purpose' => 'Choose what the stock journal is for.']);
         }
 
-        $lines = $purpose === 'transfer' ? $this->transferLines($data) : $this->adjustmentLines($data, $date);
+        $lines = $purpose === 'transfer' ? $this->transferLines($data, $date) : $this->adjustmentLines($data, $date);
 
         return DB::transaction(function () use ($data, $user, $date, $purpose, $lines) {
             $journal = StockJournal::create([
@@ -126,7 +126,7 @@ class StockJournalService
         return $date->toDateString();
     }
 
-    protected function transferLines(array $data): array
+    protected function transferLines(array $data, string $date): array
     {
         $godowns = Godown::query()->where('is_active', true)->pluck('id')->all();
         $from = (int) ($data['from_godown_id'] ?? 0);
@@ -142,10 +142,12 @@ class StockJournalService
         }
 
         $rows = $this->rows($data, $errors, false);
+        // Batches and serials are checked where the stock leaves; they arrive unchanged.
+        $fields = $this->tracking(array_map(fn ($r) => $r + ['godown_id' => $from, 'direction' => 'out'], $rows), $date);
         $lines = [];
-        foreach ($rows as $row) {
-            $lines[] = ['stock_item_id' => $row['item']->id, 'godown_id' => $from, 'direction' => 'out', 'quantity' => $row['quantity'], 'rate' => '0', 'value' => '0'];
-            $lines[] = ['stock_item_id' => $row['item']->id, 'godown_id' => $to, 'direction' => 'in', 'quantity' => $row['quantity'], 'rate' => '0', 'value' => '0'];
+        foreach ($rows as $n => $row) {
+            $lines[] = ['stock_item_id' => $row['item']->id, 'godown_id' => $from, 'direction' => 'out', 'quantity' => $row['quantity'], 'rate' => '0', 'value' => '0'] + $fields[$n];
+            $lines[] = ['stock_item_id' => $row['item']->id, 'godown_id' => $to, 'direction' => 'in', 'quantity' => $row['quantity'], 'rate' => '0', 'value' => '0'] + $fields[$n];
         }
 
         return $lines;
@@ -155,9 +157,10 @@ class StockJournalService
     {
         $errors = [];
         $rows = $this->rows($data, $errors, true);
+        $fields = $this->tracking($rows, $date);
         $positions = $this->ledger->position($date, StockItem::query()->whereIn('id', array_map(fn ($r) => $r['item']->id, $rows))->get());
 
-        return array_map(function ($row) use ($positions) {
+        return array_map(function ($row, $n) use ($positions, $fields) {
             $qty = Decimal::toScaled($row['quantity'], 3);
             // Inward lines without a rate come in at the item's current average cost.
             $rate = $row['rate'] !== '' ? Money::toPaise($row['rate']) : ($positions[$row['item']->id]->rate ?? 0);
@@ -166,8 +169,8 @@ class StockJournalService
             return [
                 'stock_item_id' => $row['item']->id, 'godown_id' => $row['godown_id'], 'direction' => $row['direction'],
                 'quantity' => $row['quantity'], 'rate' => Money::fromPaise($rate), 'value' => Money::fromPaise($value),
-            ];
-        }, $rows);
+            ] + $fields[$n];
+        }, $rows, array_keys($rows));
     }
 
     /** Validate the item rows; throws with all errors (including $errors gathered earlier). */
@@ -197,7 +200,9 @@ class StockJournalService
                 $errors["lines.$i.quantity"] = "{$label}: unit {$item->unit->symbol} allows {$places} decimal places.";
             }
 
-            $row = ['item' => $item, 'quantity' => $quantity];
+            $row = ['item' => $item, 'quantity' => $quantity, 'key' => "lines.$i", 'label' => $label,
+                'batch_no' => $line['batch_no'] ?? null, 'mfg_date' => $line['mfg_date'] ?? null,
+                'expiry_date' => $line['expiry_date'] ?? null, 'serials' => $line['serials'] ?? null];
             if ($withGodown) {
                 $godownId = (int) ($line['godown_id'] ?? 0);
                 if (! in_array($godownId, $godowns, true)) {
@@ -227,6 +232,17 @@ class StockJournalService
         }
 
         return $rows;
+    }
+
+    /** Batch / serial fields of each row (validated); throws on errors. */
+    protected function tracking(array $rows, string $date): array
+    {
+        [$fields, $errors] = app(BatchTracker::class)->check(array_values($rows), $date);
+        if ($errors) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        return $fields;
     }
 
     protected function nextNumber(): string

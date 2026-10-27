@@ -88,7 +88,7 @@
         @foreach ($invoice->items as $item)
             <tr>
                 <td>{{ $item->line_no }}</td>
-                <td>{{ $item->description }}</td>
+                <td>{{ $item->description }}@include('inventory._tracking', ['line' => $item])</td>
                 <td>{{ $item->hsn_sac }}</td>
                 <td class="num">{{ Decimal::trim($item->quantity) }} {{ $item->unit }}</td>
                 <td class="num">{{ Money::format($item->rate) }}</td>
