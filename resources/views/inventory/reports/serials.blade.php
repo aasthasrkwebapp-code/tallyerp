@@ -6,6 +6,7 @@
 @php($docLink = fn ($r) => match ($r->doc_type) {
     'invoice' => route('invoices.show', $r->doc_id),
     'stock_journal' => route('stock-journals.show', $r->doc_id),
+    'delivery_note' => route('notes.show', $r->doc_id),
     default => route('stock-items.show', $r->doc_id),
 })
 

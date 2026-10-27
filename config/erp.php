@@ -92,6 +92,8 @@ return [
         'bank_statement_lines' => null,
         'invoice_items' => null,
         'invoices' => 'original_invoice_id',
+        'delivery_note_items' => null,
+        'delivery_notes' => null,
         'order_items' => null,
         'orders' => null,
         'parties' => null,
@@ -116,6 +118,7 @@ return [
         'vouchers' => 'party_account_id',
         'invoices' => 'party_account_id',
         'orders' => 'party_account_id',
+        'delivery_notes' => 'party_account_id',
         'invoice_items' => 'account_id',
         'bank_statement_lines' => 'account_id',
         'stock_items' => ['sales_account_id', 'purchase_account_id'],
@@ -184,6 +187,12 @@ return [
         'purchase_order' => ['label' => 'Purchase Order', 'plural' => 'Purchase Orders', 'prefix' => 'PO', 'invoice_kind' => 'purchase', 'module' => 'purchases', 'party_group' => 'sundry_creditors'],
     ],
 
+    // Delivery notes and goods receipt notes: the order and invoice kinds they sit between.
+    'note_kinds' => [
+        'delivery_note' => ['label' => 'Delivery Note', 'plural' => 'Delivery Notes', 'prefix' => 'DN', 'direction' => 'out', 'order_kind' => 'sales_order', 'invoice_kind' => 'sales', 'module' => 'sales', 'party_group' => 'sundry_debtors'],
+        'receipt_note' => ['label' => 'Goods Receipt Note', 'plural' => 'Goods Receipt Notes', 'prefix' => 'GRN', 'direction' => 'in', 'order_kind' => 'purchase_order', 'invoice_kind' => 'purchase', 'module' => 'purchases', 'party_group' => 'sundry_creditors'],
+    ],
+
     // Base voucher types and their behaviour.
     'voucher_base_types' => [
         'journal' => 'Journal',
@@ -214,9 +223,11 @@ return [
         ['heading' => 'Transactions'],
         ['label' => 'Vouchers', 'icon' => 'journal-text', 'route' => 'vouchers.index', 'can' => 'vouchers.view'],
         ['label' => 'Sales Orders', 'icon' => 'clipboard-plus', 'route' => 'orders.index', 'can' => 'sales.view', 'params' => ['kind' => 'sales_order']],
+        ['label' => 'Delivery Notes', 'icon' => 'box-arrow-right', 'route' => 'notes.index', 'can' => 'sales.view', 'params' => ['kind' => 'delivery_note']],
         ['label' => 'Sales Invoices', 'icon' => 'receipt', 'route' => 'invoices.index', 'can' => 'sales.view', 'params' => ['kind' => 'sales']],
         ['label' => 'Credit Notes', 'icon' => 'arrow-return-left', 'route' => 'invoices.index', 'can' => 'sales.view', 'params' => ['kind' => 'credit_note']],
         ['label' => 'Purchase Orders', 'icon' => 'clipboard-check', 'route' => 'orders.index', 'can' => 'purchases.view', 'params' => ['kind' => 'purchase_order']],
+        ['label' => 'Goods Receipt Notes', 'icon' => 'box-arrow-in-left', 'route' => 'notes.index', 'can' => 'purchases.view', 'params' => ['kind' => 'receipt_note']],
         ['label' => 'Purchase Bills', 'icon' => 'cart3', 'route' => 'invoices.index', 'can' => 'purchases.view', 'params' => ['kind' => 'purchase']],
         ['label' => 'Debit Notes', 'icon' => 'arrow-return-right', 'route' => 'invoices.index', 'can' => 'purchases.view', 'params' => ['kind' => 'debit_note']],
         ['label' => 'Stock Journals', 'icon' => 'arrow-left-right', 'route' => 'stock-journals.index', 'can' => 'inventory.view'],
@@ -233,6 +244,8 @@ return [
         ['label' => 'Payables', 'icon' => 'hourglass-bottom', 'route' => 'reports.outstanding', 'can' => 'reports.view', 'params' => ['type' => 'payable']],
         ['label' => 'Pending Sales Orders', 'icon' => 'hourglass', 'route' => 'orders.pending', 'can' => 'sales.view', 'params' => ['kind' => 'sales_order']],
         ['label' => 'Pending Purchase Orders', 'icon' => 'hourglass-top', 'route' => 'orders.pending', 'can' => 'purchases.view', 'params' => ['kind' => 'purchase_order']],
+        ['label' => 'Delivered, Not Invoiced', 'icon' => 'box-arrow-right', 'route' => 'notes.pending', 'can' => 'sales.view', 'params' => ['kind' => 'delivery_note']],
+        ['label' => 'Received, Not Billed', 'icon' => 'box-arrow-in-left', 'route' => 'notes.pending', 'can' => 'purchases.view', 'params' => ['kind' => 'receipt_note']],
         ['label' => 'Stock Summary', 'icon' => 'clipboard-check', 'route' => 'stock-summary', 'can' => 'inventory.view'],
         ['label' => 'Reorder Status', 'icon' => 'arrow-repeat', 'route' => 'stock-reorder', 'can' => 'inventory.view'],
         ['label' => 'Batches & Expiry', 'icon' => 'calendar2-x', 'route' => 'stock-batches', 'can' => 'inventory.view'],

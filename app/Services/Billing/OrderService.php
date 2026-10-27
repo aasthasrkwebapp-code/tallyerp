@@ -44,8 +44,8 @@ class OrderService
             throw ValidationException::withMessages(['order' => 'A '.($order->status === Order::CANCELLED ? 'cancelled' : 'closed').' order cannot be altered.']);
         }
         // Any invoice line (even a draft) pointing at the order fixes its lines.
-        if ($order && \App\Models\InvoiceItem::query()->whereIn('order_item_id', $order->items()->pluck('id'))->exists()) {
-            throw ValidationException::withMessages(['order' => 'Invoices (or drafts) have been made against this order, so it cannot be altered. Close it and make a new order instead.']);
+        if ($order && $this->referenced($order)) {
+            throw ValidationException::withMessages(['order' => 'Invoices or delivery notes have been made against this order, so it cannot be altered. Close it and make a new order instead.']);
         }
 
         [$party, $items, $taxMode, $result, $date] = $this->prepare($kind, $config, $data);
@@ -134,24 +134,35 @@ class OrderService
     }
 
     /**
-     * Quantity invoiced (posted) against each order line, in thousandths.
+     * Quantity delivered against each order line, in thousandths: posted
+     * invoices made straight from the order plus posted delivery / receipt notes.
      *
      * @param  int|null  $exceptInvoiceId  leave out this invoice (the one being edited)
+     * @param  int|null  $exceptNoteId  leave out this note
      * @return array<int, int> order item id => quantity
      */
-    public function delivered(array $orderItemIds, ?int $exceptInvoiceId = null): array
+    public function delivered(array $orderItemIds, ?int $exceptInvoiceId = null, ?int $exceptNoteId = null): array
     {
         if (! $orderItemIds) {
             return [];
         }
 
-        return DB::table('invoice_items as ii')
+        $invoiced = DB::table('invoice_items as ii')
             ->join('invoices as i', 'i.id', '=', 'ii.invoice_id')
             ->join('vouchers as v', 'v.id', '=', 'i.voucher_id')
             ->where('v.status', Voucher::POSTED)
             ->whereIn('ii.order_item_id', $orderItemIds)
             ->when($exceptInvoiceId, fn ($q) => $q->where('i.id', '!=', $exceptInvoiceId))
-            ->get(['ii.order_item_id', 'ii.quantity'])
+            ->get(['ii.order_item_id', 'ii.quantity']);
+        // Goods sent on a delivery note (or received on a GRN) count as delivered.
+        $noted = DB::table('delivery_note_items as l')
+            ->join('delivery_notes as n', 'n.id', '=', 'l.delivery_note_id')
+            ->where('n.status', 'posted')
+            ->whereIn('l.order_item_id', $orderItemIds)
+            ->when($exceptNoteId, fn ($q) => $q->where('n.id', '!=', $exceptNoteId))
+            ->get(['l.order_item_id', 'l.quantity']);
+
+        return $invoiced->concat($noted)
             ->groupBy('order_item_id')
             ->map(fn ($rows) => $rows->sum(fn ($r) => Decimal::toScaled($r->quantity, 3)))
             ->all();
@@ -326,6 +337,15 @@ class OrderService
     }
 
     // ------------------------------------------------------------------
+
+    /** True when any invoice line or note line (even a draft or cancelled one) points at the order. */
+    public function referenced(Order $order): bool
+    {
+        $ids = $order->items()->pluck('id');
+
+        return \App\Models\InvoiceItem::query()->whereIn('order_item_id', $ids)->exists()
+            || \App\Models\DeliveryNoteItem::query()->whereIn('order_item_id', $ids)->exists();
+    }
 
     protected function invoicedLines(Order $order): Collection
     {

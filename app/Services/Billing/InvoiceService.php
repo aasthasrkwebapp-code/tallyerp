@@ -13,6 +13,7 @@ use App\Models\Voucher;
 use App\Models\VoucherType;
 use App\Services\Accounting\VoucherService;
 use App\Services\Inventory\BatchTracker;
+use App\Services\Inventory\DeliveryNoteService;
 use App\Support\CurrentCompany;
 use App\Support\Decimal;
 use App\Support\Money;
@@ -103,6 +104,7 @@ class InvoiceService
                     'stock_item_id' => $item['stock_item_id'],
                     'godown_id' => $item['godown_id'],
                     'order_item_id' => $item['order_item_id'],
+                    'note_item_id' => $item['note_item_id'],
                     'description' => $item['description'],
                     'hsn_sac' => $item['hsn_sac'],
                     'quantity' => $item['quantity'],
@@ -210,6 +212,7 @@ class InvoiceService
                 'stock_item_id' => $i->stock_item_id,
                 'godown_id' => $i->godown_id,
                 'order_item_id' => $i->order_item_id,
+                'note_item_id' => $i->note_item_id,
                 'description' => $i->description,
                 'hsn_sac' => $i->hsn_sac,
                 'quantity' => $i->quantity,
@@ -313,6 +316,7 @@ class InvoiceService
         $items = [];
         $tracked = [];
         $ordered = [];
+        $noted = [];
         foreach ($rows as $i => $row) {
             if (empty($row['account_id']) && empty($row['stock_item_id']) && trim((string) ($row['description'] ?? '')) === '' && ($row['rate'] ?? '') === '') {
                 continue; // blank row
@@ -381,12 +385,17 @@ class InvoiceService
                 'gst_rate' => $gstRate,
                 'batch_no' => null, 'mfg_date' => null, 'expiry_date' => null, 'serials' => null,
                 'order_item_id' => ! empty($row['order_item_id']) ? (int) $row['order_item_id'] : null,
+                'note_item_id' => ! empty($row['note_item_id']) ? (int) $row['note_item_id'] : null,
             ];
+            if (! empty($row['note_item_id'])) {
+                $noted[count($items) - 1] = ['key' => "items.$i", 'label' => $line, 'note_item_id' => (int) $row['note_item_id'],
+                    'stock_item_id' => $stock?->id, 'quantity' => $quantity];
+            }
             if (! empty($row['order_item_id'])) {
                 $ordered[] = ['key' => "items.$i", 'label' => $line, 'order_item_id' => (int) $row['order_item_id'],
                     'stock_item_id' => $stock?->id, 'quantity' => $quantity];
             }
-            if ($stock && $stock->tracking !== 'none') {
+            if ($stock && $stock->tracking !== 'none' && empty($row['note_item_id'])) {
                 $tracked[count($items) - 1] = [
                     'key' => "items.$i", 'label' => $line, 'item' => $stock, 'godown_id' => $godownId,
                     'direction' => in_array($kind, ['sales', 'debit_note'], true) ? 'out' : 'in', 'quantity' => $quantity,
@@ -396,6 +405,19 @@ class InvoiceService
             }
         }
 
+        // Lines against a delivery / receipt note: the note moved the stock, so its godown and batches apply.
+        if ($noted && ! $errors) {
+            [$noteErrors, $noteLines] = app(DeliveryNoteService::class)->checkInvoiceLines($kind, $party->id, $noted, $invoice?->exists ? $invoice : null);
+            $errors += $noteErrors;
+            foreach ($noteLines as $n => $ni) {
+                $items[$n]['godown_id'] = $ni->godown_id;
+                $items[$n]['order_item_id'] = null; // the note already counts against the order
+                $items[$n]['batch_no'] = $ni->batch_no;
+                $items[$n]['mfg_date'] = $ni->mfg_date?->toDateString();
+                $items[$n]['expiry_date'] = $ni->expiry_date?->toDateString();
+                $items[$n]['serials'] = $ni->serials;
+            }
+        }
         if ($ordered && ! $errors) {
             $errors += app(OrderService::class)->checkInvoiceLines($kind, $party->id, $ordered, $invoice?->exists ? $invoice : null);
         }

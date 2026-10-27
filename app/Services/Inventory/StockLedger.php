@@ -13,18 +13,20 @@ use Illuminate\Support\Facades\DB;
  * Stock quantities and values derived from posted documents.
  *
  * Movements come from items of posted invoices (sales out, purchases in,
- * sales returns in, purchase returns out) and lines of posted stock journals.
+ * sales returns in, purchase returns out), lines of posted stock journals and
+ * lines of posted delivery notes (out) and goods receipt notes (in). Invoice
+ * items made against a note line do not move stock again.
  * Quantities are integers in thousandths, values integers in paise.
  *
  * Valuation is weighted average cost: (opening value + purchases − purchase
- * returns + valued stock-journal inwards) ÷ the same quantities, all up to the
+ * returns + goods receipt notes + valued stock-journal inwards) ÷ the same quantities, all up to the
  * valuation date, applied to the closing quantity. Sales returns and godown
  * transfers move quantity without changing the average.
  */
 class StockLedger
 {
     /** Kinds that bring stock in. */
-    public const INWARD = ['purchase', 'sales_return', 'journal_in', 'transfer_in'];
+    public const INWARD = ['purchase', 'sales_return', 'journal_in', 'transfer_in', 'receipt'];
 
     public const LABELS = [
         'opening' => 'Opening stock',
@@ -36,6 +38,8 @@ class StockLedger
         'journal_out' => 'Stock journal (out)',
         'transfer_in' => 'Transfer in',
         'transfer_out' => 'Transfer out',
+        'delivery' => 'Delivery note',
+        'receipt' => 'Goods receipt note',
     ];
 
     /**
@@ -52,6 +56,7 @@ class StockLedger
             ->join('vouchers as v', 'v.id', '=', 'i.voucher_id')
             ->where('v.status', Voucher::POSTED)
             ->whereNotNull('ii.stock_item_id')
+            ->whereNull('ii.note_item_id') // the delivery / receipt note moved this stock
             ->where('i.company_id', app(\App\Support\CurrentCompany::class)->id())
             ->when($itemIds !== null, fn ($q) => $q->whereIn('ii.stock_item_id', $itemIds))
             ->when($to, fn ($q) => $q->where('i.date', '<=', $to))
@@ -98,7 +103,28 @@ class StockLedger
                 ] + self::tracking($r));
             });
 
-        return $invoices->concat($journals)
+        $notes = DB::table('delivery_note_items as l')
+            ->join('delivery_notes as n', 'n.id', '=', 'l.delivery_note_id')
+            ->where('n.status', 'posted')
+            ->where('n.company_id', app(\App\Support\CurrentCompany::class)->id())
+            ->when($itemIds !== null, fn ($q) => $q->whereIn('l.stock_item_id', $itemIds))
+            ->when($to, fn ($q) => $q->where('n.date', '<=', $to))
+            ->when($from, fn ($q) => $q->where('n.date', '>=', $from))
+            ->when($godownId, fn ($q) => $q->where('l.godown_id', $godownId))
+            ->get(['l.stock_item_id', 'l.godown_id', 'n.date', 'n.kind', 'l.quantity', 'l.value', 'n.id as doc_id', 'n.number', 'n.party_name', 'l.id as line_id', 'l.batch_no', 'l.mfg_date', 'l.expiry_date', 'l.serials'])
+            ->map(function ($r) {
+                $in = $r->kind === 'receipt_note';
+
+                return (object) ([
+                    'stock_item_id' => (int) $r->stock_item_id, 'godown_id' => (int) $r->godown_id,
+                    'date' => substr((string) $r->date, 0, 10), 'kind' => $in ? 'receipt' : 'delivery',
+                    'quantity' => ($in ? 1 : -1) * Decimal::toScaled($r->quantity, 3),
+                    'value' => $in ? Money::toPaise($r->value) : 0,
+                    'doc_type' => 'delivery_note', 'doc_id' => (int) $r->doc_id, 'number' => $r->number, 'party' => $r->party_name, 'line_id' => (int) $r->line_id,
+                ] + self::tracking($r));
+            });
+
+        return $invoices->concat($journals)->concat($notes)
             ->sortBy(fn ($m) => $m->date.'|'.self::rank($m->kind).'|'.str_pad((string) $m->line_id, 12, '0', STR_PAD_LEFT))
             ->values();
     }
@@ -146,7 +172,7 @@ class StockLedger
             $rows = $movements->get($item->id, collect());
 
             // The average cost is company-wide; quantities can be limited to a godown.
-            $inQty = $openingQty + $rows->filter(fn ($m) => in_array($m->kind, ['purchase', 'purchase_return', 'journal_in'], true))->sum('quantity');
+            $inQty = $openingQty + $rows->filter(fn ($m) => in_array($m->kind, ['purchase', 'purchase_return', 'journal_in', 'receipt'], true))->sum('quantity');
             $inValue = $openingValue + $rows->sum('value');
 
             $qty = $godownId

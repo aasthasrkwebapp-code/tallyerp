@@ -97,6 +97,15 @@ class InvoiceController extends Controller
             } catch (\Illuminate\Validation\ValidationException $e) {
                 return redirect()->route('orders.show', $order)->with('error', collect($e->errors())->flatten()->first());
             }
+        } elseif ($request->filled('note')) {
+            // "Invoice against delivery note / GRN X": its lines not yet invoiced.
+            $note = \App\Models\DeliveryNote::query()->findOrFail($request->integer('note'));
+            abort_unless($note->config()['invoice_kind'] === $kind, 404);
+            try {
+                $input = array_merge($input, app(\App\Services\Inventory\DeliveryNoteService::class)->invoiceInput($note));
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                return redirect()->route('notes.show', $note)->with('error', collect($e->errors())->flatten()->first());
+            }
         } elseif ($request->filled('party')) {
             $input['party_account_id'] = $request->integer('party');
         }
@@ -119,7 +128,7 @@ class InvoiceController extends Controller
     public function show(Request $request, Invoice $invoice)
     {
         $this->authorizeKind($request, $invoice->kind, 'view');
-        $invoice->load(['items.account', 'items.orderItem.order', 'voucher.type', 'party.partyDetails', 'originalInvoice.voucher', 'creator']);
+        $invoice->load(['items.account', 'items.orderItem.order', 'items.noteItem.note', 'voucher.type', 'party.partyDetails', 'originalInvoice.voucher', 'creator']);
 
         return view('billing.invoices.show', [
             'invoice' => $invoice,
@@ -276,6 +285,8 @@ class InvoiceController extends Controller
             'batchOptions' => $this->batchOptions($invoice),
             'orderLines' => \App\Models\OrderItem::query()->with('order')->whereIn('id', array_filter(array_column($input['items'] ?? [], 'order_item_id')))->get()
                 ->mapWithKeys(fn ($oi) => [$oi->id => $oi->order->number.' · line '.$oi->line_no])->all(),
+            'noteLines' => \App\Models\DeliveryNoteItem::query()->with('note')->whereIn('id', array_filter(array_column($input['items'] ?? [], 'note_item_id')))->get()
+                ->mapWithKeys(fn ($ni) => [$ni->id => $ni->note->number.' · line '.$ni->line_no])->all(),
             'godowns' => Godown::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('name')->get(['id', 'name']),
             'originals' => $originals->map(fn (Invoice $i) => [
                 'id' => $i->id, 'party' => $i->party_account_id,
@@ -353,6 +364,7 @@ class InvoiceController extends Controller
             'items.*.discount_percent' => ['nullable', 'string', 'max:10'],
             'items.*.gst_rate' => ['nullable', 'string', 'max:10'],
             'items.*.order_item_id' => ['nullable', 'integer'],
+            'items.*.note_item_id' => ['nullable', 'integer'],
             'items.*.batch_no' => ['nullable', 'string', 'max:50'],
             'items.*.mfg_date' => ['nullable', 'string', 'max:10'],
             'items.*.expiry_date' => ['nullable', 'string', 'max:10'],

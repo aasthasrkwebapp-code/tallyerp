@@ -95,6 +95,8 @@
                                 <td data-label="Document">
                                     @if ($row->doc_type === 'invoice')
                                         <a href="{{ route('invoices.show', $row->doc_id) }}">{{ $row->number ?? 'Invoice' }}</a>
+                                    @elseif ($row->doc_type === 'delivery_note')
+                                        <a href="{{ route('notes.show', $row->doc_id) }}">{{ $row->number }}</a>
                                     @else
                                         <a href="{{ route('stock-journals.show', $row->doc_id) }}">{{ $row->number }}</a>
                                     @endif

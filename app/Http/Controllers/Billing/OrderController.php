@@ -82,7 +82,8 @@ class OrderController extends Controller
             'progress' => $progress,
             'label' => $this->orders->statusLabel($order, $progress),
             'invoices' => $this->orders->invoicesFor($order),
-            'locked' => \App\Models\InvoiceItem::query()->whereIn('order_item_id', $order->items->pluck('id'))->exists(),
+            'locked' => $this->orders->referenced($order),
+            'notes' => \App\Models\DeliveryNote::query()->whereHas('items', fn ($q) => $q->whereIn('order_item_id', $order->items->pluck('id')))->orderBy('date')->get(),
         ]);
     }
 

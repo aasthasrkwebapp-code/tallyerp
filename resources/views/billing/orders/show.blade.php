@@ -17,6 +17,10 @@
         @if ($order->isOpen() && $pendingTotal + $progress->sum('pending') > 0 && $user->can($config['module'].'.create'))
             <a href="{{ route('invoices.create', ['kind' => $config['invoice_kind'], 'order' => $order->id]) }}" class="btn btn-primary"><i class="bi bi-receipt me-1"></i>{{ $config['invoice_kind'] === 'sales' ? 'Make sales invoice' : 'Make purchase bill' }}</a>
         @endif
+        @php($noteKind = $config['invoice_kind'] === 'sales' ? 'delivery_note' : 'receipt_note')
+        @if ($order->isOpen() && $progress->contains(fn ($p) => $p->pending > 0 && $p->item->stock_item_id) && $user->can($config['module'].'.create'))
+            <a href="{{ route('notes.create', ['kind' => $noteKind, 'order' => $order->id]) }}" class="btn btn-outline-primary"><i class="bi bi-box-seam me-1"></i>{{ $config['invoice_kind'] === 'sales' ? 'Make delivery note' : 'Make goods receipt note' }}</a>
+        @endif
         <a href="{{ route('orders.print', $order) }}" class="btn btn-outline-secondary" target="_blank" rel="noopener"><i class="bi bi-printer me-1"></i>Print</a>
         <a href="{{ route('orders.pdf', $order) }}" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
         @if ($order->isOpen() && ! $locked && $user->can($config['module'].'.edit'))
@@ -86,14 +90,14 @@
 <div class="erp-card mb-3">
     <div class="table-responsive">
         <table class="table align-middle mb-0 table-stack">
-            <thead class="table-light"><tr><th>#</th><th>Description</th><th class="text-end">Ordered</th><th class="text-end">Invoiced</th><th class="text-end">Pending</th><th class="text-end">Rate</th><th class="text-end">GST %</th><th class="text-end">Amount</th></tr></thead>
+            <thead class="table-light"><tr><th>#</th><th>Description</th><th class="text-end">Ordered</th><th class="text-end">Delivered</th><th class="text-end">Pending</th><th class="text-end">Rate</th><th class="text-end">GST %</th><th class="text-end">Amount</th></tr></thead>
             <tbody>
             @foreach ($progress as $p)
                 <tr>
                     <td data-label="#">{{ $p->item->line_no }}</td>
                     <td data-label="Description">{{ $p->item->description }}@if ($p->item->hsn_sac)<div class="small text-secondary">HSN {{ $p->item->hsn_sac }}</div>@endif</td>
                     <td data-label="Ordered" class="text-end">{{ $q($p->ordered, $p) }}</td>
-                    <td data-label="Invoiced" class="text-end">{{ $q($p->delivered, $p) }}</td>
+                    <td data-label="Delivered" class="text-end">{{ $q($p->delivered, $p) }}</td>
                     <td data-label="Pending" class="text-end fw-semibold">{{ $q($p->pending, $p) }}</td>
                     <td data-label="Rate" class="amount">{{ \App\Support\Money::format($p->item->rate) }}@if ((float) $p->item->discount_percent)<div class="small text-secondary">less {{ \App\Support\Decimal::trim($p->item->discount_percent) }}%</div>@endif</td>
                     <td data-label="GST %" class="text-end">{{ \App\Support\Decimal::trim($p->item->gst_rate) }}</td>
@@ -127,6 +131,11 @@
                 </table>
             </div>
         </div>
+        @if ($notes->isNotEmpty())
+            <div class="erp-card p-3 mb-3 small"><span class="text-secondary">{{ $config['invoice_kind'] === 'sales' ? 'Delivery notes' : 'Goods receipt notes' }}:</span>
+                @foreach ($notes as $n)<a href="{{ route('notes.show', $n) }}" class="me-2">{{ $n->number }}{{ $n->isPosted() ? '' : ' (cancelled)' }}</a>@endforeach
+            </div>
+        @endif
         @if ($order->narration)<div class="erp-card p-3 mb-3 small"><div class="text-secondary">Narration</div>{{ $order->narration }}</div>@endif
         @if ($order->terms)<div class="erp-card p-3 mb-3 small"><div class="text-secondary">Terms</div><span style="white-space: pre-line">{{ $order->terms }}</span></div>@endif
     </div>

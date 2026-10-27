@@ -14,6 +14,7 @@ use App\Http\Controllers\Gst\GstReportController;
 use App\Http\Controllers\Inventory\InventoryMasterController;
 use App\Http\Controllers\Inventory\StockItemController;
 use App\Http\Controllers\Inventory\StockJournalController;
+use App\Http\Controllers\Inventory\DeliveryNoteController;
 use App\Http\Controllers\Inventory\StockReportController;
 use App\Http\Controllers\Masters\AccountGroupController;
 use App\Http\Controllers\Masters\CostCentreController;
@@ -244,6 +245,16 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
     Route::post('/orders/{order}/close', [OrderController::class, 'close'])->name('orders.close');
     Route::post('/orders/{order}/reopen', [OrderController::class, 'reopen'])->name('orders.reopen');
+
+    // Delivery notes and goods receipt notes (permissions checked per kind in the controller)
+    Route::get('/notes', [DeliveryNoteController::class, 'index'])->name('notes.index');
+    Route::get('/notes/pending', [DeliveryNoteController::class, 'pending'])->name('notes.pending');
+    Route::get('/notes/create', [DeliveryNoteController::class, 'create'])->name('notes.create');
+    Route::post('/notes', [DeliveryNoteController::class, 'store'])->name('notes.store');
+    Route::get('/notes/{note}', [DeliveryNoteController::class, 'show'])->name('notes.show');
+    Route::get('/notes/{note}/print', [DeliveryNoteController::class, 'print'])->name('notes.print');
+    Route::get('/notes/{note}/pdf', [DeliveryNoteController::class, 'pdf'])->name('notes.pdf');
+    Route::post('/notes/{note}/cancel', [DeliveryNoteController::class, 'cancel'])->name('notes.cancel');
 
     // Banking: reconciliation and statement import
     Route::get('/banking', [BankReconciliationController::class, 'index'])->name('bank-reconciliation.index')->middleware('can:banking.view');

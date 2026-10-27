@@ -5,6 +5,11 @@
         <div class="small mb-1"><span class="badge text-bg-light border"><i class="bi bi-clipboard-check"></i> Order {{ $orderLines[$item['order_item_id']] ?? '#'.$item['order_item_id'] }}</span></div>
     @endif
     @error("items.$i.order_item_id")<div class="text-danger small mb-1">{{ $message }}</div>@enderror
+    @if (! empty($item['note_item_id']))
+        <input type="hidden" name="items[{{ $i }}][note_item_id]" value="{{ $item['note_item_id'] }}">
+        <div class="small mb-1"><span class="badge text-bg-light border"><i class="bi bi-box-seam"></i> {{ $noteLines[$item['note_item_id']] ?? 'Note line #'.$item['note_item_id'] }}</span> <span class="text-secondary">stock already moved by the note</span></div>
+    @endif
+    @error("items.$i.note_item_id")<div class="text-danger small mb-1">{{ $message }}</div>@enderror
     <div class="row g-2 align-items-end">
         @if ($stockItems->isNotEmpty())
             <div class="col-12 col-md-3">

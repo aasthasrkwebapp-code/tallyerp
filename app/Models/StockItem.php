@@ -84,6 +84,7 @@ class StockItem extends Model
     public function hasMovements(): bool
     {
         return InvoiceItem::query()->where('stock_item_id', $this->id)->exists()
-            || StockJournalLine::query()->where('stock_item_id', $this->id)->exists();
+            || StockJournalLine::query()->where('stock_item_id', $this->id)->exists()
+            || DeliveryNoteItem::query()->where('stock_item_id', $this->id)->exists();
     }
 }

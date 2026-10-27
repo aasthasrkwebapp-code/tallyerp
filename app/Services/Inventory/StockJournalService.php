@@ -97,7 +97,8 @@ class StockJournalService
 
     // ------------------------------------------------------------------
 
-    protected function validDate($value): string
+    /** A valid, unlocked document date (Y-m-d) inside a financial year of the company. */
+    public function validDate($value): string
     {
         try {
             $date = Carbon::parse((string) $value)->startOfDay();
