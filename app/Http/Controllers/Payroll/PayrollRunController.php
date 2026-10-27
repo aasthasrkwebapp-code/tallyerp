@@ -100,6 +100,13 @@ class PayrollRunController extends Controller
         abort_unless($payslip->payroll_run_id === $payrollRun->id, 404);
         $payslip->load('lines', 'employee');
 
+        if (request()->input('export') === 'pdf') {
+            $name = \Illuminate\Support\Str::slug('payslip '.$payrollRun->label().' '.$payslip->employee_code).'.pdf';
+
+            return \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.payslip', ['run' => $payrollRun, 'slip' => $payslip, 'company' => app(\App\Support\CurrentCompany::class)->get()])
+                ->setPaper('a4')->download($name);
+        }
+
         return view('payroll.runs.payslip', ['run' => $payrollRun, 'slip' => $payslip]);
     }
 }

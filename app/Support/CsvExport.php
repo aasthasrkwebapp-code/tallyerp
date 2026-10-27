@@ -17,7 +17,7 @@ class CsvExport
 {
     public static function requested(Request $request): bool
     {
-        return in_array($request->input('export'), ['csv', 'xlsx'], true);
+        return in_array($request->input('export'), ['csv', 'xlsx', 'pdf'], true);
     }
 
     /**
@@ -28,6 +28,9 @@ class CsvExport
     {
         if (request()->input('export') === 'xlsx') {
             return static::xlsx(preg_replace('/\.csv$/i', '', $filename).'.xlsx', $headers, $rows);
+        }
+        if (request()->input('export') === 'pdf') {
+            return static::pdf(preg_replace('/\.csv$/i', '', $filename).'.pdf', $headers, $rows);
         }
 
         return response()->streamDownload(function () use ($headers, $rows) {
@@ -50,6 +53,30 @@ class CsvExport
             (new Xlsx($book))->save('php://output');
             $book->disconnectWorksheets();
         }, $filename, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+    }
+
+    /**
+     * The same rows as a printable A4 PDF (landscape when wide), titled from the file name,
+     * e.g. "trial-balance-2026-04-01-to-2027-03-31" → "Trial Balance".
+     */
+    public static function pdf(string $filename, array $headers, iterable $rows, ?string $title = null): StreamedResponse
+    {
+        $rows = collect($rows)->map(fn ($r) => array_values((array) $r))->all();
+        $numeric = array_map(fn ($i) => $rows !== [] && collect($rows)->every(fn ($r) => ! isset($r[$i]) || $r[$i] === '' || $r[$i] === null || is_numeric(str_replace(',', '', (string) $r[$i]))) && collect($rows)->contains(fn ($r) => isset($r[$i]) && $r[$i] !== ''), array_keys(array_values($headers)));
+        $base = pathinfo($filename, PATHINFO_FILENAME);
+        $title ??= \Illuminate\Support\Str::headline(trim(preg_replace('/-?\d{4}-\d{2}-\d{2}.*$|-\d{8}.*$/', '', $base), '-')) ?: 'Report';
+        $from = request()->input('from');
+        $to = request()->input('to');
+        $period = $from && $to ? \Illuminate\Support\Carbon::parse($from)->format('d M Y').' to '.\Illuminate\Support\Carbon::parse($to)->format('d M Y')
+            : ($to ? 'As on '.\Illuminate\Support\Carbon::parse($to)->format('d M Y') : null);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.report', [
+            'company' => app(CurrentCompany::class)->get(), 'title' => $title, 'period' => $period,
+            'headers' => array_values($headers), 'rows' => $rows, 'numeric' => $numeric,
+        ])->setPaper('a4', count($headers) > 6 ? 'landscape' : 'portrait');
+        $output = $pdf->output();
+
+        return response()->streamDownload(fn () => print($output), $filename, ['Content-Type' => 'application/pdf']);
     }
 
     public static function workbook(array $headers, iterable $rows, string $title = 'Report'): Spreadsheet

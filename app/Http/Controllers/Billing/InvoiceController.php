@@ -178,6 +178,20 @@ class InvoiceController extends Controller
 
     public function print(Request $request, Invoice $invoice)
     {
+        return view('billing.invoices.print', $this->printData($request, $invoice));
+    }
+
+    public function pdf(Request $request, Invoice $invoice)
+    {
+        $data = $this->printData($request, $invoice);
+        $name = \Illuminate\Support\Str::slug($invoice->config()['label'].' '.$invoice->displayNumber()).'.pdf';
+        \App\Models\AuditLog::record('invoice_pdf', $invoice, null, null, "PDF downloaded: {$invoice->displayNumber()}");
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.invoice', $data)->setPaper('a4')->download($name);
+    }
+
+    protected function printData(Request $request, Invoice $invoice): array
+    {
         $this->authorizeKind($request, $invoice->kind, 'view');
         $invoice->load(['items', 'voucher', 'originalInvoice.voucher']);
         $company = app(CurrentCompany::class)->get();
@@ -186,13 +200,13 @@ class InvoiceController extends Controller
             ? Account::query()->where('account_type', 'bank')->where('is_active', true)->whereNotNull('bank_account_number')->orderBy('id')->first()
             : null;
 
-        return view('billing.invoices.print', [
+        return [
             'invoice' => $invoice,
             'config' => $invoice->config(),
             'company' => $company,
             'taxSummary' => $this->taxSummary($invoice),
             'bank' => $bank,
-        ]);
+        ];
     }
 
     // ------------------------------------------------------------------

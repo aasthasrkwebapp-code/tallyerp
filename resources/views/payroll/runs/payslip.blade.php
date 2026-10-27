@@ -10,6 +10,7 @@
     <h1>Payslip</h1>
     <div class="d-flex gap-2">
         <a href="{{ route('payroll-runs.show', $run) }}" class="btn btn-outline-secondary">Pay sheet</a>
+        <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
         <button type="button" class="btn btn-primary" onclick="window.print()"><i class="bi bi-printer"></i> Print</button>
     </div>
 </div>

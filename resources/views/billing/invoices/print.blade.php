@@ -35,6 +35,7 @@
 <body>
 <div class="no-print text-center my-2">
     <button class="btn btn-primary btn-sm" onclick="window.print()">Print</button>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ route('invoices.pdf', $invoice) }}">Download PDF</a>
     <a class="btn btn-outline-secondary btn-sm" href="{{ route('invoices.show', $invoice) }}">Back</a>
 </div>
 <div class="sheet">

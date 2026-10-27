@@ -15,7 +15,7 @@
     <a href="{{ request()->fullUrlWithQuery(['expand' => $expand ? 0 : 1]) }}" class="btn btn-outline-secondary no-print">{{ $expand ? 'Condensed' : 'Detailed' }}</a>
 </div>
 
-@include('reports._period', ['single' => true])
+@include('reports._period', ['single' => true, 'csv' => true])
 
 @if ($totalAssets !== $totalLiabilities)
     <div class="alert alert-danger">Assets and liabilities do not agree (difference {{ $m($totalAssets - $totalLiabilities) }}).</div>

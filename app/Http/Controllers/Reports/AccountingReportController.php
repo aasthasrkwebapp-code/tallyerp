@@ -60,8 +60,39 @@ class AccountingReportController extends Controller
     public function profitLoss(Request $request)
     {
         [$from, $to] = $this->period($request);
+        $data = $this->statements->profitAndLoss($from, $to);
 
-        return view('reports.profit-loss', $this->statements->profitAndLoss($from, $to) + compact('from', 'to'));
+        if (\App\Support\CsvExport::requested($request)) {
+            $this->authorize('reports.export');
+            $f = fn (int $p) => Money::fromPaise($p);
+            $rows = collect();
+            $add = fn ($nodes) => $nodes->each(fn ($n) => $this->statementRows($rows, $n));
+            $add($data['sections']['trading_income']);
+            if ($data['closing_stock']) {
+                $rows->push(['Add: Closing stock', '', $f($data['closing_stock'])]);
+            }
+            if ($data['opening_stock']) {
+                $rows->push(['Less: Opening stock', '', $f(-$data['opening_stock'])]);
+            }
+            $data['sections']['trading_expense']->each(fn ($n) => $this->statementRows($rows, $n, -1));
+            $rows->push(['Gross '.($data['gross_profit'] >= 0 ? 'profit' : 'loss'), '', $f($data['gross_profit'])]);
+            $add($data['sections']['other_income']);
+            $data['sections']['other_expense']->each(fn ($n) => $this->statementRows($rows, $n, -1));
+            $rows->push(['Net '.($data['net_profit'] >= 0 ? 'profit' : 'loss'), '', $f($data['net_profit'])]);
+
+            return CsvExport::download("profit-and-loss-{$from}-to-{$to}.csv", ['Particulars', 'Under', 'Amount (+income / -expense)'], $rows);
+        }
+
+        return view('reports.profit-loss', $data + compact('from', 'to'));
+    }
+
+    /** A statement group and the groups and ledgers directly under it, as export rows. */
+    protected function statementRows(\Illuminate\Support\Collection $rows, object $node, int $sign = 1): void
+    {
+        $rows->push([$node->group->name, '', Money::fromPaise($sign * $node->amount)]);
+        foreach ($node->children as $child) {
+            $rows->push(['    '.$child->name, $node->group->name, Money::fromPaise($sign * $child->amount)]);
+        }
     }
 
     public function cashFlow(Request $request, CashFlow $cashFlow)
@@ -93,8 +124,29 @@ class AccountingReportController extends Controller
     public function balanceSheet(Request $request)
     {
         [, $to] = $this->period($request);
+        $data = $this->statements->balanceSheet($to);
 
-        return view('reports.balance-sheet', $this->statements->balanceSheet($to) + ['to' => $to]);
+        if (\App\Support\CsvExport::requested($request)) {
+            $this->authorize('reports.export');
+            $f = fn (int $p) => Money::fromPaise($p);
+            $rows = collect([['Liabilities', '', '']]);
+            $data['liabilities']->each(fn ($n) => $this->statementRows($rows, $n));
+            $rows->push(['Profit & Loss A/c', '', $f($data['currentProfit'] + $data['accumulatedProfit'])]);
+            if ($data['difference']) {
+                $rows->push(['Difference in opening balances', '', $f($data['difference'])]);
+            }
+            $rows->push(['Total liabilities', '', $f($data['totalLiabilities'])]);
+            $rows->push(['Assets', '', '']);
+            $data['assets']->each(fn ($n) => $this->statementRows($rows, $n));
+            if ($data['closingStock']) {
+                $rows->push(['Closing stock', '', $f($data['closingStock'])]);
+            }
+            $rows->push(['Total assets', '', $f($data['totalAssets'])]);
+
+            return CsvExport::download("balance-sheet-as-on-{$to}.csv", ['Particulars', 'Under', 'Amount'], $rows);
+        }
+
+        return view('reports.balance-sheet', $data + ['to' => $to]);
     }
 
     public function dayBook(Request $request)

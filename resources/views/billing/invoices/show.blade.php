@@ -13,6 +13,7 @@
     </div>
     <div class="d-flex flex-wrap gap-2">
         <a href="{{ route('invoices.print', $invoice) }}" class="btn btn-outline-secondary" target="_blank" rel="noopener"><i class="bi bi-printer me-1"></i>Print</a>
+        <a href="{{ route('invoices.pdf', $invoice) }}" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
         @if ($status !== 'cancelled' && $user->can($config['module'].'.edit'))
             <a href="{{ route('invoices.edit', $invoice) }}" class="btn btn-outline-primary"><i class="bi bi-pencil me-1"></i>Alter</a>
         @endif

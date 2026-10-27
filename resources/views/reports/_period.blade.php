@@ -21,6 +21,7 @@
             @if (($csv ?? false) && auth()->user()->can('reports.export'))
                 <a class="btn btn-sm btn-outline-secondary" href="{{ request()->fullUrlWithQuery(['export' => 'csv', 'from' => $from, 'to' => $to]) }}"><i class="bi bi-filetype-csv"></i> CSV</a>
                 <a class="btn btn-sm btn-outline-secondary" href="{{ request()->fullUrlWithQuery(['export' => 'xlsx', 'from' => $from, 'to' => $to]) }}"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ request()->fullUrlWithQuery(['export' => 'pdf', 'from' => $from, 'to' => $to]) }}"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
             @endif
         </div>
     </div>

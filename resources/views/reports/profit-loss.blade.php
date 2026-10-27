@@ -14,7 +14,7 @@
     <a href="{{ request()->fullUrlWithQuery(['expand' => $expand ? 0 : 1]) }}" class="btn btn-outline-secondary no-print">{{ $expand ? 'Condensed' : 'Detailed' }}</a>
 </div>
 
-@include('reports._period')
+@include('reports._period', ['csv' => true])
 
 @php($block = function ($title, $nodes) { return compact('title', 'nodes'); })
 <div class="erp-card">
