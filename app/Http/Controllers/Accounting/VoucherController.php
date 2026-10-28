@@ -108,8 +108,20 @@ class VoucherController extends Controller
         abort_if($voucher->isPending() && $user->cannot('vouchers.approve'), 403, 'Only approvers can post pending vouchers.');
 
         $voucher = $this->vouchers->post($voucher, $user);
+        $message = $this->savedMessage($voucher);
+        // An invoice approved here has its order advances set off, as when posted from the invoice screen.
+        if ($voucher->isPosted() && $voucher->source instanceof \App\Models\Invoice && app(\App\Support\CurrentCompany::class)->get()?->setting('auto_adjust_advances')) {
+            try {
+                $adjusted = app(\App\Services\Billing\OrderAdvanceService::class)->autoAdjust($voucher->source, $user);
+                if ($adjusted->isNotEmpty()) {
+                    $message .= ' Advance '.$adjusted->map(fn ($a) => $a->advance->bill_ref)->implode(', ').' adjusted against the invoice.';
+                }
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                $message .= ' The order advance was not adjusted: '.collect($e->errors())->flatten()->first();
+            }
+        }
 
-        return redirect()->route('vouchers.show', $voucher)->with('success', $this->savedMessage($voucher));
+        return redirect()->route('vouchers.show', $voucher)->with('success', $message);
     }
 
     public function cancel(Request $request, Voucher $voucher)

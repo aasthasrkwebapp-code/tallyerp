@@ -248,6 +248,7 @@ class OrderTest extends TestCase
     public function test_advances_are_received_and_adjusted_against_invoices(): void
     {
         $service = app(\App\Services\Billing\OrderAdvanceService::class);
+        $this->manualAdvances();
         $bank = Account::create(['name' => 'HDFC Bank', 'account_group_id' => AccountGroup::idFor('bank_accounts'), 'account_type' => 'bank']);
         $so = $this->order(); // 2,360.00
         $entries = fn ($v) => $v->entries->map(fn ($e) => [$e->account_id, (float) $e->debit > 0 ? 'Dr '.$e->debit : 'Cr '.$e->credit, $e->billAllocations->map(fn ($b) => $b->bill_type.' '.$b->bill_ref)->all()])->all();
@@ -288,6 +289,7 @@ class OrderTest extends TestCase
 
     public function test_advance_screens_and_permissions(): void
     {
+        $this->manualAdvances();
         $bank = Account::create(['name' => 'HDFC Bank', 'account_group_id' => AccountGroup::idFor('bank_accounts'), 'account_type' => 'bank']);
         $so = $this->order();
         $this->actingAs($this->owner)->post(route('orders.advances.store', $so), ['date' => '2026-05-02', 'amount' => '1000', 'account_id' => $bank->id])->assertRedirect(route('orders.show', $so));
@@ -303,5 +305,42 @@ class OrderTest extends TestCase
         $this->actingAs($viewer)->get(route('orders.show', $so))->assertOk()->assertDontSee('Record an advance');
         $this->actingAs($viewer)->post(route('orders.advances.store', $so), ['date' => '2026-05-02', 'amount' => '10', 'account_id' => $bank->id])->assertForbidden();
         $this->actingAs($viewer)->post(route('advance-adjustments.cancel', $adj), ['reason' => 'x'])->assertForbidden();
+    }
+
+    /** Turns off the automatic adjustment so a test can adjust advances by hand. */
+    protected function manualAdvances(): void
+    {
+        $this->company->update(['settings' => array_merge($this->company->settings ?? [], ['auto_adjust_advances' => false])]);
+        app(\App\Support\CurrentCompany::class)->set($this->company->fresh());
+    }
+
+    public function test_advances_are_adjusted_when_the_invoice_is_posted(): void
+    {
+        $service = app(\App\Services\Billing\OrderAdvanceService::class);
+        $bank = Account::create(['name' => 'HDFC Bank', 'account_group_id' => AccountGroup::idFor('bank_accounts'), 'account_type' => 'bank']);
+        $so = $this->order(); // 2,360.00
+        $first = $service->record($so, ['date' => '2026-05-02', 'amount' => '1000', 'account_id' => $bank->id], $this->owner);
+        $second = $service->record($so, ['date' => '2026-05-03', 'amount' => '1300', 'account_id' => $bank->id], $this->owner);
+
+        // The invoice (2,360) takes the whole of the first advance and 1,300 of the second; 60 is left on it.
+        $invoice = $this->invoiceFrom($so);
+        $adjustments = \App\Models\OrderAdvanceAdjustment::query()->orderBy('id')->get();
+        $this->assertSame([[$first->id, '1000.00'], [$second->id, '1300.00']], $adjustments->map(fn ($a) => [$a->order_advance_id, $a->amount])->all());
+        $this->assertSame($invoice->date->toDateString(), $adjustments[0]->date->toDateString());
+        $this->assertSame('journal', $adjustments[0]->voucher->type->base_type);
+        $this->assertSame(6000, $service->invoicesWithPending($so)->first()->pending);
+        $this->assertSame([$first->id => 0, $second->id => 0], $service->pending($so->fresh('advances')));
+
+        // Altering the posted invoice does not adjust again.
+        app(InvoiceService::class)->save($invoice, 'sales', app(InvoiceService::class)->toInput($invoice), $this->owner, 'post', 'Narration');
+        $this->assertSame(2, \App\Models\OrderAdvanceAdjustment::count());
+
+        // A draft is not adjusted until it is posted.
+        $po = $this->order('purchase_order');
+        $paid = $service->record($po, ['date' => '2026-05-02', 'amount' => '500', 'account_id' => $bank->id], $this->owner);
+        $draft = $this->invoiceFrom($po->fresh(), [], '2026-05-06', 'draft');
+        $this->assertSame(0, $paid->adjustments()->count());
+        $this->actingAs($this->owner)->post(route('invoices.post', $draft))->assertRedirect()->assertSessionHas('success', fn ($m) => str_contains($m, 'ADV-PO/0001-1 (500.00) adjusted'));
+        $this->assertSame('500.00', $paid->adjustments()->sole()->amount);
     }
 }

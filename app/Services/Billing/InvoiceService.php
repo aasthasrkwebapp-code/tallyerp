@@ -45,6 +45,9 @@ class InvoiceService
         protected BatchTracker $batches,
     ) {}
 
+    /** What the automatic advance adjustment did on the last save (shown after saving), or null. */
+    public ?string $advanceNote = null;
+
     /** @param string $intent "post" or "draft" */
     public function save(?Invoice $invoice, string $kind, array $data, User $user, string $intent = 'post', ?string $reason = null): Invoice
     {
@@ -54,7 +57,9 @@ class InvoiceService
             throw ValidationException::withMessages(['invoice' => 'A cancelled '.mb_strtolower($config['label']).' cannot be altered.']);
         }
 
-        return DB::transaction(function () use ($invoice, $kind, $config, $data, $user, $intent, $reason) {
+        $wasPosted = $invoice?->status() === Voucher::POSTED;
+        $this->advanceNote = null;
+        $saved = DB::transaction(function () use ($invoice, $kind, $config, $data, $user, $intent, $reason) {
             [$party, $type, $items, $taxMode, $result, $reverseCharge] = $this->prepare($invoice, $kind, $config, $data);
             $details = $party->partyDetails;
 
@@ -153,6 +158,21 @@ class InvoiceService
 
             return $invoice->fresh(['items.account', 'voucher', 'party.partyDetails']);
         });
+
+        // Advances against the invoice's orders are set off once it is first posted. A failure
+        // here leaves the invoice posted; the advance can still be adjusted by hand.
+        if (! $wasPosted && $saved->status() === Voucher::POSTED && $this->current->get()?->setting('auto_adjust_advances')) {
+            try {
+                $adjusted = app(OrderAdvanceService::class)->autoAdjust($saved, $user);
+                if ($adjusted->isNotEmpty()) {
+                    $this->advanceNote = 'Advance '.$adjusted->map(fn ($a) => $a->advance->bill_ref.' ('.Money::format($a->amount).')')->implode(', ').' adjusted against it.';
+                }
+            } catch (ValidationException $e) {
+                $this->advanceNote = 'The order advance was not adjusted: '.collect($e->errors())->flatten()->first();
+            }
+        }
+
+        return $saved;
     }
 
     /** Post a draft or pending invoice using its saved data. */

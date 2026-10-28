@@ -42,6 +42,7 @@
                         'require_two_factor' => ['Require two-factor sign-in', 'Every member must set up an authenticator app before opening this company.'],
                         'invoice_show_bank_details' => ['Show bank details on invoices', 'Print the default bank account on sales invoices.'],
                         'invoice_round_off' => ['Round invoice totals', 'Round invoice totals to the nearest rupee and post the difference to Round Off.'],
+                        'auto_adjust_advances' => ['Adjust order advances automatically', 'When an invoice against an order is posted, set the order\'s open advances off against it.'],
                     ] as $key => [$label, $help])
                         <div class="form-check form-switch mb-3">
                             <input class="form-check-input" type="checkbox" role="switch" id="pref_{{ $key }}" name="{{ $key }}" value="1" @checked($settings[$key])>

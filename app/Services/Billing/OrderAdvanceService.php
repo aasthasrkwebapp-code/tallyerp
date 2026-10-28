@@ -180,6 +180,40 @@ class OrderAdvanceService
         });
     }
 
+    /**
+     * Sets the open advances of the invoice's orders off against it, oldest advance first,
+     * up to what is pending on the invoice. Called when an invoice is first posted.
+     *
+     * @return Collection<int, OrderAdvanceAdjustment>
+     */
+    public function autoAdjust(Invoice $invoice, User $user): Collection
+    {
+        $done = collect();
+        if (! in_array($invoice->kind, ['sales', 'purchase'], true) || $invoice->status() !== Voucher::POSTED) {
+            return $done;
+        }
+        $orderIds = $invoice->items()->whereNotNull('order_item_id')->with('orderItem')->get()->pluck('orderItem.order_id')->filter()->unique();
+        if ($orderIds->isEmpty()) {
+            return $done;
+        }
+        foreach (Order::query()->with('party', 'advances')->whereIn('id', $orderIds)->orderBy('date')->orderBy('id')->get() as $order) {
+            $row = $this->invoicesWithPending($order)->first(fn ($r) => $r->invoice->id === $invoice->id);
+            $left = $row?->pending ?? 0;
+            $open = $this->pending($order);
+            foreach ($order->advances->where('status', 'posted')->sortBy(fn ($a) => $a->date->toDateString().'-'.str_pad((string) $a->id, 10, '0', STR_PAD_LEFT)) as $advance) {
+                $amount = min($open[$advance->id] ?? 0, $left);
+                if ($amount <= 0) {
+                    continue;
+                }
+                $date = max($invoice->date->toDateString(), $advance->date->toDateString());
+                $done->push($this->adjust($advance, ['invoice_id' => $invoice->id, 'amount' => Money::fromPaise($amount), 'date' => $date], $user)->load('advance'));
+                $left -= $amount;
+            }
+        }
+
+        return $done;
+    }
+
     public function cancelAdjustment(OrderAdvanceAdjustment $adjustment, User $user, string $reason): void
     {
         if ($adjustment->status !== 'posted') {

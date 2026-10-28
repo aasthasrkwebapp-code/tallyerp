@@ -409,7 +409,7 @@ class InvoiceController extends Controller
         $label = $invoice->config()['label'];
 
         return match ($invoice->status()) {
-            Voucher::POSTED => "{$label} {$invoice->displayNumber()} posted.",
+            Voucher::POSTED => trim("{$label} {$invoice->displayNumber()} posted. ".($this->invoices->advanceNote ?? '')),
             Voucher::PENDING => "{$label} submitted for approval.",
             default => "{$label} saved as draft.",
         };
