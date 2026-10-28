@@ -13,7 +13,7 @@ class InvoiceItem extends Model
     protected $fillable = [
         'company_id', 'invoice_id', 'line_no', 'account_id', 'stock_item_id', 'godown_id', 'order_item_id', 'note_item_id', 'description', 'hsn_sac', 'quantity', 'unit',
         'rate', 'discount_percent', 'gross_amount', 'discount_amount', 'taxable_amount', 'gst_rate',
-        'cgst_amount', 'sgst_amount', 'igst_amount', 'total_amount', 'batch_no', 'mfg_date', 'expiry_date', 'serials',
+        'cgst_amount', 'sgst_amount', 'igst_amount', 'cess_rate', 'cess_amount', 'total_amount', 'batch_no', 'mfg_date', 'expiry_date', 'serials',
     ];
 
     protected function casts(): array
@@ -29,6 +29,8 @@ class InvoiceItem extends Model
             'cgst_amount' => 'decimal:2',
             'sgst_amount' => 'decimal:2',
             'igst_amount' => 'decimal:2',
+            'cess_rate' => 'decimal:2',
+            'cess_amount' => 'decimal:2',
             'total_amount' => 'decimal:2',
             'mfg_date' => 'date',
             'expiry_date' => 'date',

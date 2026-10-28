@@ -22,8 +22,8 @@ class Invoice extends Model
     protected $fillable = [
         'company_id', 'kind', 'voucher_type_id', 'voucher_id', 'party_account_id', 'original_invoice_id',
         'date', 'due_date', 'reference', 'reference_date', 'party_name', 'party_gstin', 'party_registration_type',
-        'billing_address', 'shipping_address', 'place_of_supply', 'tax_mode', 'gross_total', 'discount_total',
-        'taxable_total', 'cgst_total', 'sgst_total', 'igst_total', 'round_off', 'grand_total', 'narration',
+        'billing_address', 'shipping_address', 'place_of_supply', 'tax_mode', 'reverse_charge', 'gross_total', 'discount_total',
+        'taxable_total', 'cgst_total', 'sgst_total', 'igst_total', 'cess_total', 'round_off', 'grand_total', 'narration',
         'terms', 'created_by', 'updated_by',
     ];
 
@@ -39,6 +39,8 @@ class Invoice extends Model
             'cgst_total' => 'decimal:2',
             'sgst_total' => 'decimal:2',
             'igst_total' => 'decimal:2',
+            'cess_total' => 'decimal:2',
+            'reverse_charge' => 'boolean',
             'round_off' => 'decimal:2',
             'grand_total' => 'decimal:2',
         ];

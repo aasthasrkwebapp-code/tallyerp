@@ -67,6 +67,11 @@
             </select>
         </div>
         <div class="col-6 col-md-3">
+            <label for="cess_rate" class="form-label">Cess rate % <span class="text-secondary small">(optional)</span></label>
+            <input id="cess_rate" name="cess_rate" value="{{ $v('cess_rate') !== null && (float) $v('cess_rate') ? $dec($v('cess_rate')) : '' }}" class="form-control text-end @error('cess_rate') is-invalid @enderror" inputmode="decimal" placeholder="E.g. 12 for aerated drinks">
+            @error('cess_rate')<div class="invalid-feedback">{{ $message }}</div>@enderror
+        </div>
+        <div class="col-6 col-md-3">
             <label for="sales_rate" class="form-label">Selling rate</label>
             <input id="sales_rate" name="sales_rate" value="{{ $v('sales_rate') }}" class="form-control text-end @error('sales_rate') is-invalid @enderror" inputmode="decimal">
             @error('sales_rate')<div class="invalid-feedback">{{ $message }}</div>@enderror

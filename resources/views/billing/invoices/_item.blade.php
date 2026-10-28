@@ -70,13 +70,17 @@
             <label class="form-label small mb-0">Disc %</label>
             <input name="items[{{ $i }}][discount_percent]" value="{{ isset($item['discount_percent']) && (float) $item['discount_percent'] ? \App\Support\Decimal::trim($item['discount_percent']) : '' }}" class="form-control form-control-sm text-end item-disc @error("items.$i.discount_percent") is-invalid @enderror" inputmode="decimal">
         </div>
-        <div class="col-6 col-md-2">
+        <div class="col-6 col-md-1">
             <label class="form-label small mb-0">GST %</label>
             <select name="items[{{ $i }}][gst_rate]" class="form-select form-select-sm item-gst" @disabled(! $gstEnabled)>
                 @foreach ($gstRates as $r)
                     <option value="{{ $r }}" @selected(\App\Support\Decimal::trim($item['gst_rate'] ?? '0') === $r)>{{ $r }}%</option>
                 @endforeach
             </select>
+        </div>
+        <div class="col-6 col-md-1">
+            <label class="form-label small mb-0">Cess %</label>
+            <input name="items[{{ $i }}][cess_rate]" value="{{ isset($item['cess_rate']) && (float) $item['cess_rate'] ? \App\Support\Decimal::trim($item['cess_rate']) : '' }}" class="form-control form-control-sm text-end item-cess @error("items.$i.cess_rate") is-invalid @enderror" inputmode="decimal" @disabled(! $gstEnabled) aria-label="Cess rate" placeholder="0">
         </div>
         <div class="col-6 col-md-3">
             <label class="form-label small mb-0">Taxable value</label>

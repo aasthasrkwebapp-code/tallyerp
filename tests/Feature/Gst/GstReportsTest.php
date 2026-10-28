@@ -72,7 +72,7 @@ class GstReportsTest extends TestCase
         $r = app(GstReports::class)->gstr1('2026-09-01', '2026-09-30');
 
         $this->assertSame(['Mumbai Retail', 'Surat Textiles'], array_column($r['b2b'], 'party'));
-        $this->assertSame([['rate' => '18', 'taxable' => 100000, 'igst' => 0, 'cgst' => 9000, 'sgst' => 9000]], $r['b2b'][0]['rates']);
+        $this->assertSame([['rate' => '18', 'taxable' => 100000, 'igst' => 0, 'cgst' => 9000, 'sgst' => 9000, 'cess' => 0]], $r['b2b'][0]['rates']);
         $this->assertSame('24', $r['b2b'][1]['state_code']);
         $this->assertSame(18000, $r['b2b'][1]['rates'][0]['igst']);
 
@@ -80,8 +80,8 @@ class GstReportsTest extends TestCase
         $this->assertSame(2700000, $r['b2cl'][0]['rates'][0]['igst']);
 
         $this->assertSame([
-            ['place_of_supply' => 'Maharashtra', 'state_code' => '27', 'rate' => '0', 'taxable' => 30000, 'igst' => 0, 'cgst' => 0, 'sgst' => 0],
-            ['place_of_supply' => 'Maharashtra', 'state_code' => '27', 'rate' => '5', 'taxable' => 200000, 'igst' => 0, 'cgst' => 5000, 'sgst' => 5000],
+            ['place_of_supply' => 'Maharashtra', 'state_code' => '27', 'rate' => '0', 'taxable' => 30000, 'igst' => 0, 'cgst' => 0, 'sgst' => 0, 'cess' => 0],
+            ['place_of_supply' => 'Maharashtra', 'state_code' => '27', 'rate' => '5', 'taxable' => 200000, 'igst' => 0, 'cgst' => 5000, 'sgst' => 5000, 'cess' => 0],
         ], $r['b2cs']);
 
         $this->assertCount(1, $r['cdnr']);
@@ -100,22 +100,22 @@ class GstReportsTest extends TestCase
     {
         $r = app(GstReports::class)->gstr3b('2026-09-01', '2026-09-30');
 
-        $this->assertSame(['taxable' => 15440000, 'igst' => 2718000, 'cgst' => 13100, 'sgst' => 13100], $r['outward']['taxable']);
+        $this->assertSame(['taxable' => 15440000, 'igst' => 2718000, 'cgst' => 13100, 'sgst' => 13100, 'cess' => 0], $r['outward']['taxable']);
         $this->assertSame(30000, $r['outward']['nil_exempt']['taxable']);
-        $this->assertSame(['igst' => 36000, 'cgst' => 45000, 'sgst' => 45000], array_diff_key($r['itc']['available'], ['taxable' => 0]));
-        $this->assertSame(['igst' => 36000, 'cgst' => 36000, 'sgst' => 36000], $r['itc']['net']);
+        $this->assertSame(['igst' => 36000, 'cgst' => 45000, 'sgst' => 45000, 'cess' => 0], array_diff_key($r['itc']['available'], ['taxable' => 0]));
+        $this->assertSame(['igst' => 36000, 'cgst' => 36000, 'sgst' => 36000, 'cess' => 0], $r['itc']['net']);
 
         // IGST 27,180 - IGST credit 360 - CGST credit left 229 - SGST credit left 229 = 26,362 in cash.
-        $this->assertSame(['igst' => 2636200, 'cgst' => 0, 'sgst' => 0], $r['setoff']['cash']);
-        $this->assertSame(['igst' => 0, 'cgst' => 0, 'sgst' => 0], $r['setoff']['carried_forward']);
+        $this->assertSame(['igst' => 2636200, 'cgst' => 0, 'sgst' => 0, 'cess' => 0], $r['setoff']['cash']);
+        $this->assertSame(['igst' => 0, 'cgst' => 0, 'sgst' => 0, 'cess' => 0], $r['setoff']['carried_forward']);
     }
 
     public function test_set_off_never_crosses_cgst_and_sgst(): void
     {
         $r = app(GstReports::class)->setOff(['igst' => 0, 'cgst' => 1000, 'sgst' => 0], ['igst' => 300, 'cgst' => 0, 'sgst' => 5000]);
 
-        $this->assertSame(['igst' => 0, 'cgst' => 700, 'sgst' => 0], $r['cash']);
-        $this->assertSame(['igst' => 0, 'cgst' => 0, 'sgst' => 5000], $r['carried_forward']);
+        $this->assertSame(['igst' => 0, 'cgst' => 700, 'sgst' => 0, 'cess' => 0], $r['cash']);
+        $this->assertSame(['igst' => 0, 'cgst' => 0, 'sgst' => 5000, 'cess' => 0], $r['carried_forward']);
     }
 
     public function test_exports_are_zero_rated(): void

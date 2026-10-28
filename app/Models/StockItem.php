@@ -28,7 +28,7 @@ class StockItem extends Model
     }
 
     protected $fillable = [
-        'company_id', 'name', 'alias', 'code', 'stock_group_id', 'stock_category_id', 'unit_id', 'hsn_sac', 'gst_rate',
+        'company_id', 'name', 'alias', 'code', 'stock_group_id', 'stock_category_id', 'unit_id', 'hsn_sac', 'gst_rate', 'cess_rate',
         'sales_account_id', 'purchase_account_id', 'sales_rate', 'purchase_rate', 'opening_quantity', 'opening_value',
         'opening_godown_id', 'reorder_level', 'is_active', 'description', 'tracking', 'track_expiry',
         'opening_batch_no', 'opening_mfg_date', 'opening_expiry_date', 'opening_serials',
@@ -38,6 +38,7 @@ class StockItem extends Model
     {
         return [
             'gst_rate' => 'decimal:2',
+            'cess_rate' => 'decimal:2',
             'sales_rate' => 'decimal:2',
             'purchase_rate' => 'decimal:2',
             'opening_quantity' => 'decimal:3',

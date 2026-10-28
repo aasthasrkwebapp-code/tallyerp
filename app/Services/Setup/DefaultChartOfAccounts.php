@@ -67,6 +67,53 @@ class DefaultChartOfAccounts
         ['capital', 'Capital', 'capital_account', 'general', []],
     ];
 
+    /**
+     * Ledgers made the first time they are needed (cess and reverse charge),
+     * in the same form as LEDGERS.
+     */
+    public const ON_DEMAND_LEDGERS = [
+        ['output_cess', 'Output Cess', 'duties_taxes', 'tax', ['tax_type' => 'cess']],
+        ['input_cess', 'Input Cess', 'duties_taxes', 'tax', ['tax_type' => 'cess']],
+        ['rcm_cgst', 'CGST Payable (Reverse Charge)', 'duties_taxes', 'tax', ['tax_type' => 'cgst']],
+        ['rcm_sgst', 'SGST Payable (Reverse Charge)', 'duties_taxes', 'tax', ['tax_type' => 'sgst']],
+        ['rcm_igst', 'IGST Payable (Reverse Charge)', 'duties_taxes', 'tax', ['tax_type' => 'igst']],
+        ['rcm_cess', 'Cess Payable (Reverse Charge)', 'duties_taxes', 'tax', ['tax_type' => 'cess']],
+    ];
+
+    /**
+     * Id of a system ledger of the current company, creating an on-demand one if missing.
+     * A ledger the user already made with the same name is adopted when it is a tax ledger.
+     */
+    public static function ledgerId(string $key): ?int
+    {
+        if ($id = Account::idFor($key)) {
+            return $id;
+        }
+        $definition = collect(self::ON_DEMAND_LEDGERS)->firstWhere(0, $key);
+        $groupId = $definition ? \App\Models\AccountGroup::idFor($definition[2]) : null;
+        if (! $groupId) {
+            return null;
+        }
+        [, $name, , $type, $extra] = $definition;
+        $existing = Account::query()->where('name', $name)->first();
+        if ($existing && $existing->account_type === 'tax' && ! $existing->system_key) {
+            $existing->update(['system_key' => $key]);
+
+            return $existing->id;
+        }
+
+        return Account::create(array_merge([
+            'account_group_id' => $groupId,
+            'name' => $existing ? $name.' (GST)' : $name,
+            'system_key' => $key,
+            'account_type' => $type,
+            'opening_balance' => 0,
+            'opening_balance_type' => 'Dr',
+            'is_system' => true,
+            'is_active' => true,
+        ], $extra))->id;
+    }
+
     public function seed(Company $company): void
     {
         $ids = [];

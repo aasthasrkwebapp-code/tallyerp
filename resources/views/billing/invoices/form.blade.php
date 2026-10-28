@@ -80,6 +80,16 @@
                 </select>
                 <div class="small text-secondary mt-1" id="tax-mode"></div>
             </div>
+            @if ($gstEnabled)
+                <div class="col-12 col-md-6 col-lg-3 d-flex align-items-end">
+                    <div class="form-check mb-1">
+                        <input type="hidden" name="reverse_charge" value="0">
+                        <input class="form-check-input" type="checkbox" name="reverse_charge" value="1" id="reverse_charge" @checked(filter_var($input['reverse_charge'] ?? false, FILTER_VALIDATE_BOOLEAN))>
+                        <label class="form-check-label" for="reverse_charge">Reverse charge</label>
+                        <div class="small text-secondary">{{ $config['tax'] === 'input' ? 'You pay the GST to the government, not the supplier (for example transport by a GTA, legal or security services).' : 'The customer pays the GST to the government. It is not added to this bill.' }}</div>
+                    </div>
+                </div>
+            @endif
             @if ($invoice->isReturn())
                 <div class="col-12 col-md-6 col-lg-4">
                     <label for="original_invoice_id" class="form-label">Against {{ $kind === 'credit_note' ? 'invoice' : 'bill' }}</label>
@@ -132,6 +142,8 @@
                         <tr class="tax-row" data-tax="cgst"><td>CGST</td><td class="amount" data-total="cgst">0.00</td></tr>
                         <tr class="tax-row" data-tax="sgst"><td>SGST / UTGST</td><td class="amount" data-total="sgst">0.00</td></tr>
                         <tr class="tax-row" data-tax="igst"><td>IGST</td><td class="amount" data-total="igst">0.00</td></tr>
+                        <tr class="tax-row" data-tax="cess"><td>Cess</td><td class="amount" data-total="cess">0.00</td></tr>
+                        <tr class="rcm-row" hidden><td colspan="2" class="text-secondary">Tax above is paid under reverse charge and is not part of the total.</td></tr>
                         <tr><td>Round off</td><td class="amount" data-total="round">0.00</td></tr>
                         <tr class="fw-bold fs-6"><td>Total</td><td class="amount" data-total="grand">0.00</td></tr>
                     </table>

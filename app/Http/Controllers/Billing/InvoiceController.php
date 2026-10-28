@@ -278,6 +278,7 @@ class InvoiceController extends Controller
                 ->map(fn (StockItem $s) => [
                     'id' => $s->id, 'name' => $s->name, 'unit' => $s->unit->symbol, 'hsn' => $s->hsn_sac,
                     'gst' => $s->gst_rate !== null ? Decimal::trim($s->gst_rate) : null,
+                    'cess' => $s->cess_rate !== null ? Decimal::trim($s->cess_rate) : null,
                     'rate' => ($r = $config['item_type'] === 'sales' ? $s->sales_rate : $s->purchase_rate) !== null ? Decimal::trim($r) : null,
                     'ledger' => $config['item_type'] === 'sales' ? $s->sales_account_id : $s->purchase_account_id,
                     'tracking' => $s->tracking, 'expiry' => $s->track_expiry,
@@ -352,6 +353,7 @@ class InvoiceController extends Controller
             'shipping_address' => ['nullable', 'string', 'max:1000'],
             'narration' => ['nullable', 'string', 'max:2000'],
             'terms' => ['nullable', 'string', 'max:2000'],
+            'reverse_charge' => ['nullable', 'boolean'],
             'items' => ['required', 'array', 'max:200'],
             'items.*.account_id' => ['nullable', 'integer'],
             'items.*.stock_item_id' => ['nullable', 'integer'],
@@ -363,6 +365,7 @@ class InvoiceController extends Controller
             'items.*.rate' => ['nullable', 'string', 'max:20'],
             'items.*.discount_percent' => ['nullable', 'string', 'max:10'],
             'items.*.gst_rate' => ['nullable', 'string', 'max:10'],
+            'items.*.cess_rate' => ['nullable', 'string', 'max:10'],
             'items.*.order_item_id' => ['nullable', 'integer'],
             'items.*.note_item_id' => ['nullable', 'integer'],
             'items.*.batch_no' => ['nullable', 'string', 'max:50'],
@@ -378,6 +381,7 @@ class InvoiceController extends Controller
             'voucher_type_id', 'voucher_number', 'date', 'due_date', 'party_account_id', 'reference', 'reference_date',
             'original_invoice_id', 'place_of_supply', 'billing_address', 'shipping_address', 'narration', 'terms',
         ]);
+        $data['reverse_charge'] = $request->boolean('reverse_charge');
         $data['items'] = array_values($request->input('items', []));
 
         return $data;
@@ -389,7 +393,8 @@ class InvoiceController extends Controller
         $rows = [];
         foreach ($invoice->items as $item) {
             $key = ($item->hsn_sac ?? '').'|'.Decimal::trim($item->gst_rate);
-            $rows[$key] ??= ['hsn' => $item->hsn_sac, 'rate' => Decimal::trim($item->gst_rate), 'taxable' => 0, 'cgst' => 0, 'sgst' => 0, 'igst' => 0];
+            $rows[$key] ??= ['hsn' => $item->hsn_sac, 'rate' => Decimal::trim($item->gst_rate), 'taxable' => 0, 'cgst' => 0, 'sgst' => 0, 'igst' => 0, 'cess' => 0];
+            $rows[$key]['cess'] += Money::toPaise($item->cess_amount);
             $rows[$key]['taxable'] += Money::toPaise($item->taxable_amount);
             $rows[$key]['cgst'] += Money::toPaise($item->cgst_amount);
             $rows[$key]['sgst'] += Money::toPaise($item->sgst_amount);

@@ -48,9 +48,9 @@ class GstReportController extends Controller
             $sign = fn ($r) => $r['kind'] === 'debit_note' ? -1 : 1;
 
             return CsvExport::download("purchase-register-{$from}-{$to}.csv",
-                ['Type', 'Voucher no.', 'Date', 'Supplier invoice', 'Supplier invoice date', 'GSTIN', 'Supplier', 'State', 'Value', 'Taxable', 'IGST', 'CGST', 'SGST'],
-                $rows->map(fn ($r) => [$r['kind'] === 'debit_note' ? 'Debit note' : 'Purchase', $r['number'], $r['date'], $r['supplier_invoice'], $r['supplier_invoice_date'], $r['gstin'], $r['party'], $r['state'],
-                    Money::fromPaise($sign($r) * $r['value']), Money::fromPaise($sign($r) * $r['taxable']), Money::fromPaise($sign($r) * $r['igst']), Money::fromPaise($sign($r) * $r['cgst']), Money::fromPaise($sign($r) * $r['sgst'])]));
+                ['Type', 'Voucher no.', 'Date', 'Supplier invoice', 'Supplier invoice date', 'GSTIN', 'Supplier', 'State', 'Reverse charge', 'Value', 'Taxable', 'IGST', 'CGST', 'SGST', 'Cess'],
+                $rows->map(fn ($r) => [$r['kind'] === 'debit_note' ? 'Debit note' : 'Purchase', $r['number'], $r['date'], $r['supplier_invoice'], $r['supplier_invoice_date'], $r['gstin'], $r['party'], $r['state'], $r['reverse_charge'] ? 'Y' : 'N',
+                    Money::fromPaise($sign($r) * $r['value']), Money::fromPaise($sign($r) * $r['taxable']), Money::fromPaise($sign($r) * $r['igst']), Money::fromPaise($sign($r) * $r['cgst']), Money::fromPaise($sign($r) * $r['sgst']), Money::fromPaise($sign($r) * $r['cess'])]));
         }
 
         return view('gst.purchase-register', compact('rows', 'from', 'to'));
@@ -70,7 +70,7 @@ class GstReportController extends Controller
                     $rows[] = array_merge(
                         [$r['gstin'], $r['party'], $r['number'], $d($r['date'])],
                         $note ? [$r['original'], $d($r['original_date'])] : [],
-                        [$m($r['value']), $pos($r), 'N', $rate['rate'], $m($rate['taxable']), $m($rate['igst']), $m($rate['cgst']), $m($rate['sgst'])],
+                        [$m($r['value']), $pos($r), $r['reverse_charge'] ? 'Y' : 'N', $rate['rate'], $m($rate['taxable']), $m($rate['igst']), $m($rate['cgst']), $m($rate['sgst']), $m($rate['cess'])],
                     );
                 }
             }
@@ -80,20 +80,20 @@ class GstReportController extends Controller
 
         [$headers, $rows] = match ($section) {
             'b2b', 'b2cl', 'exports' => [
-                ['GSTIN of recipient', 'Receiver name', 'Invoice number', 'Invoice date', 'Invoice value', 'Place of supply', 'Reverse charge', 'Rate', 'Taxable value', 'IGST', 'CGST', 'SGST'],
+                ['GSTIN of recipient', 'Receiver name', 'Invoice number', 'Invoice date', 'Invoice value', 'Place of supply', 'Reverse charge', 'Rate', 'Taxable value', 'IGST', 'CGST', 'SGST', 'Cess'],
                 $perRate($data[$section], false),
             ],
             'cdnr', 'cdnur' => [
-                ['GSTIN of recipient', 'Receiver name', 'Note number', 'Note date', 'Original invoice', 'Original invoice date', 'Note value', 'Place of supply', 'Reverse charge', 'Rate', 'Taxable value', 'IGST', 'CGST', 'SGST'],
+                ['GSTIN of recipient', 'Receiver name', 'Note number', 'Note date', 'Original invoice', 'Original invoice date', 'Note value', 'Place of supply', 'Reverse charge', 'Rate', 'Taxable value', 'IGST', 'CGST', 'SGST', 'Cess'],
                 $perRate($data[$section], true),
             ],
             'b2cs' => [
-                ['Place of supply', 'Rate', 'Taxable value', 'IGST', 'CGST', 'SGST'],
-                array_map(fn ($r) => [$pos($r), $r['rate'], $m($r['taxable']), $m($r['igst']), $m($r['cgst']), $m($r['sgst'])], $data['b2cs']),
+                ['Place of supply', 'Rate', 'Taxable value', 'IGST', 'CGST', 'SGST', 'Cess'],
+                array_map(fn ($r) => [$pos($r), $r['rate'], $m($r['taxable']), $m($r['igst']), $m($r['cgst']), $m($r['sgst']), $m($r['cess'])], $data['b2cs']),
             ],
             'hsn' => [
-                ['HSN/SAC', 'UQC', 'Total quantity', 'Rate', 'Total value', 'Taxable value', 'IGST', 'CGST', 'SGST'],
-                array_map(fn ($r) => [$r['hsn'], $r['unit'], Decimal::trim(Decimal::fromScaled($r['quantity'], 3)), $r['rate'], $m($r['value']), $m($r['taxable']), $m($r['igst']), $m($r['cgst']), $m($r['sgst'])], $data['hsn']),
+                ['HSN/SAC', 'UQC', 'Total quantity', 'Rate', 'Total value', 'Taxable value', 'IGST', 'CGST', 'SGST', 'Cess'],
+                array_map(fn ($r) => [$r['hsn'], $r['unit'], Decimal::trim(Decimal::fromScaled($r['quantity'], 3)), $r['rate'], $m($r['value']), $m($r['taxable']), $m($r['igst']), $m($r['cgst']), $m($r['sgst']), $m($r['cess'])], $data['hsn']),
             ],
             'docs' => [
                 ['Document', 'From', 'To', 'Total', 'Cancelled'],

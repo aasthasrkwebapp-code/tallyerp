@@ -105,16 +105,18 @@
         <div class="col-7">
             @if ($invoice->tax_mode !== 'none')
                 <table class="bordered mb-2 small">
-                    <thead><tr><th>HSN/SAC</th><th class="num">Rate</th><th class="num">Taxable</th>@if ($invoice->tax_mode === 'intra')<th class="num">CGST</th><th class="num">SGST</th>@else<th class="num">IGST</th>@endif</tr></thead>
+                    <thead><tr><th>HSN/SAC</th><th class="num">Rate</th><th class="num">Taxable</th>@if ($invoice->tax_mode === 'intra')<th class="num">CGST</th><th class="num">SGST</th>@else<th class="num">IGST</th>@endif @if ((float) $invoice->cess_total)<th class="num">Cess</th>@endif</tr></thead>
                     <tbody>
                     @foreach ($taxSummary as $row)
                         <tr><td>{{ $row['hsn'] }}</td><td class="num">{{ $row['rate'] }}%</td><td class="num">{{ Money::format($row['taxable'], paiseInput: true) }}</td>
                             @if ($invoice->tax_mode === 'intra')<td class="num">{{ Money::format($row['cgst'], paiseInput: true) }}</td><td class="num">{{ Money::format($row['sgst'], paiseInput: true) }}</td>
-                            @else<td class="num">{{ Money::format($row['igst'], paiseInput: true) }}</td>@endif</tr>
+                            @else<td class="num">{{ Money::format($row['igst'], paiseInput: true) }}</td>@endif
+                            @if ((float) $invoice->cess_total)<td class="num">{{ Money::format($row['cess'], paiseInput: true) }}</td>@endif</tr>
                     @endforeach
                     </tbody>
                 </table>
             @endif
+            <div class="mb-1"><strong>Tax payable on reverse charge:</strong> {{ $invoice->reverse_charge ? 'Yes' : 'No' }}</div>
             <div><strong>Amount in words:</strong> {{ \App\Support\NumberToWords::rupees(Money::toPaise($invoice->grand_total)) }}</div>
             @if ($bank)
                 <div class="mt-2 small"><strong>Bank details:</strong> {{ $bank->bank_name ?? $bank->name }}, A/c {{ $bank->bank_account_number }}, IFSC {{ $bank->ifsc }}{{ $bank->bank_branch ? ', '.$bank->bank_branch : '' }}</div>
@@ -127,6 +129,7 @@
                 @if ((float) $invoice->cgst_total)<tr><td>CGST</td><td class="num">{{ Money::format($invoice->cgst_total) }}</td></tr>@endif
                 @if ((float) $invoice->sgst_total)<tr><td>SGST / UTGST</td><td class="num">{{ Money::format($invoice->sgst_total) }}</td></tr>@endif
                 @if ((float) $invoice->igst_total)<tr><td>IGST</td><td class="num">{{ Money::format($invoice->igst_total) }}</td></tr>@endif
+                @if ((float) $invoice->cess_total)<tr><td>Cess</td><td class="num">{{ Money::format($invoice->cess_total) }}</td></tr>@endif
                 @if ((float) $invoice->round_off)<tr><td>Round off</td><td class="num">{{ Money::format($invoice->round_off) }}</td></tr>@endif
                 <tr class="fw-bold"><td>Total</td><td class="num">₹{{ Money::format($invoice->grand_total) }}</td></tr>
             </table>

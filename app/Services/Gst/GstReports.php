@@ -14,8 +14,11 @@ use Illuminate\Support\Collection;
  *
  * GSTR-1 (outward supplies): B2B, B2C large, B2C small, exports / SEZ, credit
  * notes to registered and unregistered persons, HSN summary and document summary.
- * GSTR-3B: outward supplies, input tax credit from purchase bills (less debit
- * notes) and an indicative set-off of credit against liability.
+ * GSTR-3B: outward supplies, inward supplies under reverse charge, input tax
+ * credit from purchase bills (less debit notes) and an indicative set-off of
+ * credit against liability. Tax on reverse charge purchases is paid in cash
+ * and its credit is then available like any other. Compensation cess is a
+ * separate head: cess credit is used only against cess.
  *
  * All amounts are integers in paise. Credit notes are negative in the totals.
  */
@@ -53,11 +56,12 @@ class GstReports
         $rows = [];
         foreach ($invoice->items as $item) {
             $rate = Decimal::trim($item->gst_rate);
-            $rows[$rate] ??= ['rate' => $rate, 'taxable' => 0, 'igst' => 0, 'cgst' => 0, 'sgst' => 0];
+            $rows[$rate] ??= ['rate' => $rate, 'taxable' => 0, 'igst' => 0, 'cgst' => 0, 'sgst' => 0, 'cess' => 0];
             $rows[$rate]['taxable'] += Money::toPaise($item->taxable_amount);
             $rows[$rate]['igst'] += Money::toPaise($item->igst_amount);
             $rows[$rate]['cgst'] += Money::toPaise($item->cgst_amount);
             $rows[$rate]['sgst'] += Money::toPaise($item->sgst_amount);
+            $rows[$rate]['cess'] += Money::toPaise($item->cess_amount);
         }
         ksort($rows, SORT_NUMERIC);
 
@@ -84,8 +88,8 @@ class GstReports
             } else {
                 foreach ($row['rates'] as $r) {
                     $key = ($row['place_of_supply'] ?? '').'|'.$r['rate'];
-                    $b2cs[$key] ??= ['place_of_supply' => $row['place_of_supply'], 'state_code' => $row['state_code'], 'rate' => $r['rate'], 'taxable' => 0, 'igst' => 0, 'cgst' => 0, 'sgst' => 0];
-                    foreach (['taxable', 'igst', 'cgst', 'sgst'] as $k) {
+                    $b2cs[$key] ??= ['place_of_supply' => $row['place_of_supply'], 'state_code' => $row['state_code'], 'rate' => $r['rate'], 'taxable' => 0, 'igst' => 0, 'cgst' => 0, 'sgst' => 0, 'cess' => 0];
+                    foreach (['taxable', 'igst', 'cgst', 'sgst', 'cess'] as $k) {
                         $b2cs[$key][$k] += $r[$k];
                     }
                 }
@@ -133,6 +137,7 @@ class GstReports
             'place_of_supply' => $pos,
             'state_code' => $code,
             'value' => Money::toPaise($invoice->grand_total),
+            'reverse_charge' => (bool) $invoice->reverse_charge,
             'original' => $invoice->originalInvoice?->number(),
             'original_date' => $invoice->originalInvoice?->date->toDateString(),
             'rates' => $this->rateRows($invoice),
@@ -148,13 +153,14 @@ class GstReports
                 foreach ($doc->items as $item) {
                     $rate = Decimal::trim($item->gst_rate);
                     $key = ($item->hsn_sac ?? '').'|'.$rate.'|'.($item->unit ?? '');
-                    $rows[$key] ??= ['hsn' => $item->hsn_sac, 'unit' => $item->unit, 'rate' => $rate, 'quantity' => 0, 'value' => 0, 'taxable' => 0, 'igst' => 0, 'cgst' => 0, 'sgst' => 0];
+                    $rows[$key] ??= ['hsn' => $item->hsn_sac, 'unit' => $item->unit, 'rate' => $rate, 'quantity' => 0, 'value' => 0, 'taxable' => 0, 'igst' => 0, 'cgst' => 0, 'sgst' => 0, 'cess' => 0];
                     $rows[$key]['quantity'] += $sign * Decimal::toScaled($item->quantity, 3);
                     $rows[$key]['value'] += $sign * Money::toPaise($item->total_amount);
                     $rows[$key]['taxable'] += $sign * Money::toPaise($item->taxable_amount);
                     $rows[$key]['igst'] += $sign * Money::toPaise($item->igst_amount);
                     $rows[$key]['cgst'] += $sign * Money::toPaise($item->cgst_amount);
                     $rows[$key]['sgst'] += $sign * Money::toPaise($item->sgst_amount);
+                    $rows[$key]['cess'] += $sign * Money::toPaise($item->cess_amount);
                 }
             }
         }
@@ -193,14 +199,21 @@ class GstReports
         $purchases = $this->documents(['purchase'], $from, $to);
         $debitNotes = $this->documents(['debit_note'], $from, $to);
 
-        $empty = ['taxable' => 0, 'igst' => 0, 'cgst' => 0, 'sgst' => 0];
-        $outward = ['taxable' => $empty, 'zero_rated' => $empty, 'nil_exempt' => $empty];
+        $empty = ['taxable' => 0, 'igst' => 0, 'cgst' => 0, 'sgst' => 0, 'cess' => 0];
+        $heads = ['igst' => 0, 'cgst' => 0, 'sgst' => 0, 'cess' => 0];
+        // rcm_outward: supplies on which the recipient pays the tax (shown for information, no liability here).
+        $outward = ['taxable' => $empty, 'zero_rated' => $empty, 'nil_exempt' => $empty, 'rcm_outward' => $empty];
 
         foreach ([[$sales, 1], [$creditNotes, -1]] as [$docs, $sign]) {
             foreach ($docs as $doc) {
                 $export = $this->category($doc) === 'export';
                 foreach ($this->rateRows($doc) as $r) {
-                    $head = $export ? 'zero_rated' : ((float) $r['rate'] === 0.0 || $doc->tax_mode === 'none' ? 'nil_exempt' : 'taxable');
+                    $head = match (true) {
+                        (bool) $doc->reverse_charge => 'rcm_outward',
+                        $export => 'zero_rated',
+                        (float) $r['rate'] === 0.0 && $r['cess'] === 0, $doc->tax_mode === 'none' => 'nil_exempt',
+                        default => 'taxable',
+                    };
                     foreach ($empty as $k => $_) {
                         $outward[$head][$k] += $sign * $r[$k];
                     }
@@ -208,24 +221,36 @@ class GstReports
             }
         }
 
-        $itc = ['available' => $this->taxTotals($purchases), 'reversed' => $this->taxTotals($debitNotes)];
-        $itc['net'] = [
-            'igst' => $itc['available']['igst'] - $itc['reversed']['igst'],
-            'cgst' => $itc['available']['cgst'] - $itc['reversed']['cgst'],
-            'sgst' => $itc['available']['sgst'] - $itc['reversed']['sgst'],
-        ];
+        // 3.1(d): inward supplies on which the company pays tax under reverse charge.
+        $rcm = fn (Collection $docs) => $docs->filter(fn ($d) => $d->reverse_charge);
+        $inwardRcm = $this->taxTotals($rcm($purchases));
+        $rcmReturned = $this->taxTotals($rcm($debitNotes));
+        foreach ($empty as $k => $_) {
+            $inwardRcm[$k] -= $rcmReturned[$k];
+        }
 
-        $liability = [
-            'igst' => $outward['taxable']['igst'] + $outward['zero_rated']['igst'],
-            'cgst' => $outward['taxable']['cgst'] + $outward['zero_rated']['cgst'],
-            'sgst' => $outward['taxable']['sgst'] + $outward['zero_rated']['sgst'],
+        $available = $this->taxTotals($purchases);
+        $itc = [
+            'rcm' => array_intersect_key($this->taxTotals($rcm($purchases)), $heads),
+            'other' => array_intersect_key($this->taxTotals($purchases->reject(fn ($d) => $d->reverse_charge)), $heads),
+            'available' => $available,
+            'reversed' => $this->taxTotals($debitNotes),
         ];
+        $itc['net'] = array_map(fn ($k) => $itc['available'][$k] - $itc['reversed'][$k], array_combine(array_keys($heads), array_keys($heads)));
+
+        $liability = array_map(fn ($k) => $outward['taxable'][$k] + $outward['zero_rated'][$k], array_combine(array_keys($heads), array_keys($heads)));
+        $rcmLiability = array_intersect_key($inwardRcm, $heads);
+        $setoff = $this->setOff($liability, $itc['net']);
 
         return [
             'outward' => $outward,
+            'inward_rcm' => $inwardRcm,
             'itc' => $itc,
             'liability' => $liability,
-            'setoff' => $this->setOff($liability, $itc['net']),
+            'rcm_liability' => $rcmLiability,
+            'setoff' => $setoff,
+            // Reverse charge tax cannot be paid from credit (section 49(4)).
+            'cash_total' => array_sum($setoff['cash']) + array_sum(array_map(fn ($v) => max(0, $v), $rcmLiability)),
         ];
     }
 
@@ -237,9 +262,9 @@ class GstReports
      */
     public function setOff(array $liability, array $credit): array
     {
-        $due = array_map(fn ($v) => max(0, $v), $liability);
-        $left = array_map(fn ($v) => max(0, $v), $credit);
-        $used = ['igst' => [], 'cgst' => [], 'sgst' => []];
+        $due = array_map(fn ($v) => max(0, $v), $liability + ['cess' => 0]);
+        $left = array_map(fn ($v) => max(0, $v), $credit + ['cess' => 0]);
+        $used = ['igst' => [], 'cgst' => [], 'sgst' => [], 'cess' => []];
 
         $use = function (string $creditHead, string $taxHead) use (&$due, &$left, &$used) {
             $amount = min($left[$creditHead], $due[$taxHead]);
@@ -257,6 +282,7 @@ class GstReports
         $use('cgst', 'igst');
         $use('sgst', 'sgst');
         $use('sgst', 'igst');
+        $use('cess', 'cess');
 
         return ['cash' => $due, 'carried_forward' => $left, 'used' => $used];
     }
@@ -275,10 +301,11 @@ class GstReports
             'party' => $doc->party_name,
             'state' => $doc->place_of_supply,
             'value' => Money::toPaise($doc->grand_total),
+            'reverse_charge' => (bool) $doc->reverse_charge,
         ] + $this->taxTotals(collect([$doc])));
     }
 
-    /** taxable, igst, cgst, sgst totals of documents. */
+    /** taxable, igst, cgst, sgst and cess totals of documents. */
     public function taxTotals(Collection $docs): array
     {
         return [
@@ -286,6 +313,7 @@ class GstReports
             'igst' => $docs->sum(fn ($d) => Money::toPaise($d->igst_total)),
             'cgst' => $docs->sum(fn ($d) => Money::toPaise($d->cgst_total)),
             'sgst' => $docs->sum(fn ($d) => Money::toPaise($d->sgst_total)),
+            'cess' => $docs->sum(fn ($d) => Money::toPaise($d->cess_total)),
         ];
     }
 

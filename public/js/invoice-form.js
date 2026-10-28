@@ -42,16 +42,20 @@
         if (!cfg.gstEnabled) return 'none';
         var p = partyData();
         var reg = p ? p.reg : null;
-        if (cfg.purchase && ['composition', 'unregistered', 'consumer'].indexOf(reg) !== -1) return 'none';
+        if (cfg.purchase && !reverseCharge() && ['composition', 'unregistered', 'consumer'].indexOf(reg) !== -1) return 'none';
         if (['overseas', 'sez'].indexOf(reg) !== -1) return 'inter';
         var state = cfg.purchase ? ((p && p.state) || pos.value) : (pos.value || (p && p.state));
         if (!cfg.companyState || !state) return 'intra';
         return cfg.companyState.trim().toLowerCase() === state.trim().toLowerCase() ? 'intra' : 'inter';
     }
 
+    var rcmBox = document.getElementById('reverse_charge');
+    function reverseCharge() { return !!(rcmBox && rcmBox.checked); }
+
     function recalc() {
         var mode = taxMode();
-        var t = { gross: 0, discount: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0 };
+        var rcm = reverseCharge() && mode !== 'none';
+        var t = { gross: 0, discount: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0, cess: 0 };
         itemsBox.querySelectorAll('.invoice-item').forEach(function (row) {
             var qty = scaled(row.querySelector('.item-qty').value, 3);
             var rate = scaled(row.querySelector('.item-rate').value, 2);
@@ -62,11 +66,13 @@
             var taxable = gross - discount;
             var half = mode === 'intra' ? roundDiv(taxable * gst, 20000) : 0;
             var igst = mode === 'inter' ? roundDiv(taxable * gst, 10000) : 0;
+            var cessInput = row.querySelector('.item-cess');
+            var cess = mode === 'none' || !cessInput ? 0 : roundDiv(taxable * Math.min(scaled(cessInput.value, 2), 50000), 10000);
             row.querySelector('.item-amount').value = money(taxable);
             t.gross += gross; t.discount += discount; t.taxable += taxable;
-            t.cgst += half; t.sgst += half; t.igst += igst;
+            t.cgst += half; t.sgst += half; t.igst += igst; t.cess += cess;
         });
-        var before = t.taxable + t.cgst + t.sgst + t.igst;
+        var before = t.taxable + (rcm ? 0 : t.cgst + t.sgst + t.igst + t.cess);
         var grand = cfg.roundOff ? roundDiv(before, 100) * 100 : before;
         t.round = grand - before; t.grand = grand;
 
@@ -76,8 +82,9 @@
         });
         document.querySelectorAll('.tax-row').forEach(function (tr) {
             var tax = tr.dataset.tax;
-            tr.hidden = mode === 'none' || (mode === 'intra' && tax === 'igst') || (mode === 'inter' && tax !== 'igst');
+            tr.hidden = mode === 'none' || (tax === 'cess' ? t.cess === 0 : (mode === 'intra' && tax === 'igst') || (mode === 'inter' && tax !== 'igst'));
         });
+        document.querySelectorAll('.rcm-row').forEach(function (tr) { tr.hidden = !rcm; });
         document.getElementById('tax-mode').textContent = {
             intra: 'Intra-state supply: CGST + SGST',
             inter: 'Inter-state supply: IGST',
@@ -159,6 +166,8 @@
                 set('.item-unit', s.unit);
                 set('.item-hsn', s.hsn);
                 set('.item-gst', s.gst);
+                var cessEl = row.querySelector('.item-cess');
+                if (cessEl) cessEl.value = s.cess && parseFloat(s.cess) ? s.cess : '';
                 set('.item-rate', s.rate);
                 tracking(row);
                 recalc();
@@ -194,6 +203,7 @@
     itemsBox.addEventListener('change', recalc);
     party.addEventListener('change', function () { onParty(false); });
     pos.addEventListener('change', recalc);
+    if (rcmBox) rcmBox.addEventListener('change', recalc);
 
     var type = document.getElementById('voucher_type_id');
     var number = document.getElementById('voucher_number');

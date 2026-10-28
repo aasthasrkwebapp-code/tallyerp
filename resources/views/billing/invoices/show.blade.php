@@ -67,7 +67,7 @@
         <div class="erp-card p-3 h-100">
             <div class="row g-2 small">
                 <div class="col-6 col-md-4"><div class="text-secondary">{{ $config['tax'] === 'input' ? 'Supplier state' : 'Place of supply' }}</div>{{ $invoice->place_of_supply ?? '—' }}</div>
-                <div class="col-6 col-md-4"><div class="text-secondary">Tax</div>{{ ['intra' => 'CGST + SGST', 'inter' => 'IGST', 'none' => 'No GST'][$invoice->tax_mode] }}</div>
+                <div class="col-6 col-md-4"><div class="text-secondary">Tax</div>{{ ['intra' => 'CGST + SGST', 'inter' => 'IGST', 'none' => 'No GST'][$invoice->tax_mode] }}@if ($invoice->reverse_charge) <span class="badge text-bg-warning">Reverse charge</span>@endif</div>
                 <div class="col-6 col-md-4"><div class="text-secondary">Due date</div>{{ $invoice->due_date?->format('d M Y') ?? '—' }}</div>
                 <div class="col-6 col-md-4"><div class="text-secondary">Reference</div>{{ $invoice->reference ?? '—' }} {{ $invoice->reference_date?->format('d-m-Y') }}</div>
                 <div class="col-6 col-md-4"><div class="text-secondary">Voucher</div>
@@ -101,7 +101,7 @@
                     <td data-label="Disc %" class="text-end">{{ (float) $item->discount_percent ? \App\Support\Decimal::trim($item->discount_percent) : '—' }}</td>
                     <td data-label="Taxable" class="amount">{{ \App\Support\Money::format($item->taxable_amount) }}</td>
                     <td data-label="GST %" class="text-end">{{ \App\Support\Decimal::trim($item->gst_rate) }}</td>
-                    <td data-label="Tax" class="amount">{{ \App\Support\Money::format(\App\Support\Money::toPaise($item->cgst_amount) + \App\Support\Money::toPaise($item->sgst_amount) + \App\Support\Money::toPaise($item->igst_amount), paiseInput: true) }}</td>
+                    <td data-label="Tax" class="amount">{{ \App\Support\Money::format(\App\Support\Money::toPaise($item->cgst_amount) + \App\Support\Money::toPaise($item->sgst_amount) + \App\Support\Money::toPaise($item->igst_amount) + \App\Support\Money::toPaise($item->cess_amount), paiseInput: true) }}</td>
                     <td data-label="Amount" class="amount fw-semibold">{{ \App\Support\Money::format($item->total_amount) }}</td>
                 </tr>
             @endforeach
@@ -117,7 +117,7 @@
                 <div class="erp-card-header">Tax summary</div>
                 <div class="table-responsive">
                     <table class="table table-sm mb-0 table-stack small">
-                        <thead class="table-light"><tr><th>HSN/SAC</th><th class="text-end">Rate</th><th class="text-end">Taxable</th>@if ($invoice->tax_mode === 'intra')<th class="text-end">CGST</th><th class="text-end">SGST</th>@else<th class="text-end">IGST</th>@endif</tr></thead>
+                        <thead class="table-light"><tr><th>HSN/SAC</th><th class="text-end">Rate</th><th class="text-end">Taxable</th>@if ($invoice->tax_mode === 'intra')<th class="text-end">CGST</th><th class="text-end">SGST</th>@else<th class="text-end">IGST</th>@endif @if ((float) $invoice->cess_total)<th class="text-end">Cess</th>@endif</tr></thead>
                         <tbody>
                         @foreach ($taxSummary as $row)
                             <tr>
@@ -130,6 +130,7 @@
                                 @else
                                     <td data-label="IGST" class="amount">{{ \App\Support\Money::format($row['igst'], paiseInput: true) }}</td>
                                 @endif
+                                @if ((float) $invoice->cess_total)<td data-label="Cess" class="amount">{{ \App\Support\Money::format($row['cess'], paiseInput: true) }}</td>@endif
                             </tr>
                         @endforeach
                         </tbody>
@@ -149,6 +150,8 @@
                 @if ((float) $invoice->cgst_total)<tr><td>CGST</td><td class="amount">{{ \App\Support\Money::format($invoice->cgst_total) }}</td></tr>@endif
                 @if ((float) $invoice->sgst_total)<tr><td>SGST / UTGST</td><td class="amount">{{ \App\Support\Money::format($invoice->sgst_total) }}</td></tr>@endif
                 @if ((float) $invoice->igst_total)<tr><td>IGST</td><td class="amount">{{ \App\Support\Money::format($invoice->igst_total) }}</td></tr>@endif
+                @if ((float) $invoice->cess_total)<tr><td>Cess</td><td class="amount">{{ \App\Support\Money::format($invoice->cess_total) }}</td></tr>@endif
+                @if ($invoice->reverse_charge)<tr><td colspan="2" class="small text-secondary">Tax payable on reverse charge: the tax above is paid by the {{ $invoice->config()['tax'] === 'input' ? 'company' : 'recipient' }} and is not part of the total.</td></tr>@endif
                 @if ((float) $invoice->round_off)<tr><td>Round off</td><td class="amount">{{ \App\Support\Money::format($invoice->round_off) }}</td></tr>@endif
                 <tr class="fw-bold fs-5"><td>Total</td><td class="amount">{{ \App\Support\Money::format($invoice->grand_total, true) }}</td></tr>
             </table>

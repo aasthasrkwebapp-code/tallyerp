@@ -14,6 +14,7 @@ use App\Models\VoucherType;
 use App\Services\Accounting\VoucherService;
 use App\Services\Inventory\BatchTracker;
 use App\Services\Inventory\DeliveryNoteService;
+use App\Services\Setup\DefaultChartOfAccounts;
 use App\Support\CurrentCompany;
 use App\Support\Decimal;
 use App\Support\Money;
@@ -31,8 +32,8 @@ use Illuminate\Validation\ValidationException;
  *
  * Input: voucher_type_id, voucher_number (manual numbering), date, due_date,
  * party_account_id, reference, reference_date, original_invoice_id,
- * place_of_supply, billing_address, shipping_address, narration, terms,
- * items: [account_id, stock_item_id, godown_id, description, hsn_sac, quantity, unit, rate, discount_percent, gst_rate,
+ * place_of_supply, billing_address, shipping_address, narration, terms, reverse_charge,
+ * items: [account_id, stock_item_id, godown_id, description, hsn_sac, quantity, unit, rate, discount_percent, gst_rate, cess_rate,
  *   batch_no, mfg_date, expiry_date, serials (for items tracked by batch or serial)]
  */
 class InvoiceService
@@ -54,7 +55,7 @@ class InvoiceService
         }
 
         return DB::transaction(function () use ($invoice, $kind, $config, $data, $user, $intent, $reason) {
-            [$party, $type, $items, $taxMode, $result] = $this->prepare($invoice, $kind, $config, $data);
+            [$party, $type, $items, $taxMode, $result, $reverseCharge] = $this->prepare($invoice, $kind, $config, $data);
             $details = $party->partyDetails;
 
             $invoice ??= new Invoice(['kind' => $kind, 'created_by' => $user->id]);
@@ -80,12 +81,14 @@ class InvoiceService
                 'shipping_address' => $data['shipping_address'] ?? $details?->shipping_address,
                 'place_of_supply' => $data['place_of_supply'] ?? $details?->state,
                 'tax_mode' => $taxMode,
+                'reverse_charge' => $reverseCharge,
                 'gross_total' => Money::fromPaise($totals['gross']),
                 'discount_total' => Money::fromPaise($totals['discount']),
                 'taxable_total' => Money::fromPaise($totals['taxable']),
                 'cgst_total' => Money::fromPaise($totals['cgst']),
                 'sgst_total' => Money::fromPaise($totals['sgst']),
                 'igst_total' => Money::fromPaise($totals['igst']),
+                'cess_total' => Money::fromPaise($totals['cess']),
                 'round_off' => Money::fromPaise($totals['round_off']),
                 'grand_total' => Money::fromPaise($totals['grand']),
                 'narration' => $data['narration'] ?? null,
@@ -118,6 +121,8 @@ class InvoiceService
                     'cgst_amount' => Money::fromPaise($line['cgst']),
                     'sgst_amount' => Money::fromPaise($line['sgst']),
                     'igst_amount' => Money::fromPaise($line['igst']),
+                    'cess_rate' => $taxMode === 'none' ? '0' : $item['cess_rate'],
+                    'cess_amount' => Money::fromPaise($line['cess']),
                     'total_amount' => Money::fromPaise($line['total']),
                     'batch_no' => $item['batch_no'],
                     'mfg_date' => $item['mfg_date'],
@@ -207,6 +212,7 @@ class InvoiceService
             'shipping_address' => $invoice->shipping_address,
             'narration' => $invoice->narration,
             'terms' => $invoice->terms,
+            'reverse_charge' => $invoice->reverse_charge,
             'items' => $invoice->items->map(fn ($i) => [
                 'account_id' => $i->account_id,
                 'stock_item_id' => $i->stock_item_id,
@@ -220,6 +226,7 @@ class InvoiceService
                 'rate' => $i->rate,
                 'discount_percent' => $i->discount_percent,
                 'gst_rate' => $i->gst_rate,
+                'cess_rate' => $i->cess_rate,
                 'batch_no' => $i->batch_no,
                 'mfg_date' => $i->mfg_date?->toDateString(),
                 'expiry_date' => $i->expiry_date?->toDateString(),
@@ -233,9 +240,10 @@ class InvoiceService
      *
      * Sales: the place of supply against the company's state. Purchases: the
      * supplier's state against the company's state; unregistered and
-     * composition suppliers do not charge GST.
+     * composition suppliers do not charge GST, unless the purchase is under
+     * reverse charge, when the company itself pays the tax.
      */
-    public function taxMode(string $kind, ?string $state, ?string $registrationType): string
+    public function taxMode(string $kind, ?string $state, ?string $registrationType, bool $reverseCharge = false): string
     {
         $company = $this->company();
 
@@ -243,7 +251,7 @@ class InvoiceService
             return 'none';
         }
         $purchase = Invoice::kindConfig($kind)['tax'] === 'input';
-        if ($purchase && in_array($registrationType, ['composition', 'unregistered', 'consumer'], true)) {
+        if ($purchase && ! $reverseCharge && in_array($registrationType, ['composition', 'unregistered', 'consumer'], true)) {
             return 'none';
         }
         if (in_array($registrationType, ['overseas', 'sez'], true)) {
@@ -352,6 +360,8 @@ class InvoiceService
             $discount = trim((string) ($row['discount_percent'] ?? '')) ?: '0';
             $gstInput = trim((string) ($row['gst_rate'] ?? ''));
             $gstRate = Decimal::trim($gstInput !== '' ? $gstInput : ($stock?->gst_rate ?? '0'));
+            $cessInput = trim((string) ($row['cess_rate'] ?? ''));
+            $cessRate = $cessInput !== '' ? $cessInput : Decimal::trim($stock?->cess_rate ?? '0');
 
             if (! preg_match('/^\d{1,7}(\.\d{1,3})?$/', $quantity) || (float) $quantity <= 0) {
                 $errors["items.$i.quantity"] = "{$line}: enter a quantity greater than zero (up to 3 decimals).";
@@ -366,6 +376,9 @@ class InvoiceService
             }
             if (! in_array($gstRate, $allowedRates, true)) {
                 $errors["items.$i.gst_rate"] = "{$line}: choose a valid GST rate.";
+            }
+            if (! preg_match('/^\d{1,3}(\.\d{1,2})?$/', $cessRate) || (float) $cessRate > 500) {
+                $errors["items.$i.cess_rate"] = "{$line}: the cess rate must be between 0 and 500%.";
             }
             $hsn = trim((string) ($row['hsn_sac'] ?? '')) ?: ($stock?->hsn_sac ?: $account->hsn_sac);
             if ($hsn && ! preg_match('/^\d{4,8}$/', $hsn)) {
@@ -383,6 +396,7 @@ class InvoiceService
                 'rate' => $rate,
                 'discount_percent' => $discount,
                 'gst_rate' => $gstRate,
+                'cess_rate' => Decimal::trim($cessRate),
                 'batch_no' => null, 'mfg_date' => null, 'expiry_date' => null, 'serials' => null,
                 'order_item_id' => ! empty($row['order_item_id']) ? (int) $row['order_item_id'] : null,
                 'note_item_id' => ! empty($row['note_item_id']) ? (int) $row['note_item_id'] : null,
@@ -441,15 +455,19 @@ class InvoiceService
 
         $details = $party->partyDetails;
         $state = $config['tax'] === 'input' ? ($details?->state ?? $data['place_of_supply'] ?? null) : ($data['place_of_supply'] ?? $details?->state);
-        $taxMode = $this->taxMode($kind, $state, $details?->gst_registration_type);
+        $reverseCharge = filter_var($data['reverse_charge'] ?? false, FILTER_VALIDATE_BOOLEAN) && (bool) $this->company()->setting('enable_gst');
+        $taxMode = $this->taxMode($kind, $state, $details?->gst_registration_type, $reverseCharge);
+        if ($reverseCharge && $taxMode === 'none') {
+            $reverseCharge = false;
+        }
 
         try {
-            $result = $this->calculator->calculate($items, $taxMode, (bool) $this->company()->setting('invoice_round_off'));
+            $result = $this->calculator->calculate($items, $taxMode, (bool) $this->company()->setting('invoice_round_off'), $reverseCharge);
         } catch (\InvalidArgumentException $e) {
             throw ValidationException::withMessages(['items' => $e->getMessage()]);
         }
 
-        return [$party, $type, $items, $taxMode, $result];
+        return [$party, $type, $items, $taxMode, $result, $reverseCharge];
     }
 
     /** The accounting voucher for the invoice. */
@@ -489,11 +507,15 @@ class InvoiceService
             }
         }
 
-        foreach (['cgst', 'sgst', 'igst'] as $tax) {
-            if ($totals[$tax] > 0) {
-                $key = $config['tax'].'_'.$tax;
-                $ledgerId = Account::idFor($key) ?? throw ValidationException::withMessages(['items' => "The {$key} ledger is missing."]);
-                $entries[] = ['account_id' => $ledgerId, 'side' => $itemSide, 'amount' => Money::fromPaise($totals[$tax])];
+        // Reverse charge: a supplier charges no tax; a buyer takes the input credit and owes the same tax as a liability.
+        $ledger = fn (string $key) => DefaultChartOfAccounts::ledgerId($key) ?? throw ValidationException::withMessages(['items' => "The {$key} ledger is missing."]);
+        foreach (['cgst', 'sgst', 'igst', 'cess'] as $tax) {
+            if ($totals[$tax] <= 0 || ($invoice->reverse_charge && $config['tax'] === 'output')) {
+                continue;
+            }
+            $entries[] = ['account_id' => $ledger($config['tax'].'_'.$tax), 'side' => $itemSide, 'amount' => Money::fromPaise($totals[$tax])];
+            if ($invoice->reverse_charge) {
+                $entries[] = ['account_id' => $ledger('rcm_'.$tax), 'side' => $partySide, 'amount' => Money::fromPaise($totals[$tax])];
             }
         }
 
