@@ -101,12 +101,12 @@
             @csrf
             <div class="row g-2 align-items-end">
                 <div class="col-12 col-md-6">
-                    <label for="statement" class="form-label small">Import statement (CSV)</label>
-                    <input id="statement" type="file" name="statement" accept=".csv,text/csv" class="form-control form-control-sm @error('statement') is-invalid @enderror" required>
+                    <label for="statement" class="form-label small">Import statement (CSV, OFX / QFX or MT940)</label>
+                    <input id="statement" type="file" name="statement" accept=".csv,.txt,.ofx,.qfx,.sta,.mt940,.940,text/csv" class="form-control form-control-sm @error('statement') is-invalid @enderror" required>
                     @error('statement')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
                 <div class="col-12 col-md-auto"><button class="btn btn-sm btn-primary">Import &amp; match</button></div>
-                <div class="col-12 small text-secondary">Columns: <code>Date</code>, <code>Description</code>, <code>Reference</code>, <code>Withdrawal</code>, <code>Deposit</code> (or <code>Debit</code>/<code>Credit</code>, or one signed <code>Amount</code>). Dates as 2026-04-30, 30-04-2026 or 30/04/2026.</div>
+                <div class="col-12 small text-secondary">OFX / QFX and MT940 files are read as they come from the bank; importing the same file again skips lines already imported. For CSV, columns: <code>Date</code>, <code>Description</code>, <code>Reference</code>, <code>Withdrawal</code>, <code>Deposit</code> (or <code>Debit</code>/<code>Credit</code>, or one signed <code>Amount</code>). Dates as 2026-04-30, 30-04-2026 or 30/04/2026.</div>
             </div>
         </form>
     @endcan

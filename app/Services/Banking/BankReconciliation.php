@@ -125,99 +125,62 @@ class BankReconciliation
     }
 
     /**
-     * Import statement lines from CSV text. Columns are found by header name:
-     * date; description / narration / particulars; reference / ref / cheque;
-     * withdrawal / debit; deposit / credit (or one "amount" column, negative = withdrawal).
+     * Import statement lines from a CSV, OFX / QFX or MT940 file (see StatementParser).
+     * Lines already imported from the same OFX or MT940 statement are skipped.
      *
-     * @return int lines imported
+     * @return array{imported: int, skipped: int, format: string}
      */
-    public function import(Account $bank, string $csv, User $user): int
+    public function importFile(Account $bank, string $content, User $user): array
     {
-        $rows = array_values(array_filter(array_map('str_getcsv', preg_split('/\r\n|\r|\n/', trim(preg_replace('/^\xEF\xBB\xBF/', '', $csv)))), fn ($r) => array_filter($r, fn ($c) => trim((string) $c) !== '') !== []));
-        if (count($rows) < 2) {
-            throw ValidationException::withMessages(['statement' => 'The file needs a header row and at least one line.']);
+        $parsed = app(StatementParser::class)->parse($content);
+        if ($parsed['errors']) {
+            throw ValidationException::withMessages(['statement' => array_slice($parsed['errors'], 0, 10)]);
+        }
+        if (count($parsed['lines']) > 5000) {
+            throw ValidationException::withMessages(['statement' => 'Import at most 5,000 lines at a time.']);
+        }
+        if ($parsed['lines'] === []) {
+            throw ValidationException::withMessages(['statement' => 'The file has no transactions.']);
         }
 
-        $header = array_map(fn ($h) => Str::lower(trim((string) $h)), array_shift($rows));
-        $find = function (array $names) use ($header) {
-            foreach ($header as $i => $h) {
-                foreach ($names as $name) {
-                    // Short names (dr, cr, ref) must match a whole word, so "description" is not "cr".
-                    if ($h === $name || (strlen($name) > 3 ? str_contains($h, $name) : in_array($name, preg_split('/[^a-z]+/', $h), true))) {
-                        return $i;
-                    }
-                }
-            }
-
-            return null;
-        };
-
-        $col = [
-            'date' => $find(['date']),
-            'description' => $find(['description', 'narration', 'particulars', 'remarks']),
-            'reference' => $find(['reference', 'ref', 'cheque', 'chq', 'utr']),
-            'withdrawal' => $find(['withdrawal', 'debit', 'dr']),
-            'deposit' => $find(['deposit', 'credit', 'cr']),
-            'amount' => $find(['amount']),
-        ];
-        if ($col['date'] === null || (($col['withdrawal'] === null || $col['deposit'] === null) && $col['amount'] === null)) {
-            throw ValidationException::withMessages(['statement' => 'Columns not recognised. The header needs Date and either Withdrawal + Deposit (or Debit + Credit) or Amount.']);
-        }
-
+        $known = BankStatementLine::query()->where('account_id', $bank->id)->whereNotNull('external_id')->pluck('external_id')->flip();
         $batch = (string) Str::uuid();
         $lines = [];
-        $errors = [];
-        foreach ($rows as $n => $row) {
-            $lineNo = $n + 2;
-            $date = $this->parseDate($row[$col['date']] ?? '');
-            if (! $date) {
-                $errors[] = "Row {$lineNo}: unreadable date \"".($row[$col['date']] ?? '').'".';
-                continue;
-            }
-            try {
-                if ($col['withdrawal'] !== null && $col['deposit'] !== null) {
-                    $out = abs(Money::toPaise($row[$col['withdrawal']] ?? ''));
-                    $in = abs(Money::toPaise($row[$col['deposit']] ?? ''));
-                } else {
-                    $amount = Money::toPaise($row[$col['amount']] ?? '');
-                    [$out, $in] = $amount < 0 ? [-$amount, 0] : [0, $amount];
-                }
-            } catch (\InvalidArgumentException) {
-                $errors[] = "Row {$lineNo}: unreadable amount.";
-                continue;
-            }
-            if (($out === 0) === ($in === 0)) {
-                $errors[] = "Row {$lineNo}: enter either a withdrawal or a deposit.";
-                continue;
-            }
+        $skipped = 0;
+        foreach ($parsed['lines'] as [$date, $description, $reference, $out, $in, $externalId]) {
+            if ($externalId !== null && (isset($known[$externalId]) || isset($lines[$externalId]))) {
+                $skipped++;
 
-            $lines[] = [
+                continue;
+            }
+            $lines[$externalId ?? 'row'.count($lines)] = [
                 'account_id' => $bank->id,
                 'date' => $date,
-                'description' => mb_substr(trim((string) ($row[$col['description']] ?? '')), 0, 500) ?: null,
-                'reference' => $col['reference'] !== null ? (mb_substr(trim((string) ($row[$col['reference']] ?? '')), 0, 100) ?: null) : null,
+                'description' => mb_substr($description, 0, 500) ?: null,
+                'reference' => mb_substr($reference, 0, 100) ?: null,
                 'withdrawal' => Money::fromPaise($out),
                 'deposit' => Money::fromPaise($in),
+                'external_id' => $externalId !== null ? mb_substr($externalId, 0, 150) : null,
                 'import_batch' => $batch,
                 'created_by' => $user->id,
             ];
         }
 
-        if ($errors) {
-            throw ValidationException::withMessages(['statement' => array_slice($errors, 0, 10)]);
-        }
-        if (count($lines) > 5000) {
-            throw ValidationException::withMessages(['statement' => 'Import at most 5,000 lines at a time.']);
-        }
-
-        DB::transaction(function () use ($lines, $bank, $batch) {
+        DB::transaction(function () use ($lines, $bank, $batch, $parsed, $skipped) {
             foreach ($lines as $line) {
                 BankStatementLine::create($line);
             }
-            AuditLog::record('bank_statement_imported', $bank, null, ['lines' => count($lines), 'batch' => $batch], 'Imported '.count($lines).' statement lines for '.$bank->name);
+            AuditLog::record('bank_statement_imported', $bank, null, ['lines' => count($lines), 'skipped' => $skipped, 'format' => $parsed['format'], 'batch' => $batch],
+                'Imported '.count($lines).' statement lines ('.StatementParser::FORMATS[$parsed['format']].') for '.$bank->name);
         });
 
-        return count($lines);
+        return ['imported' => count($lines), 'skipped' => $skipped, 'format' => $parsed['format']];
+    }
+
+    /** Import statement lines from CSV text; returns the number imported. */
+    public function import(Account $bank, string $csv, User $user): int
+    {
+        return $this->importFile($bank, $csv, $user)['imported'];
     }
 
     /**
@@ -293,21 +256,5 @@ class BankReconciliation
                 $this->setBankDates($line->account, [$entry->id => null], $user);
             }
         });
-    }
-
-    protected function parseDate(string $value): ?string
-    {
-        $value = trim($value);
-        foreach (['Y-m-d', 'd-m-Y', 'd/m/Y', 'd.m.Y', 'd-M-Y', 'd M Y', 'd/m/y', 'd-m-y', 'd-M-y'] as $format) {
-            try {
-                $date = Carbon::createFromFormat('!'.$format, $value);
-                if ($date && $date->format($format) === $value) {
-                    return $date->toDateString();
-                }
-            } catch (\Throwable) {
-            }
-        }
-
-        return null;
     }
 }

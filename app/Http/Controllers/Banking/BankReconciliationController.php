@@ -74,12 +74,18 @@ class BankReconciliationController extends Controller
     public function import(Request $request, Account $ledger)
     {
         abort_unless($ledger->account_type === 'bank', 404);
-        $request->validate(['statement' => ['required', 'file', 'mimes:csv,txt', 'max:2048']], ['statement.mimes' => 'Upload the statement as a CSV file.']);
+        $request->validate(['statement' => ['required', 'file', 'max:4096', function ($attribute, $file, $fail) {
+            if (! in_array(strtolower($file->getClientOriginalExtension()), ['csv', 'txt', 'ofx', 'qfx', 'sta', 'mt940', '940'], true)) {
+                $fail('Upload the statement as a CSV, OFX / QFX or MT940 file.');
+            }
+        }]]);
 
-        $count = $this->reconciliation->import($ledger, (string) file_get_contents($request->file('statement')->getRealPath()), $request->user());
+        $result = $this->reconciliation->importFile($ledger, (string) file_get_contents($request->file('statement')->getRealPath()), $request->user());
         $matched = $this->reconciliation->autoMatch($ledger, $request->user());
+        $format = \App\Services\Banking\StatementParser::FORMATS[$result['format']];
 
-        return back()->with('success', "{$count} statement lines imported; {$matched} matched automatically.");
+        return back()->with('success', "{$result['imported']} statement lines imported from the {$format} file; {$matched} matched automatically."
+            .($result['skipped'] ? " {$result['skipped']} already imported lines were skipped." : ''));
     }
 
     public function autoMatch(Request $request, Account $ledger)

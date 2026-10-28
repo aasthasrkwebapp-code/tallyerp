@@ -15,7 +15,7 @@ class BankStatementLine extends Model
 
     protected $fillable = [
         'company_id', 'account_id', 'date', 'description', 'reference', 'withdrawal', 'deposit',
-        'voucher_entry_id', 'import_batch', 'created_by',
+        'external_id', 'voucher_entry_id', 'import_batch', 'created_by',
     ];
 
     protected function casts(): array
