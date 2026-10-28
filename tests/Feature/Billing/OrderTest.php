@@ -245,4 +245,63 @@ class OrderTest extends TestCase
         $this->actingAs($clerk)->get(route('orders.index', ['kind' => 'sales_order']))->assertForbidden();
         $this->actingAs($clerk)->get(route('orders.show', $order))->assertForbidden();
     }
+    public function test_advances_are_received_and_adjusted_against_invoices(): void
+    {
+        $service = app(\App\Services\Billing\OrderAdvanceService::class);
+        $bank = Account::create(['name' => 'HDFC Bank', 'account_group_id' => AccountGroup::idFor('bank_accounts'), 'account_type' => 'bank']);
+        $so = $this->order(); // 2,360.00
+        $entries = fn ($v) => $v->entries->map(fn ($e) => [$e->account_id, (float) $e->debit > 0 ? 'Dr '.$e->debit : 'Cr '.$e->credit, $e->billAllocations->map(fn ($b) => $b->bill_type.' '.$b->bill_ref)->all()])->all();
+
+        $advance = $service->record($so, ['date' => '2026-05-02', 'amount' => '1000', 'account_id' => $bank->id], $this->owner);
+        $this->assertSame('ADV-SO/0001-1', $advance->bill_ref);
+        $this->assertSame('receipt', $advance->voucher->type->base_type);
+        $this->assertSame([[$bank->id, 'Dr 1000.00', []], [$this->customer->id, 'Cr 1000.00', ['advance ADV-SO/0001-1']]], $entries($advance->voucher->fresh('entries.billAllocations')));
+        $this->assertSame([$advance->id => 100000], $service->pending($so->fresh('advances')));
+        $this->assertArrayHasKey('amount', $this->errors(fn () => $service->record($so, ['date' => '2026-05-02', 'amount' => '1400', 'account_id' => $bank->id], $this->owner)));
+        $this->assertArrayHasKey('account_id', $this->errors(fn () => $service->record($so, ['date' => '2026-05-02', 'amount' => '10', 'account_id' => Account::idFor('sales')], $this->owner)));
+
+        $invoice = $this->invoiceFrom($so);
+        $this->assertSame(236000, $service->invoicesWithPending($so)->first()->pending);
+
+        $adj = $service->adjust($advance, ['invoice_id' => $invoice->id, 'amount' => '1000', 'date' => '2026-05-05'], $this->owner);
+        $this->assertSame('journal', $adj->voucher->type->base_type);
+        $this->assertSame([0, 136000], [$service->pending($so->fresh('advances'))[$advance->id], $service->invoicesWithPending($so)->first()->pending]);
+        $this->assertArrayHasKey('adjust', $this->errors(fn () => $service->adjust($advance, ['invoice_id' => $invoice->id, 'amount' => '1', 'date' => '2026-05-05'], $this->owner)));
+
+        // The advance cannot go while its adjustment stands.
+        $this->assertArrayHasKey('advance', $this->errors(fn () => $service->cancel($advance, $this->owner, 'x')));
+        $service->cancelAdjustment($adj, $this->owner, 'Wrong invoice');
+        $this->assertSame(100000, $service->pending($so->fresh('advances'))[$advance->id]);
+        $service->cancel($advance->fresh(), $this->owner, 'Refunded');
+        $this->assertTrue($advance->voucher->fresh()->isCancelled());
+
+        // Purchase order: a payment, Dr the supplier.
+        $po = $this->order('purchase_order');
+        $paid = $service->record($po, ['date' => '2026-05-02', 'amount' => '500', 'account_id' => $bank->id], $this->owner);
+        $this->assertSame('payment', $paid->voucher->type->base_type);
+        $this->assertSame([[$this->supplier->id, 'Dr 500.00', ['advance ADV-PO/0001-1']], [$bank->id, 'Cr 500.00', []]], $entries($paid->voucher->fresh('entries.billAllocations')));
+
+        // Quotations take no advances.
+        $quote = app(OrderService::class)->save(null, 'quotation', ['date' => '2026-05-01', 'party_account_id' => $this->customer->id, 'items' => [['description' => 'X', 'quantity' => '1', 'rate' => '10', 'gst_rate' => '0']]], $this->owner);
+        $this->assertArrayHasKey('amount', $this->errors(fn () => $service->record($quote, ['date' => '2026-05-02', 'amount' => '5', 'account_id' => $bank->id], $this->owner)));
+    }
+
+    public function test_advance_screens_and_permissions(): void
+    {
+        $bank = Account::create(['name' => 'HDFC Bank', 'account_group_id' => AccountGroup::idFor('bank_accounts'), 'account_type' => 'bank']);
+        $so = $this->order();
+        $this->actingAs($this->owner)->post(route('orders.advances.store', $so), ['date' => '2026-05-02', 'amount' => '1000', 'account_id' => $bank->id])->assertRedirect(route('orders.show', $so));
+        $advance = \App\Models\OrderAdvance::firstOrFail();
+        $invoice = $this->invoiceFrom($so);
+        $this->get(route('orders.show', $so))->assertOk()->assertSee('Advances received')->assertSee('ADV-SO/0001-1')->assertSee('Adjust');
+        $this->post(route('order-advances.adjust', $advance), ['invoice_id' => $invoice->id, 'amount' => '600', 'date' => '2026-05-05'])->assertRedirect();
+        $adj = \App\Models\OrderAdvanceAdjustment::firstOrFail();
+        $this->get(route('vouchers.show', $adj->voucher_id))->assertSee('Adjusts advance ADV-SO/0001-1');
+        $this->get(route('vouchers.show', $advance->voucher_id))->assertSee('Advance ADV-SO/0001-1 against');
+
+        $viewer = $this->addMember($this->company, 'viewer');
+        $this->actingAs($viewer)->get(route('orders.show', $so))->assertOk()->assertDontSee('Record an advance');
+        $this->actingAs($viewer)->post(route('orders.advances.store', $so), ['date' => '2026-05-02', 'amount' => '10', 'account_id' => $bank->id])->assertForbidden();
+        $this->actingAs($viewer)->post(route('advance-adjustments.cancel', $adj), ['reason' => 'x'])->assertForbidden();
+    }
 }

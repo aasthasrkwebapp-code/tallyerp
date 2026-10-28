@@ -85,6 +85,8 @@ class OrderController extends Controller
             'locked' => $this->orders->referenced($order),
             'conversions' => $order->conversions()->get(),
             'revisions' => $order->revisions()->with('reviser')->get(),
+            'advances' => $order->advances()->with('voucher', 'account', 'adjustments.voucher', 'adjustments.invoice')->get(),
+            'advanceService' => app(\App\Services\Billing\OrderAdvanceService::class),
             'notes' => \App\Models\DeliveryNote::query()->whereHas('items', fn ($q) => $q->whereIn('order_item_id', $order->items->pluck('id')))->orderBy('date')->get(),
         ]);
     }

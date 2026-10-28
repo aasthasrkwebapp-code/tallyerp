@@ -146,6 +146,89 @@
             </div>
         </div>
         @endunless
+        @unless ($quote)
+            @php($order->setRelation('advances', $advances))
+            @php($advPending = $advanceService->pending($order))
+            @php($invPending = $advanceService->invoicesWithPending($order)->filter(fn ($r) => $r->pending > 0))
+            @php($sales = $config['invoice_kind'] === 'sales')
+            <div class="erp-card mb-3" id="advances">
+                <div class="erp-card-header">Advances {{ $sales ? 'received' : 'paid' }}</div>
+                @error('adjust')<div class="alert alert-danger small m-3 mb-0">{{ $message }}</div>@enderror
+                @error('advance')<div class="alert alert-danger small m-3 mb-0">{{ $message }}</div>@enderror
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0 table-stack small">
+                        <thead class="table-light"><tr><th>Reference</th><th>Date</th><th>Voucher</th><th class="text-end">Amount</th><th class="text-end">Not adjusted</th><th></th></tr></thead>
+                        <tbody>
+                        @forelse ($advances as $a)
+                            <tr class="{{ $a->isPosted() ? '' : 'text-decoration-line-through text-secondary' }}">
+                                <td data-label="Reference" class="text-nowrap">{{ $a->bill_ref ?? 'Not bill-wise' }}</td>
+                                <td data-label="Date" class="text-nowrap">{{ $a->date->format('d-m-Y') }}</td>
+                                <td data-label="Voucher">@if ($a->voucher)<a href="{{ route('vouchers.show', $a->voucher) }}">{{ $a->voucher->voucher_number }}</a>@endif <span class="text-secondary">{{ $a->account?->name }}</span></td>
+                                <td data-label="Amount" class="amount">{{ \App\Support\Money::format($a->amount) }}</td>
+                                <td data-label="Not adjusted" class="amount">@if ($a->isPosted()){{ ($advPending[$a->id] ?? null) === null ? '—' : $m($advPending[$a->id]) }}@else Cancelled @endif</td>
+                                <td data-label="" class="text-end">
+                                    @if ($a->isPosted() && $a->adjustments->where('status', 'posted')->isEmpty() && $user->can($config['module'].'.delete'))
+                                        <form method="POST" action="{{ route('order-advances.cancel', $a) }}" class="d-inline-flex gap-1" data-confirm="Cancel advance {{ $a->bill_ref }} and its voucher?">@csrf
+                                            <input name="reason" class="form-control form-control-sm" placeholder="Reason" required maxlength="255" aria-label="Reason">
+                                            <button class="btn btn-sm btn-outline-danger">Cancel</button>
+                                        </form>
+                                    @endif
+                                </td>
+                            </tr>
+                            @foreach ($a->adjustments as $adj)
+                                <tr class="{{ $adj->status === 'posted' ? '' : 'text-decoration-line-through text-secondary' }}">
+                                    <td data-label="" colspan="2" class="ps-4">↳ Adjusted against {{ $adj->invoice?->displayNumber() }}</td>
+                                    <td data-label="Journal">@if ($adj->voucher)<a href="{{ route('vouchers.show', $adj->voucher) }}">{{ $adj->voucher->voucher_number }}</a>@endif {{ $adj->date->format('d-m-Y') }}</td>
+                                    <td data-label="Adjusted" class="amount">{{ \App\Support\Money::format($adj->amount) }}</td>
+                                    <td></td>
+                                    <td data-label="" class="text-end">
+                                        @if ($adj->status === 'posted' && $user->can($config['module'].'.delete'))
+                                            <form method="POST" action="{{ route('advance-adjustments.cancel', $adj) }}" class="d-inline-flex gap-1" data-confirm="Cancel this adjustment?">@csrf
+                                                <input name="reason" class="form-control form-control-sm" placeholder="Reason" required maxlength="255" aria-label="Reason">
+                                                <button class="btn btn-sm btn-outline-secondary">Undo</button>
+                                            </form>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        @empty
+                            <tr><td colspan="6" class="text-secondary text-center py-3">No advances.</td></tr>
+                        @endforelse
+                        </tbody>
+                    </table>
+                </div>
+                @can($config['module'].'.create')
+                    @foreach ($advances->filter(fn ($a) => $a->isPosted() && ($advPending[$a->id] ?? 0) > 0) as $a)
+                        @foreach ($invPending as $inv)
+                            <form method="POST" action="{{ route('order-advances.adjust', $a) }}" class="row g-2 align-items-end border-top mx-0 px-2 py-2 small">
+                                @csrf
+                                <input type="hidden" name="invoice_id" value="{{ $inv->invoice->id }}">
+                                <div class="col-12 col-md-5">Adjust <strong>{{ $a->bill_ref }}</strong> ({{ $m($advPending[$a->id]) }} open) against <strong>{{ $inv->invoice->displayNumber() }}</strong> ({{ $m($inv->pending) }} due)</div>
+                                <div class="col-6 col-md-2"><input type="date" name="date" value="{{ $inv->invoice->date->toDateString() }}" class="form-control form-control-sm" required aria-label="Date"></div>
+                                <div class="col-6 col-md-3"><input name="amount" value="{{ \App\Support\Money::fromPaise(min($advPending[$a->id], $inv->pending)) }}" class="form-control form-control-sm text-end" inputmode="decimal" required aria-label="Amount"></div>
+                                <div class="col-12 col-md-2"><button class="btn btn-sm btn-primary w-100">Adjust</button></div>
+                            </form>
+                        @endforeach
+                    @endforeach
+                    @if ($order->isOpen())
+                        <form method="POST" action="{{ route('orders.advances.store', $order) }}" class="row g-2 align-items-end border-top mx-0 px-2 py-3">
+                            @csrf
+                            <div class="col-12 small fw-semibold">Record an advance {{ $sales ? 'received from the customer' : 'paid to the supplier' }}</div>
+                            <div class="col-6 col-md-3"><label class="form-label small" for="adv-date">Date</label><input id="adv-date" type="date" name="date" value="{{ old('date', now()->toDateString()) }}" class="form-control form-control-sm @error('date') is-invalid @enderror" required>@error('date')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
+                            <div class="col-6 col-md-3"><label class="form-label small" for="adv-amount">Amount</label><input id="adv-amount" name="amount" value="{{ old('amount') }}" class="form-control form-control-sm text-end @error('amount') is-invalid @enderror" inputmode="decimal" required>@error('amount')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
+                            <div class="col-8 col-md-4"><label class="form-label small" for="adv-account">{{ $sales ? 'Received in' : 'Paid from' }}</label>
+                                <select id="adv-account" name="account_id" class="form-select form-select-sm @error('account_id') is-invalid @enderror" required>
+                                    @foreach ($advanceService->cashBankQuery()->orderBy('name')->get() as $acc)<option value="{{ $acc->id }}" @selected((int) old('account_id') === $acc->id)>{{ $acc->name }}</option>@endforeach
+                                </select>@error('account_id')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
+                            <div class="col-4 col-md-2"><button class="btn btn-sm btn-outline-primary w-100">Record</button></div>
+                        </form>
+                    @endif
+                @endcan
+                @unless ($order->party?->maintain_bill_wise)
+                    <p class="small text-secondary px-3 pb-2 mb-0">{{ $order->party_name }} is not kept bill-wise, so an advance simply reduces the party's balance; there is nothing to adjust.</p>
+                @endunless
+            </div>
+        @endunless
         @if ($notes->isNotEmpty())
             <div class="erp-card p-3 mb-3 small"><span class="text-secondary">{{ $config['invoice_kind'] === 'sales' ? 'Delivery notes' : 'Goods receipt notes' }}:</span>
                 @foreach ($notes as $n)<a href="{{ route('notes.show', $n) }}" class="me-2">{{ $n->number }}{{ $n->isPosted() ? '' : ' (cancelled)' }}</a>@endforeach

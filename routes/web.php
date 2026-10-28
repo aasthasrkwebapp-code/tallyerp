@@ -7,6 +7,7 @@ use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Banking\BankReconciliationController;
 use App\Http\Controllers\Banking\ChequeController;
 use App\Http\Controllers\Billing\InvoiceController;
+use App\Http\Controllers\Billing\OrderAdvanceController;
 use App\Http\Controllers\Billing\OrderController;
 use App\Http\Controllers\Billing\PartyController;
 use App\Http\Controllers\CompanyController;
@@ -295,6 +296,10 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     Route::post('/orders/{order}/reopen', [OrderController::class, 'reopen'])->name('orders.reopen');
     Route::post('/orders/{order}/convert', [OrderController::class, 'convert'])->name('orders.convert');
     Route::get('/orders/{order}/revisions/{revision}', [OrderController::class, 'revision'])->name('orders.revision')->whereNumber('revision');
+    Route::post('/orders/{order}/advances', [OrderAdvanceController::class, 'store'])->name('orders.advances.store');
+    Route::post('/orders/advances/{advance}/adjust', [OrderAdvanceController::class, 'adjust'])->name('order-advances.adjust');
+    Route::post('/orders/advances/{advance}/cancel', [OrderAdvanceController::class, 'cancel'])->name('order-advances.cancel');
+    Route::post('/orders/advance-adjustments/{adjustment}/cancel', [OrderAdvanceController::class, 'cancelAdjustment'])->name('advance-adjustments.cancel');
 
     // Goods received not invoiced provisions
     Route::get('/grni', [GrniController::class, 'index'])->name('grni.index')->middleware('can:purchases.view');

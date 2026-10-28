@@ -103,6 +103,11 @@ class Order extends Model
         return $this->hasMany(self::class, 'source_id');
     }
 
+    public function advances(): HasMany
+    {
+        return $this->hasMany(OrderAdvance::class)->orderBy('date')->orderBy('id');
+    }
+
     /** Earlier versions, newest first. */
     public function revisions(): HasMany
     {
