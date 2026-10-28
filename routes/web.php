@@ -5,6 +5,7 @@ use App\Http\Controllers\Accounting\RecurringVoucherController;
 use App\Http\Controllers\Accounting\VoucherTypeController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Banking\BankReconciliationController;
+use App\Http\Controllers\Banking\ChequeController;
 use App\Http\Controllers\Billing\InvoiceController;
 use App\Http\Controllers\Billing\OrderController;
 use App\Http\Controllers\Billing\PartyController;
@@ -280,6 +281,17 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     Route::post('/bank-statement-lines/{line}/match', [BankReconciliationController::class, 'match'])->name('bank-statement-lines.match')->middleware('can:banking.edit');
     Route::post('/bank-statement-lines/{line}/unmatch', [BankReconciliationController::class, 'unmatch'])->name('bank-statement-lines.unmatch')->middleware('can:banking.edit');
     Route::delete('/bank-statement-lines/{line}', [BankReconciliationController::class, 'destroyLine'])->name('bank-statement-lines.destroy')->middleware('can:banking.delete');
+
+    // Cheque register, cheque books and printing
+    Route::get('/cheques', [ChequeController::class, 'index'])->name('cheques.index')->middleware('can:banking.view');
+    Route::get('/cheques/{voucher}/print', [ChequeController::class, 'print'])->name('cheques.print')->middleware('can:banking.view');
+    Route::get('/cheque-books', [ChequeController::class, 'books'])->name('cheque-books.index')->middleware('can:banking.view');
+    Route::post('/cheque-books', [ChequeController::class, 'storeBook'])->name('cheque-books.store')->middleware('can:banking.create');
+    Route::get('/cheque-books/{chequeBook}/edit', [ChequeController::class, 'editBook'])->name('cheque-books.edit')->middleware('can:banking.edit');
+    Route::put('/cheque-books/{chequeBook}', [ChequeController::class, 'updateBook'])->name('cheque-books.update')->middleware('can:banking.edit');
+    Route::delete('/cheque-books/{chequeBook}', [ChequeController::class, 'destroyBook'])->name('cheque-books.destroy')->middleware('can:banking.delete');
+    Route::post('/cheque-books/{chequeBook}/spoil', [ChequeController::class, 'spoil'])->name('cheque-books.spoil')->middleware('can:banking.edit');
+    Route::delete('/spoilt-cheques/{spoiltCheque}', [ChequeController::class, 'unspoil'])->name('spoilt-cheques.destroy')->middleware('can:banking.edit');
 
     // GST returns (working papers)
     Route::middleware('can:gst.view')->prefix('gst')->name('gst.')->group(function () {

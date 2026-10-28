@@ -11,6 +11,9 @@
     </div>
     <div class="d-flex flex-wrap gap-2">
         <button type="button" class="btn btn-outline-secondary" onclick="window.print()"><i class="bi bi-printer me-1"></i>Print</button>
+        @if ($voucher->instrument_type === 'cheque' && $voucher->instrument_direction === 'issued' && ! $voucher->isCancelled() && auth()->user()->can('banking.view'))
+            <a href="{{ route('cheques.print', $voucher) }}" class="btn btn-outline-secondary" target="_blank" rel="noopener"><i class="bi bi-credit-card-2-front me-1"></i>Print cheque</a>
+        @endif
         @if (! $voucher->isCancelled() && ! $voucher->source_type)
             @if (($voucher->isPosted() && auth()->user()->can('vouchers.edit')) || (! $voucher->isPosted() && (auth()->user()->can('vouchers.edit') || $voucher->created_by === auth()->id())))
                 <a href="{{ route('vouchers.edit', $voucher) }}" class="btn btn-outline-primary"><i class="bi bi-pencil me-1"></i>Alter</a>
@@ -99,6 +102,13 @@
         <dt class="col-5 col-md-2">Number</dt><dd class="col-7 col-md-4">{{ $voucher->displayNumber() }}</dd>
         <dt class="col-5 col-md-2">Date</dt><dd class="col-7 col-md-4">{{ $voucher->date->format('d M Y') }}</dd>
         <dt class="col-5 col-md-2">Reference</dt><dd class="col-7 col-md-4">{{ $voucher->reference ?: '—' }} {{ $voucher->reference_date ? '('.$voucher->reference_date->format('d M Y').')' : '' }}</dd>
+        @if ($voucher->instrument_type)
+            <dt class="col-5 col-md-2">{{ \App\Models\Voucher::INSTRUMENTS[$voucher->instrument_type] }}</dt>
+            <dd class="col-7 col-md-4">{{ $voucher->instrument_number ?: '—' }} {{ $voucher->instrument_date ? '· '.$voucher->instrument_date->format('d M Y') : '' }}
+                · {{ $voucher->instrument_direction === 'issued' ? 'issued on' : 'received into' }} {{ $voucher->instrumentAccount?->name }}
+                @if ($voucher->payee_name)<div class="text-secondary">{{ $voucher->instrument_direction === 'issued' ? 'Pay' : 'From' }}: {{ $voucher->payee_name }}</div>@endif
+            </dd>
+        @endif
         @if ($voucher->approver)
             <dt class="col-5 col-md-2">Approved by</dt><dd class="col-7 col-md-4">{{ $voucher->approver->name }} · {{ $voucher->approved_at?->format('d M Y H:i') }}</dd>
         @endif

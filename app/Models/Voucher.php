@@ -32,7 +32,7 @@ class Voucher extends Model
 
     protected $fillable = [
         'company_id', 'voucher_type_id', 'financial_year_id', 'voucher_number', 'sequence_number', 'date',
-        'reference', 'reference_date', 'narration', 'status', 'total', 'party_account_id', 'reversal_of_id',
+        'reference', 'reference_date', 'instrument_type', 'instrument_number', 'instrument_date', 'payee_name', 'instrument_account_id', 'instrument_direction', 'narration', 'status', 'total', 'party_account_id', 'reversal_of_id',
         'source_type', 'source_id', 'revision', 'created_by', 'updated_by', 'approved_by', 'approved_at',
         'posted_at', 'cancelled_by', 'cancelled_at', 'cancellation_reason',
     ];
@@ -42,11 +42,19 @@ class Voucher extends Model
         return [
             'date' => \App\Casts\DateOnly::class,
             'reference_date' => \App\Casts\DateOnly::class,
+            'instrument_date' => \App\Casts\DateOnly::class,
             'total' => 'decimal:2',
             'approved_at' => 'datetime',
             'posted_at' => 'datetime',
             'cancelled_at' => 'datetime',
         ];
+    }
+
+    public const INSTRUMENTS = ['cheque' => 'Cheque', 'dd' => 'Demand draft', 'neft' => 'NEFT', 'rtgs' => 'RTGS', 'imps' => 'IMPS', 'upi' => 'UPI'];
+
+    public function instrumentAccount(): BelongsTo
+    {
+        return $this->belongsTo(Account::class, 'instrument_account_id');
     }
 
     public function type(): BelongsTo

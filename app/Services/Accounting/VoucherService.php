@@ -39,6 +39,9 @@ use Illuminate\Validation\ValidationException;
  */
 class VoucherService
 {
+    /** Instrument (cheque / transfer) columns worked out by the last validate(). */
+    protected array $instrument = [];
+
     public function __construct(
         protected CurrentCompany $current,
         protected BillOutstanding $bills,
@@ -75,6 +78,7 @@ class VoucherService
                 'date' => $data['date'],
                 'reference' => $data['reference'] ?? null,
                 'reference_date' => $data['reference_date'] ?? null,
+                ...$this->instrument,
                 'narration' => $data['narration'] ?? $type->default_narration,
                 'status' => $status,
                 'created_by' => $user->id,
@@ -136,6 +140,7 @@ class VoucherService
                 'date' => $data['date'],
                 'reference' => $data['reference'] ?? null,
                 'reference_date' => $data['reference_date'] ?? null,
+                ...$this->instrument,
                 'narration' => $data['narration'] ?? null,
                 'status' => $status,
                 'updated_by' => $user->id,
@@ -237,6 +242,7 @@ class VoucherService
         $input['date'] = $date;
         $input['voucher_number'] = null;
         $input['narration'] = $narration ?: 'Reversal of '.$voucher->type->name.' '.$voucher->voucher_number;
+        $input['instrument_type'] = null; // the cheque stays on the original voucher, shown as reversed
         $input['allow_cash_in_journal'] = true;
         $input['skip_bill_checks'] = true;
         $input['entries'] = array_map(function ($line) {
@@ -279,6 +285,10 @@ class VoucherService
             'voucher_number' => $voucher->voucher_number,
             'reference' => $voucher->reference,
             'reference_date' => $voucher->reference_date?->toDateString(),
+            'instrument_type' => $voucher->instrument_type,
+            'instrument_number' => $voucher->instrument_number,
+            'instrument_date' => $voucher->instrument_date?->toDateString(),
+            'payee_name' => $voucher->payee_name,
             'narration' => $voucher->narration,
             'entries' => $voucher->entries->map(fn ($e) => [
                 'account_id' => $e->account_id,
@@ -349,6 +359,9 @@ class VoucherService
             (bool) ($data['allow_cash_in_journal'] ?? false),
             (bool) ($data['skip_bill_checks'] ?? false),
         );
+
+        [$this->instrument, $instrumentErrors] = app(\App\Services\Banking\ChequeRegister::class)->resolve($data, $lines, $existing, $date->toDateString());
+        $errors += $instrumentErrors;
 
         if ($errors) {
             throw ValidationException::withMessages($errors);

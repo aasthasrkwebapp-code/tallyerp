@@ -171,6 +171,8 @@ class VoucherController extends Controller
             'costCentres' => $company->setting('enable_cost_centres') ? CostCentre::where('is_active', true)->orderBy('name')->get(['id', 'name']) : collect(),
             'lines' => $lines,
             'billTypes' => \App\Models\BillAllocation::TYPES,
+            'chequeNext' => \App\Models\ChequeBook::query()->where('is_active', true)->distinct()->pluck('account_id')
+                ->mapWithKeys(fn ($id) => [$id => app(\App\Services\Banking\ChequeRegister::class)->nextNumber($id)])->filter()->all(),
         ]);
     }
 
@@ -182,6 +184,10 @@ class VoucherController extends Controller
             'voucher_number' => ['nullable', 'string', 'max:50'],
             'reference' => ['nullable', 'string', 'max:100'],
             'reference_date' => ['nullable', 'date'],
+            'instrument_type' => ['nullable', 'in:'.implode(',', array_keys(Voucher::INSTRUMENTS))],
+            'instrument_number' => ['nullable', 'string', 'max:30'],
+            'instrument_date' => ['nullable', 'date'],
+            'payee_name' => ['nullable', 'string', 'max:150'],
             'narration' => ['nullable', 'string', 'max:2000'],
             'entries' => ['required', 'array', 'max:200'],
             'entries.*.account_id' => ['nullable', 'integer'],
@@ -197,7 +203,7 @@ class VoucherController extends Controller
             'alteration_reason' => ['nullable', 'string', 'max:255'],
         ]);
 
-        return $request->only(['voucher_type_id', 'date', 'voucher_number', 'reference', 'reference_date', 'narration'])
+        return $request->only(['voucher_type_id', 'date', 'voucher_number', 'reference', 'reference_date', 'instrument_type', 'instrument_number', 'instrument_date', 'payee_name', 'narration'])
             + ['entries' => array_values($request->input('entries', []))];
     }
 

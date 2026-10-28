@@ -59,6 +59,38 @@
         </div>
     </div>
 
+    @php($instType = old('instrument_type', $voucher->instrument_type ?? (in_array($type->base_type, ['payment', 'receipt', 'contra'], true) ? '' : null)))
+    <details class="erp-card mb-3" @if ($instType !== null || $errors->hasAny(['instrument_type', 'instrument_number', 'instrument_date', 'payee_name'])) open @endif>
+        <summary class="erp-card-header">Cheque / bank transfer details <span class="text-secondary small fw-normal">(optional, for the cheque register)</span></summary>
+        <div class="p-3">
+            <div class="row g-3">
+                <div class="col-6 col-md-3 col-lg-2">
+                    <label for="instrument_type" class="form-label">Instrument</label>
+                    <select id="instrument_type" name="instrument_type" class="form-select @error('instrument_type') is-invalid @enderror">
+                        <option value="">None</option>
+                        @foreach (\App\Models\Voucher::INSTRUMENTS as $k => $label)<option value="{{ $k }}" @selected($instType === $k)>{{ $label }}</option>@endforeach
+                    </select>
+                    @error('instrument_type')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+                <div class="col-6 col-md-3 col-lg-2">
+                    <label for="instrument_number" class="form-label">Cheque / UTR no.</label>
+                    <input id="instrument_number" name="instrument_number" value="{{ old('instrument_number', $voucher->instrument_number) }}" class="form-control @error('instrument_number') is-invalid @enderror" maxlength="30" autocomplete="off">
+                    @error('instrument_number')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    <div class="form-text" id="cheque-next"></div>
+                </div>
+                <div class="col-6 col-md-3 col-lg-2">
+                    <label for="instrument_date" class="form-label">Instrument date</label>
+                    <input id="instrument_date" type="date" name="instrument_date" value="{{ old('instrument_date', $voucher->instrument_date?->toDateString()) }}" class="form-control @error('instrument_date') is-invalid @enderror">
+                    <div class="form-text">Blank = voucher date</div>
+                </div>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <label for="payee_name" class="form-label">Pay to / received from (name on cheque)</label>
+                    <input id="payee_name" name="payee_name" value="{{ old('payee_name', $voucher->payee_name) }}" class="form-control" maxlength="150" placeholder="Blank = the party ledger's name">
+                </div>
+            </div>
+        </div>
+    </details>
+
     <div class="erp-card mb-3">
         <div class="erp-card-header d-flex justify-content-between align-items-center">
             <span>Particulars</span>
@@ -180,4 +212,28 @@ window.voucherForm = {
 };
 </script>
 <script src="{{ asset('js/voucher-form.js') }}"></script>
+<script>
+// Suggest the next unused cheque leaf of the paying bank.
+(function () {
+    var next = @json($chequeNext ?? []);
+    var type = document.getElementById('instrument_type'), number = document.getElementById('instrument_number'), hint = document.getElementById('cheque-next');
+    if (!type) return;
+    function bank() {
+        var found = null;
+        document.querySelectorAll('#voucher-lines .voucher-line').forEach(function (row) {
+            var acc = row.querySelector('.line-account'), side = row.querySelector('.line-side');
+            if (acc && next[acc.value] && (!found || side.value === 'Cr')) found = acc.value;
+        });
+        return found;
+    }
+    function update() {
+        var b = type.value === 'cheque' ? bank() : null;
+        hint.textContent = b ? 'Next unused leaf: ' + next[b] : '';
+        if (b && !number.value) number.value = next[b];
+    }
+    type.addEventListener('change', update);
+    document.getElementById('voucher-lines').addEventListener('change', update);
+    update();
+})();
+</script>
 @endpush
