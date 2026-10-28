@@ -294,6 +294,7 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     Route::post('/orders/{order}/close', [OrderController::class, 'close'])->name('orders.close');
     Route::post('/orders/{order}/reopen', [OrderController::class, 'reopen'])->name('orders.reopen');
     Route::post('/orders/{order}/convert', [OrderController::class, 'convert'])->name('orders.convert');
+    Route::get('/orders/{order}/revisions/{revision}', [OrderController::class, 'revision'])->name('orders.revision')->whereNumber('revision');
 
     // Goods received not invoiced provisions
     Route::get('/grni', [GrniController::class, 'index'])->name('grni.index')->middleware('can:purchases.view');

@@ -84,7 +84,27 @@ class OrderController extends Controller
             'invoices' => $this->orders->invoicesFor($order),
             'locked' => $this->orders->referenced($order),
             'conversions' => $order->conversions()->get(),
+            'revisions' => $order->revisions()->with('reviser')->get(),
             'notes' => \App\Models\DeliveryNote::query()->whereHas('items', fn ($q) => $q->whereIn('order_item_id', $order->items->pluck('id')))->orderBy('date')->get(),
+        ]);
+    }
+
+    /** An earlier version of the order, next to how it is now. */
+    public function revision(Request $request, Order $order, int $revision)
+    {
+        $this->authorizeKind($request, $order->kind, 'view');
+        $saved = $order->revisions()->with('reviser')->where('revision', $revision)->firstOrFail();
+        $current = $this->orders->snapshot($order);
+        $next = $order->revisions()->where('revision', $revision + 1)->first();
+
+        return view('billing.orders.revision', [
+            // What the next version changed from this one.
+            'changes' => $this->orders->changes($saved->data, $next?->data ?? $current),
+            'nextLabel' => 'Rev '.($revision + 1).($next ? '' : ' (current)'),
+            'order' => $order,
+            'config' => $order->config(),
+            'saved' => $saved,
+            'current' => $current,
         ]);
     }
 
@@ -242,6 +262,7 @@ class OrderController extends Controller
             'place_of_supply' => ['nullable', 'string', 'in:'.implode(',', array_values(config('india.states')))],
             'narration' => ['nullable', 'string', 'max:2000'],
             'terms' => ['nullable', 'string', 'max:2000'],
+            'revision_note' => ['nullable', 'string', 'max:255'],
             'items' => ['required', 'array', 'max:200'],
             'items.*.stock_item_id' => ['nullable', 'integer'],
             'items.*.description' => ['nullable', 'string', 'max:500'],
@@ -257,7 +278,7 @@ class OrderController extends Controller
             'delivery_date.after_or_equal' => 'This date cannot be before the document date.',
         ]);
 
-        $data = $request->only(['date', 'delivery_date', 'party_account_id', 'reference', 'reference_date', 'place_of_supply', 'narration', 'terms']);
+        $data = $request->only(['date', 'delivery_date', 'party_account_id', 'reference', 'reference_date', 'place_of_supply', 'narration', 'terms', 'revision_note']);
         $data['items'] = array_values($request->input('items', []));
 
         return $data;

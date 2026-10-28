@@ -91,6 +91,14 @@
         </div>
     </div>
 
+    @if ($order->exists)
+        <div class="erp-card p-3 mb-3">
+            <label for="revision_note" class="form-label">Reason for this revision <span class="text-secondary small">(optional)</span></label>
+            <input id="revision_note" name="revision_note" value="{{ old('revision_note') }}" class="form-control" maxlength="255" placeholder="E.g. revised rates after negotiation">
+            <div class="form-text">If anything changes, the current version is kept as Rev {{ $order->revision }} and this becomes Rev {{ $order->revision + 1 }}.</div>
+        </div>
+    @endif
+
     <div class="d-flex flex-wrap gap-2 mb-5">
         <button type="submit" class="btn btn-primary" data-shortcut="s">Save {{ mb_strtolower($config['label']) }}</button>
         <a href="{{ $order->exists ? route('orders.show', $order) : route('orders.index', ['kind' => $kind]) }}" class="btn btn-outline-secondary">Cancel</a>

@@ -5,7 +5,7 @@
     $details = $order->party?->partyDetails;
     $logo = $company->logo_path ? storage_path('app/public/'.$company->logo_path) : null;
 @endphp
-@extends('pdf.layout', ['footerLeft' => $title.' '.$order->number.' · '.$company->displayName()])
+@extends('pdf.layout', ['footerLeft' => $title.' '.$order->displayNumber().' · '.$company->displayName()])
 @section('title', $title.' '.$order->number)
 
 @section('content')
@@ -25,7 +25,7 @@
         <td class="right" style="width: 40%">
             <div class="bold upper" style="font-size: 12pt">{{ $title }}</div>
             @if (! $order->isOpen())<div class="stamp">{{ strtoupper($order->status) }}</div>@endif
-            <div>No. <b>{{ $order->number }}</b></div>
+            <div>No. <b>{{ $order->displayNumber() }}</b></div>
             <div>Date {{ $order->date->format('d-m-Y') }}</div>
             @if ($order->delivery_date)<div>{{ $config['date_label'] ?? 'Delivery by' }} {{ $order->delivery_date->format('d-m-Y') }}</div>@endif
         </td>

@@ -124,4 +124,39 @@ class QuotationTest extends TestCase
         $this->actingAs($purchases)->post(route('orders.convert', $quote))->assertForbidden();
         $this->assertSame(0, Order::query()->where('kind', 'sales_order')->count());
     }
+    public function test_altering_keeps_a_revision(): void
+    {
+        $service = app(OrderService::class);
+        $quote = $this->quote();
+        $this->assertSame('2271.50', $quote->grand_total);
+
+        // Saving without changes does not make a revision.
+        $quote = $service->save($quote, 'quotation', $service->toInput($quote), $this->owner);
+        $this->assertSame(0, $quote->revision);
+        $this->assertSame(0, $quote->revisions()->count());
+
+        $input = $service->toInput($quote);
+        $input['items'][0]['rate'] = '140';
+        $input['items'][] = ['description' => 'Freight', 'quantity' => '1', 'rate' => '200', 'gst_rate' => '18'];
+        $input['revision_note'] = 'Negotiated';
+        $quote = $service->save($quote, 'quotation', $input, $this->owner);
+
+        $this->assertSame(1, $quote->revision);
+        $this->assertSame('QT/0001 Rev 1', $quote->displayNumber());
+        $original = $quote->revisions()->firstOrFail();
+        $this->assertSame([0, '2271.50', 'Negotiated'], [$original->revision, $original->grand_total, $original->note]);
+        $this->assertSame('150.00', $original->data['lines'][0]['rate']);
+        $this->assertCount(2, $original->data['lines']);
+
+        $changes = $service->changes($original->data, $service->snapshot($quote));
+        $this->assertContains('Line 1 (Widget): rate 150.00 → 140.00', $changes);
+        $this->assertContains('Line 3 added: Freight, 1 @ 200.00', $changes);
+        $this->assertStringStartsWith('Total: 2,271.50 → ', end($changes));
+
+        $this->actingAs($this->owner)->get(route('orders.show', $quote))->assertOk()->assertSee('Rev 1')->assertSee('Revisions')->assertSee('Negotiated');
+        $this->get(route('orders.revision', [$quote, 0]))->assertOk()->assertSee('Original')->assertSee('What Rev 1 (current) changed')->assertSee('rate 150.00 → 140.00');
+        $this->get(route('orders.revision', [$quote, 5]))->assertNotFound();
+        $this->get(route('orders.edit', $quote))->assertSee('Reason for this revision');
+        $this->get(route('orders.print', $quote))->assertSee('QT/0001 Rev 1');
+    }
 }

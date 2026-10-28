@@ -51,6 +51,7 @@ class OrderService
         [$party, $items, $taxMode, $result, $date] = $this->prepare($kind, $config, $data);
 
         return DB::transaction(function () use ($order, $kind, $data, $user, $party, $items, $taxMode, $result, $date, $config) {
+            $before = $order ? $this->snapshot($order) : null;
             $totals = $result['totals'];
             $order ??= new Order(['kind' => $kind, 'status' => Order::OPEN, 'created_by' => $user->id, 'number' => $this->nextNumber($kind, $config['prefix'])]);
             $order->fill([
@@ -97,8 +98,93 @@ class OrderService
                 ]);
             }
 
+            // A changed order keeps a copy of how it was and goes up a revision.
+            if ($before && $before['input'] != $this->snapshot($order->fresh())['input']) {
+                $order->revisions()->create([
+                    'company_id' => $order->company_id, 'revision' => (int) $order->revision, 'data' => $before,
+                    'grand_total' => $before['totals']['grand_total'], 'revised_by' => $user->id,
+                    'note' => isset($data['revision_note']) ? mb_substr(trim((string) $data['revision_note']), 0, 255) ?: null : null,
+                ]);
+                $order->forceFill(['revision' => $order->revision + 1])->save();
+                AuditLog::record('updated', $order, ['revision' => $order->revision - 1], ['revision' => $order->revision],
+                    $config['label']." {$order->number} revised to Rev {$order->revision}");
+            }
+
             return $order->fresh(['items.stockItem.unit', 'party.partyDetails']);
         });
+    }
+
+    /** The order as it stands: save() input, line amounts and totals. */
+    public function snapshot(Order $order): array
+    {
+        $order->load('items');
+
+        return [
+            'number' => $order->number,
+            'revision' => (int) $order->revision,
+            'input' => $this->toInput($order),
+            'party_name' => $order->party_name,
+            'tax_mode' => $order->tax_mode,
+            'lines' => $order->items->map(fn (OrderItem $i) => [
+                'description' => $i->description, 'quantity' => Decimal::trim($i->quantity), 'unit' => $i->unit,
+                'rate' => (string) $i->rate, 'discount_percent' => Decimal::trim($i->discount_percent), 'gst_rate' => Decimal::trim($i->gst_rate),
+                'taxable_amount' => (string) $i->taxable_amount, 'total_amount' => (string) $i->total_amount,
+            ])->all(),
+            'totals' => collect(['gross_total', 'discount_total', 'taxable_total', 'cgst_total', 'sgst_total', 'igst_total', 'grand_total'])
+                ->mapWithKeys(fn ($k) => [$k => (string) $order->{$k}])->all(),
+        ];
+    }
+
+    /**
+     * What changed between two snapshots, in words: header fields, lines by position and the total.
+     *
+     * @return array<int, string>
+     */
+    public function changes(array $from, array $to): array
+    {
+        $out = [];
+        $labels = ['date' => 'Date', 'delivery_date' => 'Valid until / delivery date', 'reference' => 'Reference', 'place_of_supply' => 'Place of supply', 'narration' => 'Narration', 'terms' => 'Terms'];
+        foreach ($labels as $key => $label) {
+            $a = (string) ($from['input'][$key] ?? '');
+            $b = (string) ($to['input'][$key] ?? '');
+            if ($a !== $b) {
+                $out[] = "{$label}: ".($a === '' ? '—' : $a).' → '.($b === '' ? '—' : $b);
+            }
+        }
+        if (($from['party_name'] ?? '') !== ($to['party_name'] ?? '')) {
+            $out[] = "Party: {$from['party_name']} → {$to['party_name']}";
+        }
+        $fields = ['description' => 'description', 'quantity' => 'quantity', 'rate' => 'rate', 'discount_percent' => 'discount %', 'gst_rate' => 'GST %'];
+        $count = max(count($from['lines'] ?? []), count($to['lines'] ?? []));
+        for ($i = 0; $i < $count; $i++) {
+            $a = $from['lines'][$i] ?? null;
+            $b = $to['lines'][$i] ?? null;
+            $n = $i + 1;
+            if (! $a) {
+                $out[] = "Line {$n} added: {$b['description']}, {$b['quantity']} @ ".Money::format($b['rate']);
+            } elseif (! $b) {
+                $out[] = "Line {$n} removed: {$a['description']}, {$a['quantity']} @ ".Money::format($a['rate']);
+            } else {
+                $diff = [];
+                foreach ($fields as $key => $label) {
+                    $x = (string) ($a[$key] ?? '');
+                    $y = (string) ($b[$key] ?? '');
+                    if ($key === 'rate' ? Money::toPaise($x ?: 0) !== Money::toPaise($y ?: 0) : $x !== $y) {
+                        $diff[] = "{$label} ".($key === 'rate' ? Money::format($x) : $x).' → '.($key === 'rate' ? Money::format($y) : $y);
+                    }
+                }
+                if ($diff) {
+                    $out[] = "Line {$n} ({$b['description']}): ".implode(', ', $diff);
+                }
+            }
+        }
+        $a = Money::toPaise($from['totals']['grand_total'] ?? 0);
+        $b = Money::toPaise($to['totals']['grand_total'] ?? 0);
+        if ($a !== $b) {
+            $out[] = 'Total: '.Money::format(Money::fromPaise($a)).' → '.Money::format(Money::fromPaise($b)).' ('.($b > $a ? '+' : '−').Money::format(Money::fromPaise(abs($b - $a))).')';
+        }
+
+        return $out;
     }
 
     /** Make a sales order from an open quotation; the quotation is closed as converted. */

@@ -7,12 +7,12 @@
 @php($quote = $order->isQuotation())
 @php($noun = mb_strtolower($config['label']))
 
-@section('title', $config['label'].' '.$order->number)
+@section('title', $config['label'].' '.$order->displayNumber())
 
 @section('content')
 <div class="page-header">
     <div>
-        <h1>{{ $config['label'] }} {{ $order->number }} @include('billing.orders._status', ['label' => $label])</h1>
+        <h1>{{ $config['label'] }} {{ $order->number }}@if ($order->revision) <span class="badge text-bg-info align-middle">Rev {{ $order->revision }}</span>@endif @include('billing.orders._status', ['label' => $label])</h1>
         <p class="text-secondary mb-0">{{ $order->date->format('d M Y') }} · {{ $order->party_name }} · Entered by {{ $order->creator?->name ?? '—' }}</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
@@ -149,6 +149,28 @@
         @if ($notes->isNotEmpty())
             <div class="erp-card p-3 mb-3 small"><span class="text-secondary">{{ $config['invoice_kind'] === 'sales' ? 'Delivery notes' : 'Goods receipt notes' }}:</span>
                 @foreach ($notes as $n)<a href="{{ route('notes.show', $n) }}" class="me-2">{{ $n->number }}{{ $n->isPosted() ? '' : ' (cancelled)' }}</a>@endforeach
+            </div>
+        @endif
+        @if ($revisions->isNotEmpty())
+            <div class="erp-card mb-3">
+                <div class="erp-card-header">Revisions</div>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0 table-stack small">
+                        <thead class="table-light"><tr><th>Version</th><th>Replaced on</th><th>By</th><th>Reason</th><th class="text-end">Total then</th></tr></thead>
+                        <tbody>
+                        <tr><td data-label="Version" class="fw-semibold">Rev {{ $order->revision }} (current)</td><td data-label="Replaced on">—</td><td data-label="By"></td><td data-label="Reason"></td><td data-label="Total" class="amount">{{ \App\Support\Money::format($order->grand_total) }}</td></tr>
+                        @foreach ($revisions as $r)
+                            <tr>
+                                <td data-label="Version"><a href="{{ route('orders.revision', [$order, $r->revision]) }}">{{ $r->revision ? 'Rev '.$r->revision : 'Original' }}</a></td>
+                                <td data-label="Replaced on">{{ $r->created_at->format('d M Y H:i') }}</td>
+                                <td data-label="By">{{ $r->reviser?->name ?? '—' }}</td>
+                                <td data-label="Reason">{{ $r->note ?? '—' }}</td>
+                                <td data-label="Total" class="amount">{{ \App\Support\Money::format($r->grand_total) }}</td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                </div>
             </div>
         @endif
         @if ($order->narration)<div class="erp-card p-3 mb-3 small"><div class="text-secondary">Narration</div>{{ $order->narration }}</div>@endif

@@ -24,7 +24,7 @@ class Order extends Model
     public const CANCELLED = 'cancelled';
 
     protected $fillable = [
-        'company_id', 'kind', 'source_id', 'number', 'date', 'delivery_date', 'party_account_id', 'party_name', 'reference', 'reference_date',
+        'company_id', 'kind', 'source_id', 'number', 'revision', 'date', 'delivery_date', 'party_account_id', 'party_name', 'reference', 'reference_date',
         'place_of_supply', 'tax_mode', 'gross_total', 'discount_total', 'taxable_total', 'cgst_total', 'sgst_total', 'igst_total',
         'grand_total', 'status', 'status_reason', 'status_at', 'status_by', 'narration', 'terms', 'created_by', 'updated_by',
     ];
@@ -101,6 +101,18 @@ class Order extends Model
     public function conversions(): HasMany
     {
         return $this->hasMany(self::class, 'source_id');
+    }
+
+    /** Earlier versions, newest first. */
+    public function revisions(): HasMany
+    {
+        return $this->hasMany(OrderRevision::class)->orderByDesc('revision');
+    }
+
+    /** "QT/0003" or, once altered, "QT/0003 Rev 2". */
+    public function displayNumber(): string
+    {
+        return $this->number.($this->revision > 0 ? ' Rev '.$this->revision : '');
     }
 
     public function isOpen(): bool
