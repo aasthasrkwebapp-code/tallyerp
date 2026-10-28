@@ -27,6 +27,7 @@ use App\Http\Controllers\Inventory\StockReportController;
 use App\Http\Controllers\Masters\AccountGroupController;
 use App\Http\Controllers\Masters\CostCentreController;
 use App\Http\Controllers\Masters\LedgerController;
+use App\Http\Controllers\Masters\OpeningBillController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\Payroll\AttendanceController;
 use App\Http\Controllers\Payroll\EmployeeController;
@@ -115,6 +116,8 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     Route::get('/ledgers/{ledger}/edit', [LedgerController::class, 'edit'])->name('ledgers.edit')->middleware('can:masters.edit');
     Route::put('/ledgers/{ledger}', [LedgerController::class, 'update'])->name('ledgers.update')->middleware('can:masters.edit');
     Route::delete('/ledgers/{ledger}', [LedgerController::class, 'destroy'])->name('ledgers.destroy')->middleware('can:masters.delete');
+    Route::get('/ledgers/{ledger}/opening-bills', [OpeningBillController::class, 'edit'])->name('ledgers.opening-bills')->middleware('can:masters.view');
+    Route::put('/ledgers/{ledger}/opening-bills', [OpeningBillController::class, 'update'])->name('ledgers.opening-bills.update')->middleware('can:masters.edit');
 
     Route::get('/cost-centres', [CostCentreController::class, 'index'])->name('cost-centres.index')->middleware('can:masters.view');
     Route::post('/cost-centres', [CostCentreController::class, 'store'])->name('cost-centres.store')->middleware('can:masters.create');

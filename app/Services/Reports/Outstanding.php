@@ -16,8 +16,8 @@ use Illuminate\Support\Facades\DB;
  *
  * A party's outstanding is its ledger balance. For bill-wise parties the
  * balance is split into its open bills (aged by due date, or bill date when
- * there is no due date) and an "on account" remainder: the opening balance
- * plus any amounts not allocated to a bill.
+ * there is no due date, and including opening bills) and an "on account"
+ * remainder: any opening balance and amounts not allocated to a bill.
  */
 class Outstanding
 {
@@ -111,7 +111,7 @@ class Outstanding
     /**
      * Open bills of one party as on a date, in the report's sign.
      *
-     * @return Collection<int, object{bill_ref:string, date:string, due_date:?string, original:int, amount:int, days:int, bucket:string, voucher_id:int}>
+     * @return Collection<int, object{bill_ref:string, date:string, due_date:?string, original:int, amount:int, days:int, bucket:string, voucher_id:?int, opening:bool}>
      */
     public function bills(Account $account, string $asOf): Collection
     {
@@ -140,6 +140,7 @@ class Outstanding
                     default => 'over_90',
                 },
                 'voucher_id' => $bill->voucher_id,
+                'opening' => $bill->opening,
             ];
         })->sortBy('date')->values();
     }

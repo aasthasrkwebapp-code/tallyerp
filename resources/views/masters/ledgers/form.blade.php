@@ -70,6 +70,13 @@
                     <label for="credit_limit" class="form-label">Credit limit</label>
                     <input id="credit_limit" name="credit_limit" inputmode="decimal" value="{{ old('credit_limit', $ledger->credit_limit) }}" class="form-control text-end">
                 </div>
+                @if ($ledger->exists && $ledger->account_type === 'party')
+                    <div class="col-12 small">
+                        @error('maintain_bill_wise')<div class="text-danger">{{ $message }}</div>@enderror
+                        <a href="{{ route('ledgers.opening-bills', $ledger) }}"><i class="bi bi-receipt"></i> Opening bills</a>
+                        <span class="text-secondary">— split the opening balance into the bills pending when the books began ({{ $ledger->openingBills()->count() }} entered).</span>
+                    </div>
+                @endif
             </div>
         </fieldset>
 

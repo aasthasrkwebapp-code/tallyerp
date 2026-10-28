@@ -10,8 +10,9 @@ use Illuminate\Support\Facades\DB;
 /**
  * Pending bills of a bill-wise party ledger, derived from posted bill allocations.
  *
- * A bill is opened by a "new_ref" or "advance" allocation and settled by
- * "agst_ref" allocations with the same reference on the opposite side.
+ * A bill is opened by a "new_ref" or "advance" allocation, or is one of the party's
+ * opening bills, and is settled by "agst_ref" allocations with the same reference on
+ * the opposite side. Opening bills have no voucher (voucher_id null, opening true).
  */
 class BillOutstanding
 {
@@ -21,6 +22,10 @@ class BillOutstanding
      */
     public function bills(int $accountId, ?int $excludeVoucherId = null, ?string $asOf = null): Collection
     {
+        $opening = DB::table('opening_bills')->where('account_id', $accountId)->orderBy('date')->orderBy('id')
+            ->get(['bill_ref', 'amount', 'side', 'due_date', 'date'])
+            ->map(fn ($r) => (object) ((array) $r + ['bill_type' => 'new_ref', 'voucher_id' => null, 'opening' => true]));
+
         $rows = DB::table('bill_allocations as b')
             ->join('voucher_entries as e', 'e.id', '=', 'b.voucher_entry_id')
             ->join('vouchers as v', 'v.id', '=', 'e.voucher_id')
@@ -31,6 +36,7 @@ class BillOutstanding
             ->when($asOf, fn ($q) => $q->where('v.date', '<=', $asOf))
             ->orderBy('v.date')->orderBy('v.id')
             ->get(['b.bill_ref', 'b.bill_type', 'b.amount', 'b.side', 'b.due_date', 'v.date', 'v.id as voucher_id']);
+        $rows = $opening->concat($rows);
 
         return $rows->groupBy(fn ($r) => mb_strtolower($r->bill_ref))->map(function (Collection $items) {
             $opening = $items->first(fn ($r) => in_array($r->bill_type, ['new_ref', 'advance'], true)) ?? $items->first();
@@ -47,6 +53,7 @@ class BillOutstanding
                 'date' => $opening->date,
                 'due_date' => $opening->due_date,
                 'voucher_id' => $opening->voucher_id,
+                'opening' => $opening->opening ?? false,
             ];
         })->values();
     }

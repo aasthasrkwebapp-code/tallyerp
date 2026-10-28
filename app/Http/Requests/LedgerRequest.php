@@ -66,7 +66,19 @@ class LedgerRequest extends FormRequest
             if ($group && in_array($group->nature, ['income', 'expense'], true) && (float) $this->input('opening_balance') != 0) {
                 $validator->errors()->add('opening_balance', 'Income and expense ledgers cannot carry an opening balance.');
             }
+            $this->checkOpeningBills($validator);
         }];
+    }
+
+    /** A ledger with opening bills stays bill-wise, and its opening balance must still cover the bills. */
+    protected function checkOpeningBills($validator): void
+    {
+        $ledger = $this->route('ledger');
+        if ($ledger instanceof \App\Models\Account && ! $validator->errors()->has('opening_balance')) {
+            foreach (app(\App\Services\Accounting\OpeningBills::class)->ledgerChangeErrors($ledger, $this->boolean('maintain_bill_wise'), (string) $this->input('opening_balance'), (string) $this->input('opening_balance_type')) as $field => $message) {
+                $validator->errors()->add($field, $message);
+            }
+        }
     }
 
     /** Validated data with the ledger type derived from its group. */

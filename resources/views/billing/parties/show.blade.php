@@ -59,7 +59,10 @@
     <div class="erp-card mb-3">
         <div class="p-3 pb-0 d-flex justify-content-between align-items-center">
             <h2 class="h6 fw-bold mb-0">Pending bills</h2>
-            @can('reports.view')<a href="{{ route('reports.outstanding.party', $ledger) }}" class="small">Full statement</a>@endcan
+            <span class="d-flex gap-3">
+                @can('masters.view')<a href="{{ route('ledgers.opening-bills', $ledger) }}" class="small">Opening bills</a>@endcan
+                @can('reports.view')<a href="{{ route('reports.outstanding.party', $ledger) }}" class="small">Full statement</a>@endcan
+            </span>
         </div>
         <div class="table-responsive">
             <table class="table table-sm align-middle mb-0 table-stack">
@@ -67,7 +70,7 @@
                 <tbody>
                 @forelse ($bills as $bill)
                     <tr>
-                        <td data-label="Bill"><a href="{{ route('vouchers.show', $bill->voucher_id) }}">{{ $bill->bill_ref }}</a></td>
+                        <td data-label="Bill">@if ($bill->voucher_id)<a href="{{ route('vouchers.show', $bill->voucher_id) }}">{{ $bill->bill_ref }}</a>@else{{ $bill->bill_ref }} <span class="badge text-bg-light">Opening</span>@endif</td>
                         <td data-label="Date">{{ \Illuminate\Support\Carbon::parse($bill->date)->format('d-m-Y') }}</td>
                         <td data-label="Due">{{ $bill->due_date ? \Illuminate\Support\Carbon::parse($bill->due_date)->format('d-m-Y') : '—' }}</td>
                         <td data-label="Overdue" class="text-end {{ $bill->days > 0 ? 'text-danger' : '' }}">{{ $bill->days ?: '—' }}</td>

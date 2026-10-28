@@ -84,6 +84,12 @@ class PartyRequest extends FormRequest
     public function after(): array
     {
         return [function ($validator) {
+            $ledger = $this->route('ledger');
+            if ($ledger instanceof \App\Models\Account && ! $validator->errors()->has('opening_balance')) {
+                foreach (app(\App\Services\Accounting\OpeningBills::class)->ledgerChangeErrors($ledger, $this->boolean('maintain_bill_wise'), (string) $this->input('opening_balance'), (string) $this->input('opening_balance_type')) as $field => $message) {
+                    $validator->errors()->add($field, $message);
+                }
+            }
             $gstin = $this->input('gstin');
             if ($gstin && $this->input('pan') && substr($gstin, 2, 10) !== $this->input('pan')) {
                 $validator->errors()->add('gstin', 'The PAN inside the GSTIN does not match the PAN entered.');

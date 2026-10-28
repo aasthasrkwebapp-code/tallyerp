@@ -78,6 +78,7 @@ return [
     'backup_path' => env('ERP_BACKUP_PATH', storage_path('app/private/backups')),
 
     'deletion_tables' => [
+        'opening_bills' => null,
         'recurring_invoice_runs' => null,
         'recurring_invoices' => null,
         'order_advance_adjustments' => null,

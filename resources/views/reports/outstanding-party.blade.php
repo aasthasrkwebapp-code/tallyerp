@@ -26,7 +26,7 @@
             @endif
             @foreach ($bills as $bill)
                 <tr>
-                    <td data-label="Bill"><a href="{{ route('vouchers.show', $bill->voucher_id) }}">{{ $bill->bill_ref }}</a></td>
+                    <td data-label="Bill">@if ($bill->voucher_id)<a href="{{ route('vouchers.show', $bill->voucher_id) }}">{{ $bill->bill_ref }}</a>@else{{ $bill->bill_ref }} <span class="badge text-bg-light">Opening</span>@endif</td>
                     <td data-label="Date">{{ \Illuminate\Support\Carbon::parse($bill->date)->format('d-m-Y') }}</td>
                     <td data-label="Due date">{{ $bill->due_date ? \Illuminate\Support\Carbon::parse($bill->due_date)->format('d-m-Y') : '—' }}</td>
                     <td data-label="Overdue days" class="text-end {{ $bill->days > 0 ? 'text-danger fw-semibold' : '' }}">{{ $bill->days ?: '—' }}</td>

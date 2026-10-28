@@ -8,6 +8,7 @@ use App\Support\Money;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
@@ -80,6 +81,11 @@ class Account extends Model
     public function partyDetails(): HasOne
     {
         return $this->hasOne(Party::class);
+    }
+
+    public function openingBills(): HasMany
+    {
+        return $this->hasMany(OpeningBill::class);
     }
 
     public function scopeActive(Builder $query): Builder
