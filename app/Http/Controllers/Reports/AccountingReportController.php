@@ -11,6 +11,7 @@ use App\Models\VoucherType;
 use App\Services\Reports\AccountBalances;
 use App\Services\Reports\CashFlow;
 use App\Services\Reports\FinancialStatements;
+use App\Services\Reports\FundsFlow;
 use App\Services\Reports\PeriodComparison;
 use App\Services\Reports\RatioAnalysis;
 use App\Support\CsvExport;
@@ -149,6 +150,43 @@ class AccountingReportController extends Controller
         }
 
         return view('reports.balance-sheet', $data + ['to' => $to]);
+    }
+
+    /** Funds flow: long-term sources and applications of funds, and the change in working capital. */
+    public function fundsFlow(Request $request, FundsFlow $fundsFlow)
+    {
+        [$from, $to] = $this->period($request);
+        $data = $fundsFlow->statement($from, $to);
+
+        if (CsvExport::requested($request)) {
+            $this->authorize('reports.export');
+            $f = fn (int $p) => Money::fromPaise($p);
+            $rows = collect([['Sources of funds', '', '']]);
+            foreach ($data['sources'] as $s) {
+                $rows->push([$s->group->name, ($s->group->nature === 'asset' ? 'Decrease' : 'Increase'), $f($s->amount)]);
+            }
+            if ($data['net_profit'] > 0) {
+                $rows->push(['Net profit', '', $f($data['net_profit'])]);
+            }
+            $rows->push(['Total sources', '', $f($data['total_sources'])]);
+            $rows->push(['Application of funds', '', '']);
+            foreach ($data['applications'] as $a) {
+                $rows->push([$a->group->name, ($a->group->nature === 'asset' ? 'Increase' : 'Decrease'), $f($a->amount)]);
+            }
+            if ($data['net_profit'] < 0) {
+                $rows->push(['Net loss', '', $f(-$data['net_profit'])]);
+            }
+            $rows->push(['Total applications', '', $f($data['total_applications'])]);
+            $rows->push(['Increase / (decrease) in working capital', '', $f($data['working_capital']['change'])]);
+            $rows->push(['Working capital', 'Opening', 'Closing', 'Effect on working capital']);
+            foreach ($data['working_capital']['rows'] as $w) {
+                $rows->push([$w->label, $f($w->opening), $f($w->closing), $f($w->change)]);
+            }
+
+            return CsvExport::download("funds-flow-{$from}-to-{$to}.csv", ['Particulars', 'Change', 'Amount'], $rows);
+        }
+
+        return view('reports.funds-flow', $data + compact('from', 'to'));
     }
 
     /** Ratio analysis, optionally beside the same period of the previous year. */

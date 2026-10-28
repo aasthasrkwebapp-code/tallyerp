@@ -307,6 +307,7 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
         Route::get('/profit-loss', [AccountingReportController::class, 'profitLoss'])->name('profit-loss');
         Route::get('/balance-sheet', [AccountingReportController::class, 'balanceSheet'])->name('balance-sheet');
         Route::get('/cash-flow', [AccountingReportController::class, 'cashFlow'])->name('cash-flow');
+        Route::get('/funds-flow', [AccountingReportController::class, 'fundsFlow'])->name('funds-flow');
         Route::get('/ratios', [AccountingReportController::class, 'ratios'])->name('ratios');
         Route::get('/comparison', [AccountingReportController::class, 'comparison'])->name('comparison');
         Route::get('/day-book', [AccountingReportController::class, 'dayBook'])->name('day-book');

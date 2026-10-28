@@ -252,6 +252,7 @@ return [
         ['label' => 'Profit & Loss', 'icon' => 'graph-up-arrow', 'route' => 'reports.profit-loss', 'can' => 'reports.view'],
         ['label' => 'Balance Sheet', 'icon' => 'clipboard-data', 'route' => 'reports.balance-sheet', 'can' => 'reports.view'],
         ['label' => 'Cash Flow', 'icon' => 'water', 'route' => 'reports.cash-flow', 'can' => 'reports.view'],
+        ['label' => 'Funds Flow', 'icon' => 'arrow-down-up', 'route' => 'reports.funds-flow', 'can' => 'reports.view'],
         ['label' => 'Ratio Analysis', 'icon' => 'percent', 'route' => 'reports.ratios', 'can' => 'reports.view'],
         ['label' => 'Period Comparison', 'icon' => 'layout-three-columns', 'route' => 'reports.comparison', 'can' => 'reports.view'],
         ['label' => 'Budgets & Variance', 'icon' => 'piggy-bank', 'route' => 'budgets.index', 'can' => 'reports.view'],
