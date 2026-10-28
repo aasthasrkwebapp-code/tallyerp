@@ -23,7 +23,9 @@ use App\Http\Controllers\Masters\AccountGroupController;
 use App\Http\Controllers\Masters\CostCentreController;
 use App\Http\Controllers\Masters\LedgerController;
 use App\Http\Controllers\MemberController;
+use App\Http\Controllers\Payroll\AttendanceController;
 use App\Http\Controllers\Payroll\EmployeeController;
+use App\Http\Controllers\Payroll\EmployeeLoanController;
 use App\Http\Controllers\Payroll\PayHeadController;
 use App\Http\Controllers\Payroll\PayrollRunController;
 use App\Http\Controllers\ProfileController;
@@ -208,6 +210,21 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
         Route::post('/runs/{payrollRun}/cancel', [PayrollRunController::class, 'cancel'])->name('payroll-runs.cancel')->middleware('can:payroll.delete');
         Route::delete('/runs/{payrollRun}', [PayrollRunController::class, 'destroy'])->name('payroll-runs.destroy')->middleware('can:payroll.delete');
         Route::get('/runs/{payrollRun}/payslips/{payslip}', [PayrollRunController::class, 'payslip'])->name('payroll-runs.payslip')->middleware('can:payroll.view');
+        Route::post('/runs/{payrollRun}/attendance', [PayrollRunController::class, 'attendance'])->name('payroll-runs.attendance')->middleware('can:payroll.edit');
+
+        Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index')->middleware('can:payroll.view');
+        Route::put('/attendance', [AttendanceController::class, 'update'])->name('attendance.update')->middleware('can:payroll.edit');
+        Route::get('/leave-register', [AttendanceController::class, 'leaveRegister'])->name('leave-register')->middleware('can:payroll.view');
+        Route::get('/leave-types', [AttendanceController::class, 'leaveTypes'])->name('leave-types.index')->middleware('can:payroll.view');
+        Route::post('/leave-types', [AttendanceController::class, 'storeLeaveType'])->name('leave-types.store')->middleware('can:payroll.create');
+        Route::put('/leave-types/{leaveType}', [AttendanceController::class, 'updateLeaveType'])->name('leave-types.update')->middleware('can:payroll.edit');
+        Route::delete('/leave-types/{leaveType}', [AttendanceController::class, 'destroyLeaveType'])->name('leave-types.destroy')->middleware('can:payroll.delete');
+
+        Route::get('/loans', [EmployeeLoanController::class, 'index'])->name('employee-loans.index')->middleware('can:payroll.view');
+        Route::get('/loans/create', [EmployeeLoanController::class, 'create'])->name('employee-loans.create')->middleware('can:payroll.create');
+        Route::post('/loans', [EmployeeLoanController::class, 'store'])->name('employee-loans.store')->middleware('can:payroll.create');
+        Route::get('/loans/{employeeLoan}', [EmployeeLoanController::class, 'show'])->name('employee-loans.show')->middleware('can:payroll.view');
+        Route::post('/loans/{employeeLoan}/cancel', [EmployeeLoanController::class, 'cancel'])->name('employee-loans.cancel')->middleware('can:payroll.delete');
     });
 
     // Transport: vehicles, drivers, routes, trips, expenses and profitability

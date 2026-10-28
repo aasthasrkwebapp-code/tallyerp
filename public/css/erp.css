@@ -111,3 +111,14 @@ a { color: var(--erp-accent); }
 .table-sticky-first > thead > tr > :first-child { background-color: #f8f9fa; }
 .table-sticky-first .row-group > td:first-child { background-color: #f8fafc; }
 @media (max-width: 575.98px) { .table-sticky-first > :not(caption) > tr > :first-child { white-space: normal; min-width: 9rem; max-width: 11rem; } }
+
+/* Attendance register */
+.attendance-grid select.att { width: 2.6rem; border: 0; background: transparent; font-size: .8rem; padding: .25rem 0; text-align: center; text-align-last: center; appearance: none; -webkit-appearance: none; cursor: pointer; }
+.attendance-grid select.att:disabled { cursor: default; color: inherit; }
+.attendance-grid select.att[data-v="absent"], .attendance-grid select.att[data-v="half_day"] { background-color: #fde2e2; color: #9b1c1c; font-weight: 600; }
+.attendance-grid select.att[data-v^="leave"], .attendance-grid select.att[data-v^="half_leave"] { background-color: #dbeafe; color: #1e40af; font-weight: 600; }
+.attendance-grid select.att[data-v="week_off"], .attendance-grid select.att[data-v="holiday"] { background-color: #eef0f3; color: #4b5563; }
+.attendance-grid select.att.is-invalid { outline: 2px solid #dc3545; }
+.attendance-grid td.att-off { background-color: #f8f9fa; }
+.attendance-grid input.ot { width: 4.5rem; display: inline-block; }
+@media (min-width: 576px) { .attendance-grid > tbody > tr > td:first-child { white-space: nowrap; } }

@@ -82,6 +82,7 @@
                     <select id="account_id" name="account_id" class="form-select @error('account_id') is-invalid @enderror" required>
                         <optgroup label="Expense ledgers">@foreach ($expenseLedgers as $a)<option value="{{ $a->id }}" @selected((int) $v('account_id') === $a->id)>{{ $a->name }}</option>@endforeach</optgroup>
                         <optgroup label="Liability ledgers">@foreach ($liabilityLedgers as $a)<option value="{{ $a->id }}" @selected((int) $v('account_id') === $a->id)>{{ $a->name }}</option>@endforeach</optgroup>
+                        <optgroup label="Asset ledgers (loan recovery)">@foreach ($assetLedgers as $a)<option value="{{ $a->id }}" @selected((int) $v('account_id') === $a->id)>{{ $a->name }}</option>@endforeach</optgroup>
                     </select>
                     @error('account_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>

@@ -24,7 +24,7 @@
     <div class="row small g-2 mb-3">
         <div class="col-6 col-md-4"><span class="text-secondary">Employee</span><br>{{ $slip->employee_name }} ({{ $slip->employee_code }})</div>
         <div class="col-6 col-md-4"><span class="text-secondary">Designation</span><br>{{ $slip->designation ?: '—' }}</div>
-        <div class="col-6 col-md-4"><span class="text-secondary">Paid days</span><br>{{ \App\Support\Decimal::trim($slip->paid_days) }} of {{ $slip->days_in_month }}</div>
+        <div class="col-6 col-md-4"><span class="text-secondary">Paid days</span><br>{{ \App\Support\Decimal::trim($slip->paid_days) }} of {{ $slip->days_in_month }}@if ((float) $slip->overtime_hours > 0) · overtime {{ \App\Support\Decimal::trim($slip->overtime_hours) }} h @endif</div>
         <div class="col-6 col-md-4"><span class="text-secondary">PAN</span><br>{{ $e->pan ?: '—' }}</div>
         <div class="col-6 col-md-4"><span class="text-secondary">PF UAN</span><br>{{ $e->uan ?: '—' }}</div>
         <div class="col-6 col-md-4"><span class="text-secondary">Bank account</span><br>{{ $e->bank_account ? $e->bank_name.' '.$e->bank_account : '—' }}</div>

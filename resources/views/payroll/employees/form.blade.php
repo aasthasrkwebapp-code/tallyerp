@@ -77,8 +77,8 @@
                             <td data-label="Type">{{ \App\Models\PayHead::TYPES[$h->type] }}</td>
                             <td data-label="Calculation" class="small">{{ \App\Models\PayHead::CALCULATIONS[$h->calculation] }}@if ($h->rate !== null) · {{ \App\Support\Decimal::trim($h->rate) }}%@endif</td>
                             <td data-label="Monthly amount">
-                                @if ($h->calculation === 'flat')
-                                    <input name="heads[{{ $h->id }}][amount]" value="{{ old("heads.{$h->id}.amount", $structure->get($h->id)?->amount) }}" class="form-control form-control-sm text-end @error("heads.{$h->id}.amount") is-invalid @enderror" inputmode="decimal" aria-label="{{ $h->name }} amount">
+                                @if (in_array($h->calculation, ['flat', 'overtime'], true))
+                                    <input name="heads[{{ $h->id }}][amount]" value="{{ old("heads.{$h->id}.amount", $structure->get($h->id)?->amount) }}" class="form-control form-control-sm text-end @error("heads.{$h->id}.amount") is-invalid @enderror" inputmode="decimal" aria-label="{{ $h->name }} {{ $h->calculation === 'overtime' ? 'hourly rate' : 'amount' }}" @if ($h->calculation === 'overtime') placeholder="Rate per hour" @endif>
                                     @error("heads.{$h->id}.amount")<div class="invalid-feedback">{{ $message }}</div>@enderror
                                 @else
                                     <span class="text-secondary small">Calculated</span>
@@ -89,7 +89,7 @@
                     </tbody>
                 </table>
             </div>
-            <p class="small text-secondary mt-2 mb-0">PF is worked out on basic up to ₹{{ number_format(config('erp.payroll.pf_wage_ceiling')) }}; ESI applies while monthly gross is up to ₹{{ number_format(config('erp.payroll.esi_wage_limit')) }}. <a href="{{ route('pay-heads.index') }}">Manage pay heads</a>.</p>
+            <p class="small text-secondary mt-2 mb-0">PF is worked out on basic up to ₹{{ number_format(config('erp.payroll.pf_wage_ceiling')) }}; ESI applies while monthly gross is up to ₹{{ number_format(config('erp.payroll.esi_wage_limit')) }}. Overtime takes a rate per hour; loan instalments are deducted automatically. <a href="{{ route('pay-heads.index') }}">Manage pay heads</a>.</p>
         </div>
     </div>
 

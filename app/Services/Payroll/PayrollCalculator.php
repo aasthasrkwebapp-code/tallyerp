@@ -16,6 +16,8 @@ use Illuminate\Support\Collection;
  * ESI = rate % of earned gross, rounded up to the rupee, when the monthly gross
  * in the salary structure is within the ESI wage limit.
  * Professional tax comes from the slab of the company's state.
+ * Overtime = the month's overtime hours × the employee's hourly rate.
+ * Loan recovery = the instalments due, limited to what is left of the net pay.
  */
 class PayrollCalculator
 {
@@ -23,10 +25,12 @@ class PayrollCalculator
      * @param  Collection<int, PayHead>  $heads  active pay heads, in payslip order
      * @return array{lines: array<int, array{head: PayHead, amount:int}>, gross:int, deductions:int, employer:int, net:int}
      */
-    public function calculate(Employee $employee, Collection $heads, int $daysInMonth, string $paidDays, int $month, ?string $state): array
+    public function calculate(Employee $employee, Collection $heads, int $daysInMonth, string $paidDays, int $month, ?string $state,
+        string $overtimeHours = '0', int $loanDue = 0): array
     {
         $structure = $employee->payHeads->keyBy('pay_head_id');
-        $applies = fn (PayHead $h) => $structure->has($h->id) && match ($h->calculation) {
+        $loanHead = $heads->first(fn (PayHead $h) => $h->type === 'deduction' && $h->calculation === 'loan');
+        $applies = fn (PayHead $h) => $h->calculation === 'loan' ? false : $structure->has($h->id) && match ($h->calculation) {
             'pf' => $employee->pf_applicable,
             'esi' => $employee->esi_applicable,
             'pt' => $employee->pt_applicable,
@@ -47,6 +51,7 @@ class PayrollCalculator
         foreach ($earnings as $h) {
             [$full, $earned] = match ($h->calculation) {
                 'percent_of_basic' => [$percent($basicFull, $h), $percent($basicEarned, $h)],
+                'overtime' => [0, Decimal::mulDiv($flat($h), Decimal::toScaled($overtimeHours, 2), 100)],
                 default => [$flat($h), $h->prorate ? $prorate($flat($h)) : $flat($h)],
             };
             if ($h->is_basic) {
@@ -70,6 +75,12 @@ class PayrollCalculator
                 default => $h->prorate ? $prorate($flat($h)) : $flat($h),
             };
             $lines[$h->id] = ['head' => $h, 'amount' => $amount];
+        }
+
+        // Loans last, so the recovery never takes net pay below zero.
+        if ($loanHead && $loanDue > 0) {
+            $left = $gross - array_sum(array_map(fn ($l) => $l['head']->type === 'deduction' ? $l['amount'] : 0, $lines));
+            $lines[$loanHead->id] = ['head' => $loanHead, 'amount' => max(0, min($loanDue, $left))];
         }
 
         $sum = fn (string $type) => array_sum(array_map(fn ($l) => $l['head']->type === $type ? $l['amount'] : 0, $lines));

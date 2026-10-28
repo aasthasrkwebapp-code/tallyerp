@@ -12,7 +12,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * Calculations: flat (monthly amount per employee), percent_of_basic,
  * pf (rate % of basic up to the PF wage ceiling), esi (rate % of gross while
- * gross is within the ESI limit) and pt (state professional tax slab).
+ * gross is within the ESI limit), pt (state professional tax slab), overtime
+ * (the month's overtime hours × the employee's hourly rate) and loan (the
+ * instalments due on the employee's loans and advances).
  */
 class PayHead extends Model
 {
@@ -26,6 +28,8 @@ class PayHead extends Model
         'pf' => 'Provident fund (% of basic, capped)',
         'esi' => 'ESI (% of gross, within limit)',
         'pt' => 'Professional tax (state slab)',
+        'overtime' => 'Overtime (hours × hourly rate)',
+        'loan' => 'Loan / advance recovery',
     ];
 
     protected $fillable = ['company_id', 'system_key', 'name', 'type', 'calculation', 'rate', 'is_basic', 'prorate', 'account_id', 'payable_account_id', 'sort_order', 'is_active'];

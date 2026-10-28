@@ -10,7 +10,7 @@
     <div class="bold" style="margin-top: 4pt">Payslip for {{ $run->label() }} @if ($run->isDraft())<span class="stamp">DRAFT</span>@endif</div>
 </div>
 <table class="grid" style="margin-bottom: 8pt">
-    <tr><td><span class="muted small">Employee</span><br>{{ $slip->employee_name }} ({{ $slip->employee_code }})</td><td><span class="muted small">Designation</span><br>{{ $slip->designation ?: '—' }}</td><td><span class="muted small">Paid days</span><br>{{ \App\Support\Decimal::trim($slip->paid_days) }} of {{ $slip->days_in_month }}</td></tr>
+    <tr><td><span class="muted small">Employee</span><br>{{ $slip->employee_name }} ({{ $slip->employee_code }})</td><td><span class="muted small">Designation</span><br>{{ $slip->designation ?: '—' }}</td><td><span class="muted small">Paid days</span><br>{{ \App\Support\Decimal::trim($slip->paid_days) }} of {{ $slip->days_in_month }}@if ((float) $slip->overtime_hours > 0) · overtime {{ \App\Support\Decimal::trim($slip->overtime_hours) }} h @endif</td></tr>
     <tr><td><span class="muted small">PAN</span><br>{{ $e->pan ?: '—' }}</td><td><span class="muted small">PF UAN</span><br>{{ $e->uan ?: '—' }}</td><td><span class="muted small">Bank account</span><br>{{ $e->bank_account ? $e->bank_name.' '.$e->bank_account : '—' }}</td></tr>
 </table>
 <table>

@@ -61,7 +61,7 @@ class PayrollTest extends TestCase
 
     public function test_default_pay_heads_and_ledgers_exist(): void
     {
-        $this->assertSame(9, PayHead::count());
+        $this->assertSame(11, PayHead::count());
         $this->assertNotNull(Account::idFor('salary_payable'));
         $this->assertSame(Account::idFor('pf_payable'), PayHead::where('system_key', 'pf_employer')->value('payable_account_id'));
     }

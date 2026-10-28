@@ -39,6 +39,24 @@
                 </tbody>
             </table>
         </div>
+        <div class="erp-card mb-3">
+            <div class="erp-card-header d-flex justify-content-between align-items-center">
+                <span>Loans &amp; advances</span>
+                @can('payroll.create')<a href="{{ route('employee-loans.create', ['employee_id' => $employee->id]) }}" class="btn btn-sm btn-outline-primary">New</a>@endcan
+            </div>
+            <table class="table table-sm mb-0">
+                <tbody>
+                @forelse ($loans as $l)
+                    <tr>
+                        <td><a href="{{ route('employee-loans.show', $l->loan) }}">{{ \App\Models\EmployeeLoan::KINDS[$l->loan->kind] }} of {{ $m($l->loan->amount) }}</a> <span class="text-secondary small">{{ $l->loan->date->format('d M Y') }}</span></td>
+                        <td class="text-end">{{ $l->outstanding > 0 ? \App\Support\Money::format($l->outstanding, paiseInput: true).' due' : 'Repaid' }}</td>
+                    </tr>
+                @empty
+                    <tr><td class="text-secondary">No loans or advances.</td></tr>
+                @endforelse
+                </tbody>
+            </table>
+        </div>
         <div class="erp-card">
             <div class="erp-card-header">Details</div>
             <dl class="row mb-0 p-3 small">

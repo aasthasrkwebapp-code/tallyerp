@@ -23,6 +23,7 @@ class PayHeadController extends Controller
             'editing' => $request->filled('edit') ? $heads->firstWhere('id', $request->integer('edit')) : null,
             'expenseLedgers' => $this->ledgers('expense'),
             'liabilityLedgers' => $this->ledgers('liability'),
+            'assetLedgers' => $this->ledgers('asset'),
             'usage' => EmployeePayHead::query()->selectRaw('pay_head_id, count(*) as c')->groupBy('pay_head_id')->pluck('c', 'pay_head_id'),
         ]);
     }
@@ -81,8 +82,22 @@ class PayHeadController extends Controller
         if ($data['type'] === 'earning' && in_array($data['calculation'], ['pf', 'esi', 'pt'], true)) {
             $errors['calculation'] = 'PF, ESI and professional tax are deductions or employer contributions.';
         }
+        if ($data['calculation'] === 'overtime' && $data['type'] !== 'earning') {
+            $errors['calculation'] = 'Overtime is an earning.';
+        }
+        if ($data['calculation'] === 'loan') {
+            if ($data['type'] !== 'deduction') {
+                $errors['calculation'] = 'Loan recovery is a deduction.';
+            } elseif (PayHead::query()->where('calculation', 'loan')->where('is_active', true)->whereKeyNot($head?->id)->exists() && $data['is_active']) {
+                $errors['calculation'] = 'There is already an active loan recovery pay head.';
+            }
+        }
         $nature = Account::with('group')->find($data['account_id'])?->group->nature;
-        if ($data['type'] === 'deduction' ? $nature !== 'liability' : $nature !== 'expense') {
+        if ($data['calculation'] === 'loan') {
+            if ($nature !== 'asset') {
+                $errors['account_id'] = 'Choose the asset ledger loans are given from, such as Salary Advances.';
+            }
+        } elseif ($data['type'] === 'deduction' ? $nature !== 'liability' : $nature !== 'expense') {
             $errors['account_id'] = $data['type'] === 'deduction' ? 'Choose a liability (payable) ledger.' : 'Choose an expense ledger.';
         }
         if ($data['type'] === 'employer') {
@@ -96,7 +111,7 @@ class PayHeadController extends Controller
         if ($errors) {
             throw ValidationException::withMessages($errors);
         }
-        if ($data['calculation'] === 'flat' || $data['calculation'] === 'pt') {
+        if (in_array($data['calculation'], ['flat', 'pt', 'overtime', 'loan'], true)) {
             $data['rate'] = null;
         }
 

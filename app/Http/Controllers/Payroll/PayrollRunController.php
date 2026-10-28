@@ -71,6 +71,14 @@ class PayrollRunController extends Controller
         return back()->with('success', 'Payroll recalculated.');
     }
 
+    /** Take paid days (and overtime) for every payslip from the attendance register. */
+    public function attendance(PayrollRun $payrollRun)
+    {
+        $this->payroll->recalculate($payrollRun, [], fromAttendance: true);
+
+        return back()->with('success', 'Paid days and overtime taken from the attendance register.');
+    }
+
     public function post(Request $request, PayrollRun $payrollRun)
     {
         $data = $request->validate(['date' => ['nullable', 'date']]);

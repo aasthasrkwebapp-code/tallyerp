@@ -56,6 +56,8 @@
                             @else
                                 {{ \App\Support\Decimal::trim($s->paid_days) }} / {{ $s->days_in_month }}
                             @endif
+                            @if ($s->from_attendance)<i class="bi bi-calendar-check text-success ms-1" title="From the attendance register"></i>@endif
+                            @if ((float) $s->overtime_hours > 0)<div class="small text-secondary">OT {{ \App\Support\Decimal::trim($s->overtime_hours) }} h</div>@endif
                         </td>
                         @foreach ($heads as $h)
                             <td data-label="{{ $h->name }}" class="amount">{{ $m($amounts[$s->id]->get($h->id)?->amount ?? 0) }}</td>
@@ -78,9 +80,13 @@
     </div>
     @if ($editable)
         <button class="btn btn-outline-primary mb-3">Recalculate</button>
-        <span class="small text-secondary ms-2">Recalculating also applies changes made to salary structures and pay heads.</span>
+        <button type="submit" form="from-attendance" class="btn btn-outline-secondary mb-3">Take paid days from attendance</button>
+        <div class="small text-secondary mb-3">Recalculating also applies changes made to salary structures, pay heads, overtime in the <a href="{{ route('attendance.index', ['month' => $run->month]) }}">attendance register</a> and loan instalments. <i class="bi bi-calendar-check text-success"></i> marks paid days taken from attendance.</div>
     @endif
 </form>
+@if ($editable)
+    <form method="POST" action="{{ route('payroll-runs.attendance', $run) }}" id="from-attendance" class="d-none">@csrf</form>
+@endif
 
 <div class="d-flex flex-wrap gap-3 no-print">
     @if ($run->isDraft())

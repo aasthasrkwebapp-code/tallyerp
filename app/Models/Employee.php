@@ -41,6 +41,16 @@ class Employee extends Model
         return $this->hasMany(Payslip::class);
     }
 
+    public function loans(): HasMany
+    {
+        return $this->hasMany(EmployeeLoan::class);
+    }
+
+    public function attendance(): HasMany
+    {
+        return $this->hasMany(AttendanceDay::class);
+    }
+
     public function auditLabel(): string
     {
         return 'Employee '.$this->code.' '.$this->name;

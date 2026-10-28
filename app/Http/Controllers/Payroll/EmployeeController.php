@@ -68,6 +68,7 @@ class EmployeeController extends Controller
 
         return view('payroll.employees.show', [
             'employee' => $employee,
+            'loans' => app(\App\Services\Payroll\LoanService::class)->summary($employee->loans()->where('status', 'active')->orderBy('date')->get()),
             'payslips' => Payslip::query()->with('run')->where('employee_id', $employee->id)
                 ->whereHas('run', fn ($q) => $q->where('status', '!=', 'cancelled'))
                 ->get()->sortByDesc(fn ($s) => $s->run->month)->values(),
@@ -92,8 +93,8 @@ class EmployeeController extends Controller
 
     public function destroy(Employee $employee)
     {
-        if (Payslip::query()->where('employee_id', $employee->id)->exists()) {
-            return back()->with('error', 'This employee has payslips and cannot be deleted. Enter a leaving date or mark them inactive instead.');
+        if (Payslip::query()->where('employee_id', $employee->id)->exists() || $employee->loans()->exists()) {
+            return back()->with('error', 'This employee has payslips or loans and cannot be deleted. Enter a leaving date or mark them inactive instead.');
         }
         $employee->delete();
 
@@ -104,7 +105,8 @@ class EmployeeController extends Controller
     {
         return [
             'employee' => $employee,
-            'heads' => PayHead::query()->where('is_active', true)->orderBy('sort_order')->orderBy('id')->get(),
+            // Loan recovery is automatic, from the employee's loans.
+            'heads' => PayHead::query()->where('is_active', true)->where('calculation', '!=', 'loan')->orderBy('sort_order')->orderBy('id')->get(),
             'structure' => $employee->exists ? $employee->payHeads->keyBy('pay_head_id') : collect(),
         ];
     }
@@ -143,7 +145,7 @@ class EmployeeController extends Controller
             'bank_account.regex' => 'The bank account number must be 6 to 20 digits.',
         ]);
 
-        $heads = PayHead::query()->where('is_active', true)->get()->keyBy('id');
+        $heads = PayHead::query()->where('is_active', true)->where('calculation', '!=', 'loan')->get()->keyBy('id');
         $structure = [];
         $errors = [];
         foreach ($request->input('heads', []) as $id => $row) {
@@ -155,7 +157,10 @@ class EmployeeController extends Controller
             if ($head->calculation === 'flat' && $head->type !== 'employer' && $amount === null) {
                 $errors["heads.$id.amount"] = "Enter the monthly amount for {$head->name}.";
             }
-            $structure[$head->id] = $head->calculation === 'flat' ? $amount : null;
+            if ($head->calculation === 'overtime' && $amount === null) {
+                $errors["heads.$id.amount"] = "Enter the hourly rate for {$head->name}.";
+            }
+            $structure[$head->id] = in_array($head->calculation, ['flat', 'overtime'], true) ? $amount : null;
         }
         if ($structure && ! $heads->filter(fn ($h) => $h->is_basic)->keys()->intersect(array_keys($structure))->count()) {
             $errors['heads'] = 'Include the basic salary in the salary structure.';

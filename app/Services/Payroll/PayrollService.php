@@ -33,6 +33,8 @@ class PayrollService
         protected CurrentCompany $current,
         protected PayrollCalculator $calculator,
         protected VoucherService $vouchers,
+        protected AttendanceService $attendance,
+        protected LoanService $loans,
     ) {}
 
     /** Create a draft run for a month ("YYYY-MM") with a payslip for each employee on the rolls. */
@@ -55,12 +57,14 @@ class PayrollService
         return DB::transaction(function () use ($month, $user, $start, $end, $employees) {
             $run = PayrollRun::create(['month' => $month, 'date' => $end->toDateString(), 'status' => 'draft', 'created_by' => $user->id]);
             $days = $start->daysInMonth;
+            $register = $this->attendance->register($month, $employees)->keyBy(fn ($r) => $r->employee->id);
 
             foreach ($employees as $employee) {
-                // Days on the rolls this month (joining or leaving mid-month).
-                $from = $employee->date_of_joining->gt($start) ? $employee->date_of_joining : $start;
-                $to = $employee->date_of_leaving && $employee->date_of_leaving->lt($end) ? $employee->date_of_leaving : $end;
-                $this->writePayslip($run, $employee, $days, (string) ($from->diffInDays($to) + 1));
+                // Paid days from the attendance register when the month is marked, else the days on the rolls
+                // (joining or leaving mid-month).
+                $att = $register[$employee->id];
+                $paid = $att->marked ? $att->paid_days : (string) ($att->on_rolls[1] - $att->on_rolls[0] + 1);
+                $this->writePayslip($run, $employee, $days, $paid, $att->overtime, $att->marked);
             }
 
             return $this->refreshTotals($run);
@@ -71,10 +75,15 @@ class PayrollService
      * Set paid days (employee id => days) on a draft run and recalculate.
      * Also picks up salary structure changes made since the run was prepared.
      */
-    public function recalculate(PayrollRun $run, array $paidDays): PayrollRun
+    public function recalculate(PayrollRun $run, array $paidDays, bool $fromAttendance = false): PayrollRun
     {
         $this->assertDraft($run);
         $run->load('payslips');
+        $register = $this->attendance->register($run->month, Employee::query()->whereIn('id', $run->payslips->pluck('employee_id'))->orderBy('code')->get())
+            ->keyBy(fn ($r) => $r->employee->id);
+        if ($fromAttendance) {
+            $paidDays = $register->map(fn ($r) => $r->paid_days)->all();
+        }
         $errors = [];
         foreach ($run->payslips as $slip) {
             $value = trim((string) ($paidDays[$slip->employee_id] ?? Decimal::trim($slip->paid_days)));
@@ -86,12 +95,15 @@ class PayrollService
             throw ValidationException::withMessages($errors);
         }
 
-        return DB::transaction(function () use ($run, $paidDays) {
+        return DB::transaction(function () use ($run, $paidDays, $register, $fromAttendance) {
             foreach ($run->payslips as $slip) {
                 $employee = Employee::query()->with('payHeads')->findOrFail($slip->employee_id);
                 $value = trim((string) ($paidDays[$slip->employee_id] ?? Decimal::trim($slip->paid_days)));
+                $att = $register[$slip->employee_id];
+                // Still "from attendance" while the paid days match the register.
+                $fromRegister = $att->marked && ($fromAttendance || $value === $att->paid_days);
                 $slip->delete();
-                $this->writePayslip($run, $employee, $slip->days_in_month, $value);
+                $this->writePayslip($run, $employee, $slip->days_in_month, $value, $att->overtime, $fromRegister);
             }
 
             return $this->refreshTotals($run);
@@ -101,7 +113,7 @@ class PayrollService
     public function post(PayrollRun $run, User $user, ?string $date = null): PayrollRun
     {
         $this->assertDraft($run);
-        $run->load('payslips.lines');
+        $run->load('payslips.lines', 'payslips.loanRecoveries.loan');
         if ((float) $run->gross_total <= 0) {
             throw ValidationException::withMessages(['run' => 'There is nothing to post: the gross pay is zero.']);
         }
@@ -111,15 +123,22 @@ class PayrollService
             throw ValidationException::withMessages(['run' => 'The Journal voucher type and the Salary Payable ledger are needed to post payroll.']);
         }
 
+        $this->assertLoansOutstanding($run);
+
         return DB::transaction(function () use ($run, $user, $date, $type, $salaryPayable) {
             $date ??= $run->date->toDateString();
             $heads = PayHead::query()->whereIn('id', $run->payslips->flatMap->lines->pluck('pay_head_id')->unique())->get()->keyBy('id');
             $debits = [];
             $credits = [];
+            // Loan recoveries go back to each loan's own ledger.
+            foreach ($run->payslips->flatMap->loanRecoveries as $recovery) {
+                $account = $recovery->loan->account_id;
+                $credits[$account] = ($credits[$account] ?? 0) + Money::toPaise($recovery->amount);
+            }
             foreach ($run->payslips->flatMap->lines as $line) {
                 $head = $heads[$line->pay_head_id];
                 $amount = Money::toPaise($line->amount);
-                if ($amount === 0) {
+                if ($amount === 0 || $head->calculation === 'loan') {
                     continue;
                 }
                 match ($head->type) {
@@ -193,10 +212,12 @@ class PayrollService
 
     // ------------------------------------------------------------------
 
-    protected function writePayslip(PayrollRun $run, Employee $employee, int $days, string $paidDays): void
+    protected function writePayslip(PayrollRun $run, Employee $employee, int $days, string $paidDays, string $overtime = '0', bool $fromAttendance = false): void
     {
         $heads = PayHead::query()->where('is_active', true)->orderBy('sort_order')->orderBy('id')->get();
-        $result = $this->calculator->calculate($employee, $heads, $days, $paidDays, (int) substr($run->month, 5, 2), $this->current->get()->state);
+        $due = $this->loans->dueFor($employee, $run->month, $run->id);
+        $result = $this->calculator->calculate($employee, $heads, $days, $paidDays, (int) substr($run->month, 5, 2), $this->current->get()->state,
+            $overtime, array_sum($due));
 
         $slip = $run->payslips()->create([
             'company_id' => $run->company_id,
@@ -206,6 +227,8 @@ class PayrollService
             'designation' => $employee->designation,
             'days_in_month' => $days,
             'paid_days' => $paidDays,
+            'overtime_hours' => $overtime,
+            'from_attendance' => $fromAttendance,
             'gross' => Money::fromPaise($result['gross']),
             'deductions' => Money::fromPaise($result['deductions']),
             'employer_contributions' => Money::fromPaise($result['employer']),
@@ -219,6 +242,23 @@ class PayrollService
                 'type' => $line['head']->type,
                 'amount' => Money::fromPaise($line['amount']),
             ]);
+            if ($line['head']->calculation === 'loan') {
+                foreach ($this->loans->allocate($due, $line['amount']) as $loanId => $paise) {
+                    $slip->loanRecoveries()->create(['company_id' => $run->company_id, 'employee_loan_id' => $loanId, 'amount' => Money::fromPaise($paise)]);
+                }
+            }
+        }
+    }
+
+    /** Another payroll may have recovered the same instalment since this one was prepared. */
+    protected function assertLoansOutstanding(PayrollRun $run): void
+    {
+        foreach ($run->payslips->flatMap->loanRecoveries->groupBy('employee_loan_id') as $recoveries) {
+            $loan = $recoveries->first()->loan;
+            $taking = $recoveries->sum(fn ($r) => Money::toPaise($r->amount));
+            if ($loan->status !== 'active' || $taking > $loan->outstandingPaise($run->id)) {
+                throw ValidationException::withMessages(['run' => 'A loan recovered in this payroll has changed since it was prepared. Recalculate, then post.']);
+            }
         }
     }
 
