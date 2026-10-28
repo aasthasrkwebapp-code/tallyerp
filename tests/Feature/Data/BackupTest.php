@@ -95,6 +95,19 @@ class BackupTest extends TestCase
         $zip->close();
     }
 
+    public function test_every_company_table_is_backed_up_and_deleted_with_the_company(): void
+    {
+        $listed = array_keys(\App\Services\CompanyDeletionService::tables());
+        $missing = [];
+        foreach (\Illuminate\Support\Facades\Schema::getTableListing() as $table) {
+            $table = preg_replace('/^[^.]+\./', '', $table);
+            if (\Illuminate\Support\Facades\Schema::hasColumn($table, 'company_id') && ! in_array($table, $listed, true) && ! in_array($table, ['backup_logs', 'company_user'], true)) {
+                $missing[] = $table;
+            }
+        }
+        $this->assertSame([], $missing, 'Add these tables to deletion_tables in config/erp.php.');
+    }
+
     public function test_backup_is_written_and_verifies(): void
     {
         $log = app(BackupService::class)->create($this->company, $this->owner);

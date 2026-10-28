@@ -78,6 +78,12 @@ return [
     'backup_path' => env('ERP_BACKUP_PATH', storage_path('app/private/backups')),
 
     'deletion_tables' => [
+        'recurring_invoice_runs' => null,
+        'recurring_invoices' => null,
+        'order_advance_adjustments' => null,
+        'order_advances' => null,
+        'order_revisions' => null,
+        'grni_provisions' => null,
         'transport_expenses' => null,
         'trips' => null,
         'transport_routes' => null,
@@ -103,8 +109,8 @@ return [
         'orders' => 'source_id',
         'parties' => null,
         'bom_components' => null,
-        'stock_journal_lines' => null,
-        'stock_journals' => null,
+        'stock_journal_lines' => 'transit_line_id',
+        'stock_journals' => 'dispatch_id',
         'stock_items' => null,
         'godowns' => null,
         'stock_categories' => null,
@@ -143,6 +149,8 @@ return [
         'drivers' => 'account_id',
         'trips' => 'party_account_id',
         'transport_expenses' => ['expense_account_id', 'paid_account_id'],
+        'order_advances' => 'account_id',
+        'recurring_invoices' => 'party_account_id',
     ],
 
     /*
