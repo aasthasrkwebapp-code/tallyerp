@@ -32,6 +32,7 @@ use App\Http\Controllers\MemberController;
 use App\Http\Controllers\Payroll\AttendanceController;
 use App\Http\Controllers\Payroll\EmployeeController;
 use App\Http\Controllers\Payroll\EmployeeLoanController;
+use App\Http\Controllers\Payroll\Form16Controller;
 use App\Http\Controllers\Payroll\LeaveController;
 use App\Http\Controllers\Payroll\PayHeadController;
 use App\Http\Controllers\Payroll\PayrollFileController;
@@ -247,6 +248,12 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
         Route::post('/leave-types', [AttendanceController::class, 'storeLeaveType'])->name('leave-types.store')->middleware('can:payroll.create');
         Route::put('/leave-types/{leaveType}', [AttendanceController::class, 'updateLeaveType'])->name('leave-types.update')->middleware('can:payroll.edit');
         Route::delete('/leave-types/{leaveType}', [AttendanceController::class, 'destroyLeaveType'])->name('leave-types.destroy')->middleware('can:payroll.delete');
+
+        Route::get('/form-16', [Form16Controller::class, 'index'])->name('form16.index')->middleware('can:payroll.view');
+        Route::put('/form-16/returns', [Form16Controller::class, 'saveReturns'])->name('form16.returns')->middleware('can:payroll.edit');
+        Route::get('/form-16/{employee}', [Form16Controller::class, 'show'])->name('form16.show')->middleware('can:payroll.view');
+        Route::get('/form-16/{employee}/declaration', [Form16Controller::class, 'declaration'])->name('form16.declaration')->middleware('can:payroll.edit');
+        Route::put('/form-16/{employee}/declaration', [Form16Controller::class, 'saveDeclaration'])->name('form16.declaration.update')->middleware('can:payroll.edit');
 
         Route::get('/leave-openings', [LeaveController::class, 'openings'])->name('leave-openings')->middleware('can:payroll.view');
         Route::put('/leave-openings', [LeaveController::class, 'saveOpenings'])->name('leave-openings.update')->middleware('can:payroll.edit');

@@ -78,6 +78,8 @@ return [
     'backup_path' => env('ERP_BACKUP_PATH', storage_path('app/private/backups')),
 
     'deletion_tables' => [
+        'tds_returns' => null,
+        'tax_declarations' => null,
         'opening_bills' => null,
         'leave_encashments' => null,
         'leave_openings' => null,
@@ -202,6 +204,32 @@ return [
         'sez' => 'SEZ',
     ],
 
+    /*
+    | Income tax on salary for Form 16 (Finance Act 2025 rates, used from
+    | FY 2025-26). Amounts in rupees; a slab is [upper limit or null, rate %].
+    | Review these each budget.
+    */
+    'income_tax' => [
+        'new' => [
+            'standard_deduction' => 75000,
+            'slabs' => [[400000, 0], [800000, 5], [1200000, 10], [1600000, 15], [2000000, 20], [2400000, 25], [null, 30]],
+            'rebate_limit' => 1200000, 'rebate_max' => 60000, 'rebate_marginal_relief' => true,
+            'surcharge' => [[5000000, 10], [10000000, 15], [20000000, 25]],
+            'professional_tax' => false, 'chapter_via' => false,
+        ],
+        'old' => [
+            'standard_deduction' => 50000,
+            'slabs' => [[250000, 0], [500000, 5], [1000000, 20], [null, 30]],
+            // Basic exemption by age reached during the year.
+            'senior_exemption' => [60 => 300000, 80 => 500000],
+            'rebate_limit' => 500000, 'rebate_max' => 12500, 'rebate_marginal_relief' => false,
+            'surcharge' => [[5000000, 10], [10000000, 15], [20000000, 25], [50000000, 37]],
+            'professional_tax' => true, 'chapter_via' => true,
+        ],
+        'cess' => 4,
+        'limits' => ['section_80c' => 150000, 'section_80ccd_1b' => 50000, 'home_loan_interest' => 200000, 'professional_tax' => 2500],
+    ],
+
     'gst_rates' => ['0', '0.1', '0.25', '1', '1.5', '3', '5', '6', '7.5', '12', '18', '28', '40'],
 
     // Invoice kinds: voucher class, permission module, party group and item ledger type.
@@ -310,6 +338,7 @@ return [
         ['label' => 'Attendance', 'icon' => 'calendar-check', 'route' => 'attendance.index', 'can' => 'payroll.view'],
         ['label' => 'Leave Register', 'icon' => 'calendar2-week', 'route' => 'leave-register', 'can' => 'payroll.view'],
         ['label' => 'Leave Encashment', 'icon' => 'cash-stack', 'route' => 'leave-encashments.index', 'can' => 'payroll.view'],
+        ['label' => 'Form 16', 'icon' => 'file-earmark-text', 'route' => 'form16.index', 'can' => 'payroll.view'],
         ['label' => 'Loans & Advances', 'icon' => 'cash-coin', 'route' => 'employee-loans.index', 'can' => 'payroll.view'],
         ['label' => 'Monthly Payroll', 'icon' => 'wallet2', 'route' => 'payroll-runs.index', 'can' => 'payroll.view'],
         ['heading' => 'Company'],
