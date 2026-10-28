@@ -78,6 +78,7 @@ return [
     'backup_path' => env('ERP_BACKUP_PATH', storage_path('app/private/backups')),
 
     'deletion_tables' => [
+        'gstr2b_returns' => null,
         'positive_pay_items' => null,
         'positive_pay_batches' => null,
         'tds_returns' => null,
@@ -330,6 +331,7 @@ return [
         ['label' => 'GSTR-1', 'icon' => 'file-earmark-arrow-up', 'route' => 'gst.gstr1', 'can' => 'gst.view'],
         ['label' => 'GSTR-3B', 'icon' => 'file-earmark-text', 'route' => 'gst.gstr3b', 'can' => 'gst.view'],
         ['label' => 'Purchase Register', 'icon' => 'file-earmark-arrow-down', 'route' => 'gst.purchase-register', 'can' => 'gst.view'],
+        ['label' => 'GSTR-2B Matching', 'icon' => 'arrow-left-right', 'route' => 'gst.gstr2b.index', 'can' => 'gst.view'],
         ['heading' => 'Transport'],
         ['label' => 'Trips', 'icon' => 'signpost-split', 'route' => 'trips.index', 'can' => 'transport.view'],
         ['label' => 'Trip & Vehicle Expenses', 'icon' => 'fuel-pump', 'route' => 'transport-expenses.index', 'can' => 'transport.view'],
