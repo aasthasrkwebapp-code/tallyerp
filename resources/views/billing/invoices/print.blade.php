@@ -54,8 +54,15 @@
             <div>No. <strong>{{ $invoice->displayNumber() }}</strong></div>
             <div>Date {{ $invoice->date->format('d-m-Y') }}</div>
             @if ($invoice->due_date)<div>Due {{ $invoice->due_date->format('d-m-Y') }}</div>@endif
+            @if ($invoice->ewayBill?->ewb_no)<div>E-way bill {{ $invoice->ewayBill->ewb_no }}</div>@endif
         </div>
     </div>
+    @if ($invoice->eInvoice && ! $invoice->eInvoice->cancelled_at)
+        <div class="d-flex justify-content-between align-items-center gap-3 mb-2 small">
+            <div class="text-break"><div>IRN: <strong>{{ $invoice->eInvoice->irn }}</strong></div><div>Ack no. {{ $invoice->eInvoice->ack_no }} · Ack date {{ $invoice->eInvoice->ack_date->format('d-m-Y H:i') }}</div></div>
+            @if ($invoice->eInvoice->signed_qr)<div style="width: 110px; flex: none">{!! \App\Support\Totp::qrSvg($invoice->eInvoice->signed_qr, 110) !!}</div>@endif
+        </div>
+    @endif
 
     <table class="bordered mb-2">
         <tr>

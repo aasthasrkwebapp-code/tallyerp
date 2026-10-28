@@ -17,6 +17,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\FinancialYearController;
 use App\Http\Controllers\Gst\GstReportController;
+use App\Http\Controllers\Gst\EInvoiceController;
 use App\Http\Controllers\Gst\EwayBillController;
 use App\Http\Controllers\Gst\Gstr2bController;
 use App\Http\Controllers\Inventory\InventoryMasterController;
@@ -395,6 +396,10 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
         Route::get('/gstr-3b', [GstReportController::class, 'gstr3b'])->name('gstr3b');
         Route::get('/gstr-3b/json', [GstReportController::class, 'gstr3bJson'])->name('gstr3b-json')->middleware('can:reports.export');
         Route::get('/purchase-register', [GstReportController::class, 'purchaseRegister'])->name('purchase-register');
+        Route::get('/e-invoices', [EInvoiceController::class, 'index'])->name('e-invoices.index');
+        Route::get('/e-invoices/json', [EInvoiceController::class, 'json'])->name('e-invoices.json');
+        Route::put('/e-invoices/{invoice}', [EInvoiceController::class, 'update'])->name('e-invoices.update')->middleware('can:gst.create');
+        Route::post('/e-invoices/{invoice}/cancel', [EInvoiceController::class, 'cancel'])->name('e-invoices.cancel')->middleware('can:gst.edit');
         Route::get('/eway-bills', [EwayBillController::class, 'index'])->name('eway-bills.index');
         Route::get('/eway-bills/json', [EwayBillController::class, 'json'])->name('eway-bills.json');
         Route::put('/eway-bills/{invoice}', [EwayBillController::class, 'update'])->name('eway-bills.update')->middleware('can:gst.create');

@@ -128,7 +128,7 @@ class InvoiceController extends Controller
     public function show(Request $request, Invoice $invoice)
     {
         $this->authorizeKind($request, $invoice->kind, 'view');
-        $invoice->load(['items.account', 'items.orderItem.order', 'items.noteItem.note', 'voucher.type', 'party.partyDetails', 'originalInvoice.voucher', 'creator', 'ewayBill']);
+        $invoice->load(['items.account', 'items.orderItem.order', 'items.noteItem.note', 'voucher.type', 'party.partyDetails', 'originalInvoice.voucher', 'creator', 'ewayBill', 'eInvoice']);
 
         return view('billing.invoices.show', [
             'invoice' => $invoice,
@@ -211,7 +211,7 @@ class InvoiceController extends Controller
     protected function printData(Request $request, Invoice $invoice): array
     {
         $this->authorizeKind($request, $invoice->kind, 'view');
-        $invoice->load(['items', 'voucher', 'originalInvoice.voucher']);
+        $invoice->load(['items', 'voucher', 'originalInvoice.voucher', 'eInvoice', 'ewayBill']);
         $company = app(CurrentCompany::class)->get();
 
         $bank = $company->setting('invoice_show_bank_details') && $invoice->kind === 'sales'

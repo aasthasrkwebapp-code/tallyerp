@@ -91,6 +91,11 @@ class Invoice extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function eInvoice(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(EInvoice::class);
+    }
+
     public function ewayBill(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
         return $this->hasOne(EwayBill::class);
