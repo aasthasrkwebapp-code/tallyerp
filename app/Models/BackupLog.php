@@ -15,7 +15,10 @@ class BackupLog extends Model
     protected $fillable = [
         'company_id', 'type', 'status', 'file_name', 'path', 'size', 'sha256', 'summary', 'error',
         'verified_at', 'verified_ok', 'restored_at', 'restored_by', 'created_by',
+        'encrypted', 'secret', 'offsite_path', 'offsite_at', 'offsite_error',
     ];
+
+    protected $hidden = ['secret'];
 
     protected function casts(): array
     {
@@ -25,6 +28,9 @@ class BackupLog extends Model
             'verified_ok' => 'boolean',
             'restored_at' => 'datetime',
             'size' => 'integer',
+            'encrypted' => 'boolean',
+            'secret' => 'encrypted',
+            'offsite_at' => 'datetime',
         ];
     }
 

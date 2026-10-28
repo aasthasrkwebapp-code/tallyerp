@@ -22,6 +22,8 @@ migration rolls back cleanly (`.github/workflows/tests.yml` checks PHP 8.2/8.3 �
 - [ ] `DB_*` for MySQL. `SESSION_SECURE_COOKIE=true`, `SESSION_DRIVER=database`.
 - [ ] Mail settings (password reset and e-mail verification), `ERP_REQUIRE_EMAIL_VERIFICATION=true`.
 - [ ] `ERP_BACKUP_PATH` if backups should go to a separate disk (default `storage/app/private/backups`).
+- [ ] Off-site copies: set `ERP_BACKUP_OFFSITE_DISK` to a disk defined in `config/filesystems.php` (for S3: `s3`, with `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`, `AWS_BUCKET`, and `composer require league/flysystem-aws-s3-v3`). Optional `ERP_BACKUP_OFFSITE_PREFIX` (default `erp-backups`).
+- [ ] Keep `APP_KEY` safe and unchanged: it protects the stored backup passphrases. Losing it means encrypted backups need their passphrase typed in on upload.
 - [ ] `LOG_LEVEL=warning` or as needed; logs in `storage/logs`.
 
 ## Install / upgrade
@@ -46,7 +48,7 @@ Do **not** run `php artisan db:seed` in production: the demo company is only see
 ## Backups
 
 - [ ] Whole database: nightly `mysqldump --single-transaction` kept off the server.
-- [ ] Company backups: turn on the schedule in Data → Backup & Restore and download copies.
+- [ ] Company backups: turn on the schedule in Data → Backup & Restore, set a backup passphrase so files are encrypted, and download copies.
 - [ ] Test a restore on a staging copy before relying on it.
 
 ## After go-live

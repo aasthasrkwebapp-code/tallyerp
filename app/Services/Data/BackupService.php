@@ -23,6 +23,12 @@ use ZipArchive;
  * Restore replaces the company's books with the backup in one transaction,
  * keeping the original ids. Users, roles and the audit trail are not part of a
  * backup and are left as they are. A safety backup is taken first.
+ *
+ * With a backup passphrase set for the company, every file in the zip is encrypted with
+ * AES-256 (standard zip encryption, so 7-Zip or WinZip can open it with the passphrase).
+ * The passphrase used is kept with each backup, encrypted with the application key, so a
+ * later change of passphrase does not lock out older backups. With an off-site disk
+ * configured (ERP_BACKUP_OFFSITE_DISK), each backup is also copied there.
  */
 class BackupService
 {
@@ -30,6 +36,9 @@ class BackupService
 
     /** Refuse archives that unpack to more than this (protects memory during verify and restore). */
     public const MAX_UNPACKED_BYTES = 1024 * 1024 * 1024;
+
+    /** Shortest passphrase accepted for encrypted backups. */
+    public const MIN_PASSPHRASE = 12;
 
     /** Company fields saved in the manifest and put back on restore. */
     protected const COMPANY_FIELDS = [
@@ -58,11 +67,21 @@ class BackupService
             mkdir(dirname($full), 0775, true);
         }
 
+        $secret = $company->backup_secret;
         try {
+            if ($secret !== null && ! ZipArchive::isEncryptionMethodSupported(ZipArchive::EM_AES_256)) {
+                throw new \RuntimeException('This server\'s zip library cannot encrypt files, so an encrypted backup cannot be made.');
+            }
             $zip = new ZipArchive;
             if ($zip->open($full, ZipArchive::CREATE | ZipArchive::EXCL) !== true) {
                 throw new \RuntimeException('Could not create the backup file.');
             }
+            $add = function (string $name, string $contents) use ($zip, $secret) {
+                $zip->addFromString($name, $contents);
+                if ($secret !== null && ! $zip->setEncryptionName($name, ZipArchive::EM_AES_256, $secret)) {
+                    throw new \RuntimeException("Could not encrypt {$name}.");
+                }
+            };
 
             $manifest = [
                 'format' => self::FORMAT,
@@ -78,27 +97,31 @@ class BackupService
             foreach (array_keys(static::tables() + self::CHILD_TABLES) as $table) {
                 $rows = $this->rowsFor($company, $table);
                 $json = json_encode($rows, JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR);
-                $zip->addFromString("tables/{$table}.json", $json);
+                $add("tables/{$table}.json", $json);
                 $manifest['tables'][$table] = ['rows' => count($rows), 'sha256' => hash('sha256', $json)];
                 $summary[$table] = count($rows);
             }
 
             if ($company->logo_path && Storage::disk('public')->exists($company->logo_path)) {
                 $manifest['logo'] = 'logo/'.basename($company->logo_path);
-                $zip->addFromString($manifest['logo'], Storage::disk('public')->get($company->logo_path));
+                $add($manifest['logo'], Storage::disk('public')->get($company->logo_path));
             }
 
-            $zip->addFromString('manifest.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
-            $zip->close();
+            $add('manifest.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+            if (! $zip->close()) {
+                throw new \RuntimeException('Could not write the backup file.');
+            }
 
             $log = BackupLog::create([
                 'company_id' => $company->id, 'type' => $type, 'status' => 'completed',
                 'file_name' => $name, 'path' => "{$dir}/{$name}", 'size' => filesize($full), 'sha256' => hash_file('sha256', $full),
+                'encrypted' => $secret !== null, 'secret' => $secret,
                 'summary' => $summary, 'created_by' => $user?->id,
             ]);
-            AuditLog::record('backup_created', $log, null, ['file' => $name, 'type' => $type], "Backup created: {$name}");
+            AuditLog::record('backup_created', $log, null, ['file' => $name, 'type' => $type, 'encrypted' => $secret !== null], "Backup created: {$name}".($secret !== null ? ' (encrypted)' : ''));
+            $this->copyOffsite($log);
 
-            return $log;
+            return $log->fresh();
         } catch (Throwable $e) {
             if (is_file($full)) {
                 @unlink($full);
@@ -113,8 +136,19 @@ class BackupService
     }
 
     /** Takes an uploaded backup zip into the company's backup folder so it can be verified and restored. */
-    public function import(Company $company, string $uploadedPath, string $originalName, User $user): BackupLog
+    public function import(Company $company, string $uploadedPath, string $originalName, User $user, ?string $passphrase = null): BackupLog
     {
+        $encrypted = $this->isEncrypted($uploadedPath);
+        if ($encrypted) {
+            // The passphrase typed with the upload, or else the company's current one.
+            $passphrase = ($passphrase ?? '') !== '' ? $passphrase : $company->backup_secret;
+            if ($passphrase === null) {
+                throw ValidationException::withMessages(['passphrase' => 'This backup is encrypted. Enter its passphrase.']);
+            }
+            if (! $this->passphraseOpens($uploadedPath, $passphrase)) {
+                throw ValidationException::withMessages(['passphrase' => 'The passphrase does not open this backup.']);
+            }
+        }
         $dir = (string) $company->id;
         $name = 'uploaded-'.now()->format('Ymd-His').'-'.Str::slug(pathinfo($originalName, PATHINFO_FILENAME)).'.zip';
         $full = BackupLog::root()."/{$dir}/{$name}";
@@ -123,10 +157,16 @@ class BackupService
         }
         copy($uploadedPath, $full);
 
-        $manifest = $this->readManifest($full);
+        try {
+            $manifest = $this->readManifest($full, $encrypted ? $passphrase : null);
+        } catch (ValidationException $e) {
+            @unlink($full);
+            throw $e;
+        }
         $log = BackupLog::create([
             'company_id' => $company->id, 'type' => 'uploaded', 'status' => 'completed',
             'file_name' => $name, 'path' => "{$dir}/{$name}", 'size' => filesize($full), 'sha256' => hash_file('sha256', $full),
+            'encrypted' => $encrypted, 'secret' => $encrypted ? $passphrase : null,
             'summary' => collect($manifest['tables'] ?? [])->map(fn ($t) => (int) ($t['rows'] ?? 0))->all(), 'created_by' => $user->id,
         ]);
         $this->verify($log);
@@ -150,7 +190,7 @@ class BackupService
             $issues[] = 'The backup file has changed since it was made (checksum does not match).';
         } else {
             try {
-                $issues = $this->checkContents($log->fullPath(), $company);
+                $issues = $this->checkContents($log->fullPath(), $company, $log->encrypted ? $log->secret : null);
             } catch (Throwable $e) {
                 $issues[] = 'The backup file cannot be read: '.$e->getMessage();
             }
@@ -177,7 +217,7 @@ class BackupService
             throw ValidationException::withMessages(['backup' => 'A safety backup of the current data could not be made, so nothing was restored: '.$safety->error]);
         }
 
-        $zip = $this->open($log->fullPath());
+        $zip = $this->open($log->fullPath(), $log->encrypted ? $log->secret : null);
         $manifest = json_decode($zip->getFromName('manifest.json'), true);
         $tables = static::tables();
 
@@ -265,11 +305,11 @@ class BackupService
     }
 
     /** @return list<string> */
-    protected function checkContents(string $path, ?Company $company): array
+    protected function checkContents(string $path, ?Company $company, ?string $passphrase = null): array
     {
         $issues = [];
-        $zip = $this->open($path);
-        $manifest = $this->readManifest($path);
+        $zip = $this->open($path, $passphrase);
+        $manifest = $this->readManifest($path, $passphrase);
 
         $unpacked = 0;
         for ($i = 0; $i < $zip->numFiles; $i++) {
@@ -336,27 +376,93 @@ class BackupService
         return $issues;
     }
 
-    protected function readManifest(string $path): array
+    protected function readManifest(string $path, ?string $passphrase = null): array
     {
-        $zip = $this->open($path);
+        $zip = $this->open($path, $passphrase);
         $raw = $zip->getFromName('manifest.json');
         $zip->close();
         $manifest = $raw === false ? null : json_decode($raw, true);
         if (! is_array($manifest)) {
-            throw ValidationException::withMessages(['file' => 'This is not a backup file (manifest.json is missing).']);
+            throw ValidationException::withMessages(['file' => $this->isEncrypted($path) && $passphrase === null
+                ? 'This backup is encrypted. Enter its passphrase.'
+                : 'This is not a backup file (manifest.json is missing).']);
         }
 
         return $manifest;
     }
 
-    protected function open(string $path): ZipArchive
+    protected function open(string $path, ?string $passphrase = null): ZipArchive
     {
         $zip = new ZipArchive;
         if ($zip->open($path, ZipArchive::RDONLY) !== true) {
             throw ValidationException::withMessages(['file' => 'The file is not a valid zip archive.']);
         }
+        if ($passphrase !== null) {
+            $zip->setPassword($passphrase);
+        }
 
         return $zip;
+    }
+
+    /** Whether the zip's manifest is encrypted (every file of an encrypted backup is). */
+    public function isEncrypted(string $path): bool
+    {
+        $zip = new ZipArchive;
+        if ($zip->open($path, ZipArchive::RDONLY) !== true) {
+            return false;
+        }
+        $stat = $zip->statName('manifest.json');
+        $zip->close();
+
+        return $stat !== false && (int) ($stat['encryption_method'] ?? 0) !== ZipArchive::EM_NONE;
+    }
+
+    protected function passphraseOpens(string $path, string $passphrase): bool
+    {
+        $zip = $this->open($path, $passphrase);
+        $raw = $zip->getFromName('manifest.json');
+        $zip->close();
+
+        return $raw !== false && is_array(json_decode($raw, true));
+    }
+
+    /** Sets or (with null) removes the company's backup passphrase. Existing backups keep theirs. */
+    public function setPassphrase(Company $company, ?string $passphrase, User $user): void
+    {
+        $company->forceFill(['backup_secret' => $passphrase])->saveQuietly();
+        AuditLog::record('updated', $company, null, null, $passphrase === null ? 'Backup encryption turned off' : 'Backup passphrase set: new backups are encrypted');
+    }
+
+    /** The off-site disk name, or null when none is configured. */
+    public static function offsiteDisk(): ?string
+    {
+        $disk = trim((string) config('erp.backup_offsite_disk'));
+
+        return $disk !== '' ? $disk : null;
+    }
+
+    /** Copies a backup to the off-site disk. A failure is recorded on the backup and does not undo it. */
+    public function copyOffsite(BackupLog $log): void
+    {
+        $disk = static::offsiteDisk();
+        if (! $disk || ! $log->fileExists()) {
+            return;
+        }
+        $target = trim((string) config('erp.backup_offsite_prefix', 'erp-backups'), '/').'/'.$log->path;
+        try {
+            $stream = fopen($log->fullPath(), 'rb');
+            $ok = Storage::disk($disk)->writeStream($target, $stream);
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+            if (! $ok) {
+                throw new \RuntimeException('the disk refused the file');
+            }
+            $log->update(['offsite_path' => $target, 'offsite_at' => now(), 'offsite_error' => null]);
+        } catch (Throwable $e) {
+            report($e);
+            $log->update(['offsite_error' => mb_substr('Off-site copy failed: '.$e->getMessage(), 0, 500)]);
+        }
     }
 
     protected function rowsFor(Company $company, string $table): array

@@ -55,8 +55,49 @@
                 <button class="btn btn-outline-primary">Upload</button>
             </div>
             @error('file')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+            <label for="upload_passphrase" class="form-label small mt-2">Passphrase, if the backup is encrypted</label>
+            <input id="upload_passphrase" name="passphrase" type="password" class="form-control @error('passphrase') is-invalid @enderror" autocomplete="off" placeholder="Blank: this company's current passphrase">
+            @error('passphrase')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
             <p class="small text-secondary mt-2 mb-0">The file is checked when it is uploaded. It can then be restored from the list below.</p>
         </form>
+    </div>
+    <div class="col-12 col-lg-6">
+        <div class="erp-card p-3 h-100">
+            <h2 class="h6 fw-bold">Encryption</h2>
+            @if ($company->backup_secret !== null)
+                <p class="small mb-2"><i class="bi bi-lock-fill text-success"></i> New backups are encrypted with AES-256. Any zip tool that supports AES (7-Zip, WinZip) opens them with the passphrase.</p>
+            @else
+                <p class="small mb-2"><i class="bi bi-unlock text-warning"></i> Backups are not encrypted. Anyone with a downloaded file can read the books in it.</p>
+            @endif
+            <form method="POST" action="{{ route('backups.passphrase') }}">
+                @csrf @method('PUT')
+                <div class="row g-2">
+                    <div class="col-12 col-sm-6"><label for="passphrase" class="form-label small">{{ $company->backup_secret !== null ? 'New passphrase' : 'Passphrase' }}</label><input id="passphrase" name="passphrase" type="password" class="form-control @error('passphrase', 'default') is-invalid @enderror" autocomplete="new-password" minlength="{{ \App\Services\Data\BackupService::MIN_PASSPHRASE }}" required></div>
+                    <div class="col-12 col-sm-6"><label for="passphrase_confirmation" class="form-label small">Repeat it</label><input id="passphrase_confirmation" name="passphrase_confirmation" type="password" class="form-control" autocomplete="new-password" required></div>
+                </div>
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                    <button class="btn btn-outline-primary">{{ $company->backup_secret !== null ? 'Change passphrase' : 'Encrypt backups' }}</button>
+                </div>
+            </form>
+            @if ($company->backup_secret !== null)
+                <form method="POST" action="{{ route('backups.passphrase') }}" class="mt-2" data-confirm="Stop encrypting new backups?">
+                    @csrf @method('PUT')
+                    <input type="hidden" name="remove" value="1">
+                    <button class="btn btn-sm btn-link text-danger p-0">Turn encryption off</button>
+                </form>
+            @endif
+            <p class="small text-secondary mt-2 mb-0">At least {{ \App\Services\Data\BackupService::MIN_PASSPHRASE }} characters. The passphrase is kept on the server, encrypted with the application key, so backups made here can be verified and restored here. Keep your own copy: a backup taken elsewhere cannot be opened without it.</p>
+        </div>
+    </div>
+    <div class="col-12 col-lg-6">
+        <div class="erp-card p-3 h-100">
+            <h2 class="h6 fw-bold">Off-site copies</h2>
+            @if ($offsite = \App\Services\Data\BackupService::offsiteDisk())
+                <p class="small mb-0"><i class="bi bi-cloud-check text-success"></i> Each backup is also copied to the <strong>{{ $offsite }}</strong> disk, under <code>{{ config('erp.backup_offsite_prefix') }}/{{ $company->id }}/</code>. The list shows when each copy was made, or why it failed.</p>
+            @else
+                <p class="small mb-0"><i class="bi bi-cloud-slash text-secondary"></i> No off-site disk is set up, so backups stay on this server. To copy each backup to cloud storage, set <code>ERP_BACKUP_OFFSITE_DISK</code> to a disk in <code>config/filesystems.php</code> (for example <code>s3</code>) — see the deployment notes.</p>
+            @endif
+        </div>
     </div>
 </div>
 
@@ -73,7 +114,7 @@
                 <tr>
                     <td data-label="Made">{{ $log->created_at->format('d M Y H:i') }}<div class="small text-secondary">{{ $log->creator?->name ?? 'Scheduler' }}</div></td>
                     <td data-label="Type">{{ \App\Models\BackupLog::TYPES[$log->type] ?? $log->type }}</td>
-                    <td data-label="File" class="text-break"><span class="small">{{ $log->file_name }}</span>@if ($log->status !== 'failed')<div class="small text-secondary">{{ $size($log->size) }}</div>@endif</td>
+                    <td data-label="File" class="text-break"><div><span class="small">{{ $log->file_name }}</span>@if ($log->encrypted) <i class="bi bi-lock-fill text-success" title="Encrypted"></i><span class="visually-hidden">Encrypted</span>@endif</div>@if ($log->status !== 'failed')<div class="small text-secondary">{{ $size($log->size) }}@if ($log->offsite_at) · <i class="bi bi-cloud-check"></i> off-site {{ $log->offsite_at->format('d M H:i') }}@endif</div>@endif @if ($log->offsite_error)<div class="small text-danger">{{ \Illuminate\Support\Str::limit($log->offsite_error, 160) }}</div>@endif</td>
                     <td data-label="Records" class="text-end">{{ number_format($log->totalRows()) }}</td>
                     <td data-label="Status">
                         <span class="badge text-bg-{{ $badge[$log->status] ?? 'secondary' }}">{{ ucfirst($log->status) }}</span>

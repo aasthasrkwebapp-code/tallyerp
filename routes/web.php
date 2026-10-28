@@ -448,6 +448,7 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
             Route::post('/backups', [BackupController::class, 'store'])->name('backups.store');
             Route::post('/backups/upload', [BackupController::class, 'upload'])->name('backups.upload');
             Route::put('/backups/schedule', [BackupController::class, 'schedule'])->name('backups.schedule');
+            Route::put('/backups/passphrase', [BackupController::class, 'passphrase'])->name('backups.passphrase');
             Route::get('/backups/{backupLog}/download', [BackupController::class, 'download'])->name('backups.download');
             Route::post('/backups/{backupLog}/verify', [BackupController::class, 'verify'])->name('backups.verify');
             Route::post('/backups/{backupLog}/restore', [BackupController::class, 'restore'])->name('backups.restore');

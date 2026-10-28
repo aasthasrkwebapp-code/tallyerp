@@ -38,8 +38,8 @@ class BackupController extends Controller
 
     public function upload(Request $request, CurrentCompany $current)
     {
-        $request->validate(['file' => ['required', 'file', 'mimes:zip', 'max:204800']], ['file.mimes' => 'Choose a backup .zip file made by this application.']);
-        $log = $this->backups->import($current->get(), $request->file('file')->getRealPath(), $request->file('file')->getClientOriginalName(), $request->user());
+        $request->validate(['file' => ['required', 'file', 'mimes:zip', 'max:204800'], 'passphrase' => ['nullable', 'string', 'max:200']], ['file.mimes' => 'Choose a backup .zip file made by this application.']);
+        $log = $this->backups->import($current->get(), $request->file('file')->getRealPath(), $request->file('file')->getClientOriginalName(), $request->user(), $request->input('passphrase'));
 
         return back()->with($log->verified_ok ? 'success' : 'warning', $log->verified_ok
             ? "Backup uploaded and verified ({$log->totalRows()} records). You can restore it from the list."
@@ -81,6 +81,23 @@ class BackupController extends Controller
         $this->backups->delete($backupLog);
 
         return back()->with('success', 'Backup deleted.');
+    }
+
+    /** Sets, changes or removes the passphrase that encrypts new backups. */
+    public function passphrase(Request $request, CurrentCompany $current)
+    {
+        $company = $current->get();
+        if ($request->boolean('remove')) {
+            $this->backups->setPassphrase($company, null, $request->user());
+
+            return back()->with('success', 'Backup encryption turned off. New backups are not encrypted; existing encrypted backups still open with their passphrase.');
+        }
+        $data = $request->validate([
+            'passphrase' => ['required', 'string', 'min:'.BackupService::MIN_PASSPHRASE, 'max:200', 'confirmed'],
+        ], ['passphrase.min' => 'Use at least '.BackupService::MIN_PASSPHRASE.' characters; a few words make a good passphrase.']);
+        $this->backups->setPassphrase($company, $data['passphrase'], $request->user());
+
+        return back()->with('success', 'Backup passphrase saved. New backups are encrypted. Keep the passphrase safe: a downloaded backup cannot be opened elsewhere without it.');
     }
 
     public function schedule(Request $request, CurrentCompany $current)

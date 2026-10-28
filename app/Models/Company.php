@@ -31,6 +31,9 @@ class Company extends Model
         'backup_keep' => 7,
     ];
 
+    /** The backup passphrase never leaves the server, in JSON or in the audit trail. */
+    protected $hidden = ['backup_secret'];
+
     protected $fillable = [
         'user_id',
         'name',
@@ -60,6 +63,7 @@ class Company extends Model
         return [
             'books_begin_date' => \App\Casts\DateOnly::class,
             'settings' => 'array',
+            'backup_secret' => 'encrypted',
         ];
     }
 

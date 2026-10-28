@@ -77,6 +77,10 @@ return [
     // Where company backups are written (Data → Backup & Restore).
     'backup_path' => env('ERP_BACKUP_PATH', storage_path('app/private/backups')),
 
+    // A filesystem disk (config/filesystems.php, e.g. "s3") that receives a copy of every backup.
+    'backup_offsite_disk' => env('ERP_BACKUP_OFFSITE_DISK'),
+    'backup_offsite_prefix' => env('ERP_BACKUP_OFFSITE_PREFIX', 'erp-backups'),
+
     'deletion_tables' => [
         'e_invoices' => null,
         'eway_bills' => null,

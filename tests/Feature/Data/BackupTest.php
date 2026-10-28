@@ -132,6 +132,87 @@ class BackupTest extends TestCase
         $this->assertTrue(AuditLog::where('event', 'backup_created')->exists());
     }
 
+    public function test_encrypted_backups_verify_restore_and_need_the_passphrase(): void
+    {
+        $service = app(BackupService::class);
+        $pass = 'correct horse battery';
+        $this->actingAs($this->owner)->put(route('backups.passphrase'), ['passphrase' => 'short', 'passphrase_confirmation' => 'short'])->assertSessionHasErrors('passphrase');
+        $this->put(route('backups.passphrase'), ['passphrase' => $pass, 'passphrase_confirmation' => $pass])->assertRedirect();
+        $company = $this->company->fresh();
+        $this->assertSame($pass, $company->backup_secret);
+        $this->assertNotSame($pass, DB::table('companies')->where('id', $company->id)->value('backup_secret'));
+        $this->assertArrayNotHasKey('backup_secret', $company->toArray());
+        $this->assertStringNotContainsString($pass, AuditLog::query()->get()->toJson());
+
+        $before = $this->counts();
+        $log = $service->create($company, $this->owner);
+        $this->assertSame('completed', $log->status);
+        $this->assertTrue($log->encrypted);
+        $this->assertSame([], $service->verify($log));
+
+        // Every entry is AES-256 encrypted; without the passphrase nothing can be read.
+        $zip = new ZipArchive;
+        $zip->open($log->fullPath());
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $this->assertSame(ZipArchive::EM_AES_256, $zip->statIndex($i)['encryption_method'], $zip->getNameIndex($i));
+        }
+        $this->assertFalse($zip->getFromName('manifest.json'));
+        $this->assertStringNotContainsString('Mumbai Retail', file_get_contents($log->fullPath()));
+        $zip->setPassword($pass);
+        $this->assertStringContainsString('Mumbai Retail', $zip->getFromName('tables/chart_of_accounts.json'));
+        $zip->close();
+
+        // A changed passphrase does not lock out the older backup.
+        $this->put(route('backups.passphrase'), ['passphrase' => 'another long phrase', 'passphrase_confirmation' => 'another long phrase'])->assertRedirect();
+        $this->receipt('2026-10-05', '700');
+        $service->restore($log, $this->company->fresh(), $this->owner);
+        $this->assertSame($before, $this->counts());
+        $this->assertTrue(BackupLog::where('type', 'pre_restore')->sole()->encrypted);
+
+        // Uploading needs the right passphrase (blank means the company's current one).
+        $file = fn () => UploadedFile::fake()->createWithContent('asha.zip', file_get_contents($log->fullPath()));
+        $this->post(route('backups.upload'), ['file' => $file()])->assertSessionHasErrors(['passphrase' => 'The passphrase does not open this backup.']);
+        $this->post(route('backups.upload'), ['file' => $file(), 'passphrase' => 'wrong guess here'])->assertSessionHasErrors('passphrase');
+        $this->assertSame(0, BackupLog::where('type', 'uploaded')->count());
+        $this->post(route('backups.upload'), ['file' => $file(), 'passphrase' => $pass])->assertSessionHasNoErrors();
+        $uploaded = BackupLog::where('type', 'uploaded')->sole();
+        $this->assertTrue($uploaded->verified_ok && $uploaded->encrypted);
+        $this->assertSame([], $service->verify($uploaded));
+
+        // Turning encryption off: new backups are plain again; the page says which are encrypted.
+        $this->put(route('backups.passphrase'), ['remove' => '1'])->assertRedirect();
+        $this->assertNull($this->company->fresh()->backup_secret);
+        $this->assertFalse($service->create($this->company->fresh(), $this->owner)->encrypted);
+        $this->get(route('backups.index'))->assertOk()->assertSee('Backups are not encrypted')->assertSee('bi-lock-fill', false);
+        $viewer = $this->addMember($this->company, 'viewer');
+        $this->actingAs($viewer)->put(route('backups.passphrase'), ['remove' => '1'])->assertForbidden();
+    }
+
+    public function test_backups_are_copied_off_site_when_a_disk_is_set(): void
+    {
+        $service = app(BackupService::class);
+        $this->assertFalse($service->create($this->company, $this->owner)->offsite_at !== null);
+
+        \Illuminate\Support\Facades\Storage::fake('offsite');
+        config(['erp.backup_offsite_disk' => 'offsite']);
+        $log = $service->create($this->company, $this->owner);
+        $this->assertNotNull($log->offsite_at);
+        $this->assertSame('erp-backups/'.$log->path, $log->offsite_path);
+        $disk = \Illuminate\Support\Facades\Storage::disk('offsite');
+        $disk->assertExists($log->offsite_path);
+        $this->assertSame($log->sha256, hash('sha256', $disk->get($log->offsite_path)));
+        $this->actingAs($this->owner)->get(route('backups.index'))->assertSee('copied to the <strong>offsite</strong> disk', false)->assertSee('off-site');
+
+        // A disk that fails leaves the backup in place and says why.
+        config(['filesystems.disks.broken' => ['driver' => 'local', 'root' => '/proc/no-such-dir']]);
+        config(['erp.backup_offsite_disk' => 'broken']);
+        $failed = $service->create($this->company, $this->owner);
+        $this->assertSame('completed', $failed->status);
+        $this->assertTrue($failed->fileExists());
+        $this->assertNull($failed->offsite_at);
+        $this->assertStringStartsWith('Off-site copy failed', $failed->offsite_error);
+    }
+
     public function test_restore_puts_the_books_back_exactly(): void
     {
         $service = app(BackupService::class);
