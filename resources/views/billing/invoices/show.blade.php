@@ -141,6 +141,9 @@
                 </div>
             </div>
         @endif
+        @if ($invoice->kind === 'sales' && $status === 'posted' && $user->can('gst.view'))
+            @include('gst.eway-bills._card')
+        @endif
         @if ($invoice->narration)<div class="erp-card p-3 mb-3 small"><div class="text-secondary">Narration</div>{{ $invoice->narration }}</div>@endif
         @if ($invoice->terms)<div class="erp-card p-3 mb-3 small"><div class="text-secondary">Terms</div><span style="white-space: pre-line">{{ $invoice->terms }}</span></div>@endif
     </div>

@@ -128,7 +128,7 @@ class InvoiceController extends Controller
     public function show(Request $request, Invoice $invoice)
     {
         $this->authorizeKind($request, $invoice->kind, 'view');
-        $invoice->load(['items.account', 'items.orderItem.order', 'items.noteItem.note', 'voucher.type', 'party.partyDetails', 'originalInvoice.voucher', 'creator']);
+        $invoice->load(['items.account', 'items.orderItem.order', 'items.noteItem.note', 'voucher.type', 'party.partyDetails', 'originalInvoice.voucher', 'creator', 'ewayBill']);
 
         return view('billing.invoices.show', [
             'invoice' => $invoice,

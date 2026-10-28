@@ -17,6 +17,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\FinancialYearController;
 use App\Http\Controllers\Gst\GstReportController;
+use App\Http\Controllers\Gst\EwayBillController;
 use App\Http\Controllers\Gst\Gstr2bController;
 use App\Http\Controllers\Inventory\InventoryMasterController;
 use App\Http\Controllers\Inventory\BomController;
@@ -394,6 +395,9 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
         Route::get('/gstr-3b', [GstReportController::class, 'gstr3b'])->name('gstr3b');
         Route::get('/gstr-3b/json', [GstReportController::class, 'gstr3bJson'])->name('gstr3b-json')->middleware('can:reports.export');
         Route::get('/purchase-register', [GstReportController::class, 'purchaseRegister'])->name('purchase-register');
+        Route::get('/eway-bills', [EwayBillController::class, 'index'])->name('eway-bills.index');
+        Route::get('/eway-bills/json', [EwayBillController::class, 'json'])->name('eway-bills.json');
+        Route::put('/eway-bills/{invoice}', [EwayBillController::class, 'update'])->name('eway-bills.update')->middleware('can:gst.create');
         Route::get('/gstr-2b', [Gstr2bController::class, 'index'])->name('gstr2b.index');
         Route::post('/gstr-2b', [Gstr2bController::class, 'store'])->name('gstr2b.store')->middleware('can:gst.create');
         Route::get('/gstr-2b/{gstr2b}', [Gstr2bController::class, 'show'])->name('gstr2b.show');
