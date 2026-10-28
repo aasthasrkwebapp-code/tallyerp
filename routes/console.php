@@ -23,3 +23,6 @@ Schedule::call(function () {
         }
     }
 })->name('erp:clean-imports')->daily();
+
+// Vehicle document and driving licence expiry reminders (Transport → Vehicle Documents).
+Schedule::command('erp:document-reminders')->dailyAt('07:00')->withoutOverlapping();

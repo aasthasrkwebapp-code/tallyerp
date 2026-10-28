@@ -39,7 +39,10 @@ class DashboardController extends Controller
             ];
         }
 
+        $documents = auth()->user()->can('transport.view') ? app(\App\Services\Transport\DocumentExpiry::class)->counts() : null;
+
         return view('dashboard', [
+            'documents' => $documents,
             'company' => $company,
             'year' => $current->financialYear(),
             'figures' => $figures,

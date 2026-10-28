@@ -45,6 +45,7 @@ use App\Http\Controllers\Transport\TransportExpenseController;
 use App\Http\Controllers\Transport\TransportMasterController;
 use App\Http\Controllers\Transport\TransportReportController;
 use App\Http\Controllers\Transport\TripController;
+use App\Http\Controllers\Transport\VehicleDocumentController;
 use App\Http\Controllers\Data\BackupController;
 use App\Http\Controllers\Data\IntegrityController;
 use App\Http\Controllers\Data\ImportController;
@@ -275,6 +276,12 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
         Route::get('/expenses/create', [TransportExpenseController::class, 'create'])->name('transport-expenses.create')->middleware('can:transport.create');
         Route::post('/expenses', [TransportExpenseController::class, 'store'])->name('transport-expenses.store')->middleware('can:transport.create');
         Route::post('/expenses/{transportExpense}/cancel', [TransportExpenseController::class, 'cancel'])->name('transport-expenses.cancel')->middleware('can:transport.delete');
+
+        Route::get('/documents', [VehicleDocumentController::class, 'index'])->name('vehicle-documents.index')->middleware('can:transport.view');
+        Route::post('/documents', [VehicleDocumentController::class, 'store'])->name('vehicle-documents.store')->middleware('can:transport.create');
+        Route::put('/documents/settings', [VehicleDocumentController::class, 'settings'])->name('vehicle-documents.settings')->middleware('can:transport.edit');
+        Route::put('/documents/{vehicleDocument}', [VehicleDocumentController::class, 'update'])->name('vehicle-documents.update')->middleware('can:transport.edit');
+        Route::delete('/documents/{vehicleDocument}', [VehicleDocumentController::class, 'destroy'])->name('vehicle-documents.destroy')->middleware('can:transport.delete');
 
         Route::get('/reports/{report}', TransportReportController::class)->name('transport-reports')->where('report', 'trips|vehicles|routes|customers|drivers')->middleware('can:transport.view');
     });

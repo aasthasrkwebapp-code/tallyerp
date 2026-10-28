@@ -12,6 +12,14 @@
     </div>
 </div>
 
+@if ($documents && ($documents['expired'] || $documents['due']))
+    <div class="alert alert-warning d-flex flex-wrap align-items-center gap-2">
+        <i class="bi bi-shield-exclamation" aria-hidden="true"></i>
+        <span>Vehicle documents and licences: {{ implode(' and ', array_filter([$documents['expired'] ? $documents['expired'].' expired' : null, $documents['due'] ? $documents['due'].' due for renewal' : null])) }}.</span>
+        <a href="{{ route('vehicle-documents.index') }}" class="alert-link">Review</a>
+    </div>
+@endif
+
 @includeWhen(View::exists('dashboard._figures'), 'dashboard._figures')
 
 <h2 class="h6 fw-bold mt-4 mb-3">Quick actions</h2>

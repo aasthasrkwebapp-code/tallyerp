@@ -28,6 +28,11 @@ class Vehicle extends Model
         return $this->hasMany(TransportExpense::class);
     }
 
+    public function documents(): HasMany
+    {
+        return $this->hasMany(VehicleDocument::class);
+    }
+
     public function auditLabel(): string
     {
         return 'Vehicle '.$this->number;

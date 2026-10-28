@@ -60,6 +60,7 @@
                             @endif
                             <td data-label="Trips" class="text-end">{{ $tripCounts[$rec->id] ?? 0 }}</td>
                             <td data-label="" class="text-end text-nowrap">
+                                @if ($master === 'vehicles')<a href="{{ route('vehicle-documents.index', ['vehicle' => $rec->id, 'status' => 'all']) }}" class="btn btn-sm btn-outline-secondary">Documents</a>@endif
                                 @can('transport.edit')<a href="{{ route('transport-masters.index', [$master, 'edit' => $rec->id]) }}" class="btn btn-sm btn-outline-secondary">Edit</a>@endcan
                                 @can('transport.delete')
                                     <form method="POST" action="{{ route('transport-masters.destroy', [$master, $rec->id]) }}" class="d-inline" data-confirm="Delete {{ strtolower($config['label']) }} {{ $rec->number ?? $rec->name }}?">

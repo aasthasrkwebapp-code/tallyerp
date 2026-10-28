@@ -79,6 +79,8 @@ return [
 
     'deletion_tables' => [
         'opening_bills' => null,
+        'document_reminders' => null,
+        'vehicle_documents' => null,
         'recurring_invoice_runs' => null,
         'recurring_invoices' => null,
         'order_advance_adjustments' => null,
@@ -296,6 +298,7 @@ return [
         ['heading' => 'Transport'],
         ['label' => 'Trips', 'icon' => 'signpost-split', 'route' => 'trips.index', 'can' => 'transport.view'],
         ['label' => 'Trip & Vehicle Expenses', 'icon' => 'fuel-pump', 'route' => 'transport-expenses.index', 'can' => 'transport.view'],
+        ['label' => 'Vehicle Documents', 'icon' => 'shield-check', 'route' => 'vehicle-documents.index', 'can' => 'transport.view'],
         ['label' => 'Vehicles, Drivers & Routes', 'icon' => 'truck-front', 'route' => 'transport-masters.index', 'can' => 'transport.view', 'params' => ['master' => 'vehicles']],
         ['label' => 'Transport Reports', 'icon' => 'bar-chart-line', 'route' => 'transport-reports', 'can' => 'transport.view', 'params' => ['report' => 'vehicles']],
         ['heading' => 'Payroll'],

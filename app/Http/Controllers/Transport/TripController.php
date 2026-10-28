@@ -58,7 +58,7 @@ class TripController extends Controller
         $data = $this->validated($request, $current);
         $trip = DB::transaction(fn () => Trip::create($data + ['number' => $this->transport->nextTripNumber(), 'status' => 'open', 'created_by' => $request->user()->id]));
 
-        return redirect()->route('trips.show', $trip)->with('success', "Trip {$trip->number} created.");
+        return redirect()->route('trips.show', $trip)->with('success', "Trip {$trip->number} created.")->with('warning', $this->documentWarning($trip));
     }
 
     public function show(Trip $trip)
@@ -88,7 +88,7 @@ class TripController extends Controller
         }
         $trip->update($data);
 
-        return redirect()->route('trips.show', $trip)->with('success', "Trip {$trip->number} updated.");
+        return redirect()->route('trips.show', $trip)->with('success', "Trip {$trip->number} updated.")->with('warning', $this->documentWarning($trip));
     }
 
     public function complete(Request $request, Trip $trip)
@@ -172,5 +172,13 @@ class TripController extends Controller
         $data['freight_amount'] = $data['freight_amount'] ?? '0';
 
         return $data;
+    }
+
+    /** Expired vehicle documents or driving licence on the trip's start date (the trip is still saved). */
+    protected function documentWarning(Trip $trip): ?string
+    {
+        $warnings = app(\App\Services\Transport\DocumentExpiry::class)->tripWarnings($trip->vehicle_id, $trip->driver_id, $trip->start_date->toDateString());
+
+        return $warnings ? implode(' ', $warnings) : null;
     }
 }
