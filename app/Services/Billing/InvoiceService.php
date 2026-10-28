@@ -316,7 +316,7 @@ class InvoiceService
                 $rows[$i]['account_id'] = $stock->{$ledgerColumn};
             }
         }
-        $godownIds = Godown::query()->when(! $invoice, fn ($q) => $q->where('is_active', true))->pluck('id')->all();
+        $godownIds = Godown::query()->when(! $invoice, fn ($q) => $q->usable())->pluck('id')->all();
         $defaultGodown = Godown::defaultId();
         $previousItems = $invoice ? $invoice->items()->pluck('stock_item_id')->filter()->all() : [];
 

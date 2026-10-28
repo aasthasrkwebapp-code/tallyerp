@@ -298,7 +298,7 @@ class DeliveryNoteService
     {
         $input = array_values($data['lines'] ?? []);
         $items = StockItem::query()->with('unit')->whereIn('id', array_filter(array_map(fn ($l) => (int) ($l['stock_item_id'] ?? 0), $input)))->get()->keyBy('id');
-        $godowns = Godown::query()->where('is_active', true)->pluck('id')->all();
+        $godowns = Godown::query()->usable()->pluck('id')->all();
         $orderItems = OrderItem::query()->with('order')->whereIn('id', array_filter(array_map(fn ($l) => (int) ($l['order_item_id'] ?? 0), $input)))->get()->keyBy('id');
         $delivered = $this->orders->delivered($orderItems->keys()->all());
         $usedOrder = [];

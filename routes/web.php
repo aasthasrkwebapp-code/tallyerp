@@ -18,6 +18,7 @@ use App\Http\Controllers\Gst\GstReportController;
 use App\Http\Controllers\Inventory\InventoryMasterController;
 use App\Http\Controllers\Inventory\BomController;
 use App\Http\Controllers\Inventory\StockItemController;
+use App\Http\Controllers\Inventory\GoodsInTransitController;
 use App\Http\Controllers\Inventory\StockJournalController;
 use App\Http\Controllers\Inventory\DeliveryNoteController;
 use App\Http\Controllers\Inventory\GrniController;
@@ -189,6 +190,8 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
         Route::post('/journals', [StockJournalController::class, 'store'])->name('stock-journals.store')->middleware('can:inventory.create');
         Route::get('/journals/{stockJournal}', [StockJournalController::class, 'show'])->name('stock-journals.show')->middleware('can:inventory.view');
         Route::post('/journals/{stockJournal}/cancel', [StockJournalController::class, 'cancel'])->name('stock-journals.cancel')->middleware('can:inventory.delete');
+        Route::post('/journals/{stockJournal}/receive', [GoodsInTransitController::class, 'receive'])->name('stock-journals.receive')->middleware('can:inventory.create');
+        Route::get('/transit', [GoodsInTransitController::class, 'index'])->name('stock-transit')->middleware('can:inventory.view');
 
         Route::get('/summary', [StockReportController::class, 'summary'])->name('stock-summary')->middleware('can:inventory.view');
         Route::get('/reorder', [StockReportController::class, 'reorder'])->name('stock-reorder')->middleware('can:inventory.view');

@@ -10,7 +10,7 @@ class StockJournalLine extends Model
 {
     use BelongsToCompany;
 
-    protected $fillable = ['company_id', 'stock_journal_id', 'stock_item_id', 'godown_id', 'direction', 'quantity', 'rate', 'value', 'batch_no', 'mfg_date', 'expiry_date', 'serials'];
+    protected $fillable = ['company_id', 'stock_journal_id', 'transit_line_id', 'stock_item_id', 'godown_id', 'direction', 'quantity', 'rate', 'value', 'batch_no', 'mfg_date', 'expiry_date', 'serials'];
 
     protected function casts(): array
     {

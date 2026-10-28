@@ -151,7 +151,7 @@ class BillOfMaterials
         if (! $this->validQuantity($qty, $item)) {
             $errors['quantity'] = "Enter the quantity to make in {$item->unit->symbol}, with at most {$item->unit->decimal_places} decimals.";
         }
-        $godowns = Godown::query()->where('is_active', true)->pluck('id')->all();
+        $godowns = Godown::query()->usable()->pluck('id')->all();
         $godown = (int) ($data['godown_id'] ?? 0);
         $componentGodown = (int) ($data['component_godown_id'] ?? 0) ?: $godown;
         if (! in_array($godown, $godowns, true)) {

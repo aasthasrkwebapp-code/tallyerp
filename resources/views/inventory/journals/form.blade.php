@@ -45,6 +45,11 @@
             @error('to_godown_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>
     </div>
+    <div class="form-check mb-3 transfer-only">
+        <input type="hidden" name="in_transit" value="0">
+        <input class="form-check-input" type="checkbox" name="in_transit" value="1" id="in_transit" @checked(old('in_transit'))>
+        <label class="form-check-label" for="in_transit">Goods in transit: the stock leaves now and is received at the other godown later</label>
+    </div>
     @if ($godowns->count() < 2)
         <div class="alert alert-info transfer-only">Transfers need at least two godowns. <a href="{{ route('inventory-masters.index', 'godowns') }}">Add a godown</a>.</div>
     @endif

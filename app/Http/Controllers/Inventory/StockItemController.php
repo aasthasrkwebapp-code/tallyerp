@@ -130,7 +130,7 @@ class StockItemController extends Controller
             'groups' => StockGroup::tree(),
             'categories' => StockCategory::query()->orderBy('name')->get(),
             'units' => Unit::query()->orderBy('symbol')->get(),
-            'godowns' => Godown::query()->where('is_active', true)->orWhere('id', $item->opening_godown_id)->orderBy('name')->get(),
+            'godowns' => Godown::query()->usable()->orWhere('id', $item->opening_godown_id)->orderBy('name')->get(),
             'salesLedgers' => Account::query()->where('account_type', 'sales')->orderBy('name')->get(),
             'purchaseLedgers' => Account::query()->where('account_type', 'purchase')->orderBy('name')->get(),
         ];

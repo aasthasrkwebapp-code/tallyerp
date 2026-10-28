@@ -77,7 +77,7 @@ class DeliveryNoteController extends Controller
         }
 
         $items = StockItem::query()->with('unit')->where('is_active', true)->orderBy('name')->get();
-        $godowns = Godown::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('name')->get();
+        $godowns = Godown::query()->usable()->orderByDesc('is_default')->orderBy('name')->get();
 
         return view('inventory.notes.form', [
             'kind' => $kind,

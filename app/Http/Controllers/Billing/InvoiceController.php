@@ -288,7 +288,7 @@ class InvoiceController extends Controller
                 ->mapWithKeys(fn ($oi) => [$oi->id => $oi->order->number.' · line '.$oi->line_no])->all(),
             'noteLines' => \App\Models\DeliveryNoteItem::query()->with('note')->whereIn('id', array_filter(array_column($input['items'] ?? [], 'note_item_id')))->get()
                 ->mapWithKeys(fn ($ni) => [$ni->id => $ni->note->number.' · line '.$ni->line_no])->all(),
-            'godowns' => Godown::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('name')->get(['id', 'name']),
+            'godowns' => Godown::query()->usable()->orderByDesc('is_default')->orderBy('name')->get(['id', 'name']),
             'originals' => $originals->map(fn (Invoice $i) => [
                 'id' => $i->id, 'party' => $i->party_account_id,
                 'label' => $i->displayNumber().' · '.$i->date->format('d-m-Y').' · '.Money::format($i->grand_total),

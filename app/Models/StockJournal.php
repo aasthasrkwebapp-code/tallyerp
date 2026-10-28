@@ -19,7 +19,7 @@ class StockJournal extends Model
 
     public const PURPOSES = ['adjustment' => 'Stock adjustment', 'transfer' => 'Godown transfer', 'production' => 'Manufacture / consumption'];
 
-    protected $fillable = ['company_id', 'number', 'date', 'purpose', 'status', 'narration', 'cancellation_reason', 'created_by', 'cancelled_by', 'cancelled_at'];
+    protected $fillable = ['company_id', 'number', 'date', 'purpose', 'transit_to_godown_id', 'dispatch_id', 'status', 'narration', 'cancellation_reason', 'created_by', 'cancelled_by', 'cancelled_at'];
 
     protected function casts(): array
     {
@@ -29,6 +29,29 @@ class StockJournal extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(StockJournalLine::class);
+    }
+
+    /** Where goods dispatched into transit are bound. */
+    public function transitTo(): BelongsTo
+    {
+        return $this->belongsTo(Godown::class, 'transit_to_godown_id');
+    }
+
+    /** The dispatch a receipt or shortage of goods in transit settles. */
+    public function dispatch(): BelongsTo
+    {
+        return $this->belongsTo(StockJournal::class, 'dispatch_id');
+    }
+
+    /** Receipts and shortages against this dispatch. */
+    public function settlements(): HasMany
+    {
+        return $this->hasMany(StockJournal::class, 'dispatch_id');
+    }
+
+    public function isDispatch(): bool
+    {
+        return $this->transit_to_godown_id !== null;
     }
 
     public function creator(): BelongsTo

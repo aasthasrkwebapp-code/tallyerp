@@ -23,11 +23,32 @@ use Illuminate\Validation\ValidationException;
  */
 class StockJournalService
 {
+    /** Set while goods in transit post their own journals, which may use the transit godown. */
+    protected bool $internal = false;
+
     public function __construct(protected CurrentCompany $current, protected StockLedger $ledger) {}
+
+    /**
+     * A journal posted for goods in transit (a receipt or shortage), which may move stock
+     * out of the transit godown. $extra holds its link to the dispatch.
+     */
+    public function createInternal(array $data, User $user, array $extra): StockJournal
+    {
+        $this->internal = true;
+        try {
+            $journal = $this->create($data, $user);
+        } finally {
+            $this->internal = false;
+        }
+        $journal->update($extra);
+
+        return $journal;
+    }
 
     /**
      * @param array{date:string, purpose:string, narration?:?string, from_godown_id?:?int, to_godown_id?:?int, lines: array} $data
      *   Transfer lines: stock_item_id, quantity. Other lines: stock_item_id, godown_id, direction, quantity, rate.
+     *   A transfer with in_transit set is a dispatch: the stock goes to the transit godown until it is received.
      */
     public function create(array $data, User $user): StockJournal
     {
@@ -37,13 +58,15 @@ class StockJournalService
             throw ValidationException::withMessages(['purpose' => 'Choose what the stock journal is for.']);
         }
 
-        $lines = $purpose === 'transfer' ? $this->transferLines($data, $date) : $this->adjustmentLines($data, $date);
+        $inTransit = $purpose === 'transfer' && ! empty($data['in_transit']) && ! $this->internal;
 
-        return DB::transaction(function () use ($data, $user, $date, $purpose, $lines) {
+        return DB::transaction(function () use ($data, $user, $date, $purpose, $inTransit) {
+            $lines = $purpose === 'transfer' ? $this->transferLines($data, $date, $inTransit) : $this->adjustmentLines($data, $date);
             $journal = StockJournal::create([
                 'number' => $this->nextNumber(),
                 'date' => $date,
                 'purpose' => $purpose,
+                'transit_to_godown_id' => $inTransit ? (int) $data['to_godown_id'] : null,
                 'status' => 'posted',
                 'narration' => isset($data['narration']) ? mb_substr(trim((string) $data['narration']), 0, 2000) ?: null : null,
                 'created_by' => $user->id,
@@ -60,6 +83,9 @@ class StockJournalService
     {
         if (! $journal->isPosted()) {
             throw ValidationException::withMessages(['journal' => 'This stock journal is already cancelled.']);
+        }
+        if ($journal->settlements()->where('status', 'posted')->exists()) {
+            throw ValidationException::withMessages(['journal' => 'Goods have been received or written off against this dispatch. Cancel those stock journals first.']);
         }
         $year = $this->current->get()->financialYearFor($journal->date);
         if ($year && $year->isDateLocked($journal->date)) {
@@ -127,9 +153,15 @@ class StockJournalService
         return $date->toDateString();
     }
 
-    protected function transferLines(array $data, string $date): array
+    /** Godowns lines may use: usable ones, and the transit godown for goods in transit's own journals. */
+    protected function godownIds(): array
     {
-        $godowns = Godown::query()->where('is_active', true)->pluck('id')->all();
+        return Godown::query()->when(! $this->internal, fn ($q) => $q->usable(), fn ($q) => $q->where('is_active', true)->orWhere('is_transit', true))->pluck('id')->all();
+    }
+
+    protected function transferLines(array $data, string $date, bool $inTransit = false): array
+    {
+        $godowns = $this->godownIds();
         $from = (int) ($data['from_godown_id'] ?? 0);
         $to = (int) ($data['to_godown_id'] ?? 0);
         $errors = [];
@@ -143,6 +175,9 @@ class StockJournalService
         }
 
         $rows = $this->rows($data, $errors, false);
+        if ($inTransit) {
+            $to = Godown::transit()->id;
+        }
         // Batches and serials are checked where the stock leaves; they arrive unchanged.
         $fields = $this->tracking(array_map(fn ($r) => $r + ['godown_id' => $from, 'direction' => 'out'], $rows), $date);
         $lines = [];
@@ -179,7 +214,7 @@ class StockJournalService
     {
         $input = array_values($data['lines'] ?? []);
         $items = StockItem::query()->with('unit')->whereIn('id', array_filter(array_map(fn ($l) => (int) ($l['stock_item_id'] ?? 0), $input)))->get()->keyBy('id');
-        $godowns = Godown::query()->where('is_active', true)->pluck('id')->all();
+        $godowns = $this->godownIds();
         $rows = [];
 
         foreach ($input as $i => $line) {

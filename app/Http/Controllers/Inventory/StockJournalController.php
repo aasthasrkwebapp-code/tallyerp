@@ -41,7 +41,7 @@ class StockJournalController extends Controller
         return view('inventory.journals.form', [
             'purpose' => old('purpose', $purpose),
             'items' => $items = StockItem::query()->with('unit')->where('is_active', true)->orderBy('name')->get(),
-            'godowns' => $godowns = Godown::query()->where('is_active', true)->orderByDesc('is_default')->orderBy('name')->get(),
+            'godowns' => $godowns = Godown::query()->usable()->orderByDesc('is_default')->orderBy('name')->get(),
             'anyTracked' => $items->contains(fn ($i) => $i->tracking !== 'none'),
             'batchOptions' => $this->batchOptions($items, $godowns),
         ]);
@@ -72,23 +72,27 @@ class StockJournalController extends Controller
             'narration' => ['nullable', 'string', 'max:2000'],
             'from_godown_id' => ['nullable', 'integer'],
             'to_godown_id' => ['nullable', 'integer'],
+            'in_transit' => ['nullable', 'boolean'],
             'lines' => ['required', 'array', 'max:200'],
             'lines.*' => ['array'],
         ]);
 
-        $journal = $this->journals->create($data, $request->user());
+        $journal = $this->journals->create($data + ['in_transit' => $request->boolean('in_transit')], $request->user());
         $negative = $this->journals->negativeItems($journal->lines->pluck('stock_item_id')->unique()->all(), $journal->date->toDateString());
 
         return redirect()->route('stock-journals.show', $journal)
-            ->with('success', "Stock journal {$journal->number} saved.")
+            ->with('success', $journal->isDispatch() ? "Stock journal {$journal->number} saved. The goods are in transit until received." : "Stock journal {$journal->number} saved.")
             ->with('warning', $negative ? 'Stock is now negative for '.implode('; ', $negative).'.' : null);
     }
 
     public function show(StockJournal $stockJournal)
     {
-        $stockJournal->load('lines.item.unit', 'lines.godown', 'creator');
+        $stockJournal->load('lines.item.unit', 'lines.godown', 'creator', 'transitTo', 'dispatch', 'settlements');
 
-        return view('inventory.journals.show', ['journal' => $stockJournal]);
+        return view('inventory.journals.show', [
+            'journal' => $stockJournal,
+            'transit' => $stockJournal->isDispatch() ? app(\App\Services\Inventory\GoodsInTransit::class)->lines($stockJournal) : null,
+        ]);
     }
 
     public function cancel(Request $request, StockJournal $stockJournal)

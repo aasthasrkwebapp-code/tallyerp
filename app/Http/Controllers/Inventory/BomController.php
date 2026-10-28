@@ -61,7 +61,7 @@ class BomController extends Controller
             'quantity' => $qty,
             'date' => $date,
             'needs' => $qtyMilli > 0 ? $this->boms->requirements($stockItem, $qtyMilli, $date) : [],
-            'godowns' => Godown::query()->where('is_active', true)->orderBy('name')->get(),
+            'godowns' => Godown::query()->usable()->orderBy('name')->get(),
             'defaultGodown' => Godown::defaultId(),
         ]);
     }
