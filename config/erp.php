@@ -274,6 +274,7 @@ return [
         ['label' => 'Received, Not Billed', 'icon' => 'box-arrow-in-left', 'route' => 'notes.pending', 'can' => 'purchases.view', 'params' => ['kind' => 'receipt_note']],
         ['label' => 'Stock Summary', 'icon' => 'clipboard-check', 'route' => 'stock-summary', 'can' => 'inventory.view'],
         ['label' => 'Reorder Status', 'icon' => 'arrow-repeat', 'route' => 'stock-reorder', 'can' => 'inventory.view'],
+        ['label' => 'Stock Ageing', 'icon' => 'calendar-range', 'route' => 'stock-ageing', 'can' => 'inventory.view'],
         ['label' => 'Batches & Expiry', 'icon' => 'calendar2-x', 'route' => 'stock-batches', 'can' => 'inventory.view'],
         ['label' => 'Serial Numbers', 'icon' => 'upc-scan', 'route' => 'stock-serials', 'can' => 'inventory.view'],
         ['heading' => 'GST'],

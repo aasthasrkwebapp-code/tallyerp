@@ -12,7 +12,7 @@
         <h1>Stock summary</h1>
         <p class="text-secondary mb-0">As on {{ \Illuminate\Support\Carbon::parse($asOf)->format('d M Y') }}@if ($godownId) · {{ $godowns->firstWhere('id', $godownId)?->name }}@endif · weighted average cost</p>
     </div>
-    <a href="{{ route('stock-reorder') }}" class="btn btn-outline-secondary">Reorder status</a>
+    <div class="d-flex gap-2"><a href="{{ route('stock-ageing', ['to' => $asOf, 'godown' => $godownId]) }}" class="btn btn-outline-secondary">Stock ageing</a><a href="{{ route('stock-reorder') }}" class="btn btn-outline-secondary">Reorder status</a></div>
 </div>
 
 @component('reports._period', ['single' => true, 'csv' => true, 'from' => $asOf, 'to' => $asOf])

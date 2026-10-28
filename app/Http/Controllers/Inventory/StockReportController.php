@@ -61,6 +61,61 @@ class StockReportController extends Controller
         ]);
     }
 
+    /** Age of the stock in hand by receipt date, in day slabs. */
+    public function ageing(Request $request, \App\Services\Inventory\StockAgeing $ageing)
+    {
+        $filters = $request->validate([
+            'to' => ['nullable', 'date'],
+            'godown' => ['nullable', 'integer'],
+            'group' => ['nullable', 'integer'],
+            'slabs' => ['nullable', 'string', 'max:60'],
+        ]);
+        $slabs = \App\Services\Inventory\StockAgeing::parseSlabs($filters['slabs'] ?? null);
+        if ($slabs === null) {
+            return back()->withInput()->withErrors(['slabs' => 'Enter up to 8 ascending day limits separated by commas, such as 30,60,90,180.']);
+        }
+        $asOf = Carbon::parse($filters['to'] ?? now())->toDateString();
+        $godownId = isset($filters['godown']) ? (int) $filters['godown'] : null;
+        $items = StockItem::query()->with('unit', 'group')
+            ->when(isset($filters['group']), fn ($q) => $q->whereIn('stock_group_id', StockGroup::descendantIdsOf([(int) $filters['group']])))
+            ->orderBy('name')->get();
+        $report = $ageing->report($asOf, $slabs, $godownId, $items);
+
+        if (CsvExport::requested($request)) {
+            $this->authorize('reports.export');
+            $header = ['Item', 'Group', 'Unit', 'Quantity', 'Value'];
+            foreach ($report['labels'] as $label) {
+                array_push($header, $label.' qty', $label.' value');
+            }
+            $header[] = 'Oldest receipt';
+            $rows = $report['rows']->map(function ($r) {
+                $line = [$r->item->name, $r->item->group?->name ?? '', $r->item->unit->symbol, Decimal::trim(Decimal::fromScaled($r->quantity, 3)), Money::fromPaise($r->value)];
+                foreach ($r->slabs as [$qty, $value]) {
+                    array_push($line, Decimal::trim(Decimal::fromScaled($qty, 3)), Money::fromPaise($value));
+                }
+                $line[] = $r->oldest ?? '';
+
+                return $line;
+            });
+            $total = ['Total', '', '', '', Money::fromPaise($report['total_value'])];
+            foreach ($report['totals'] as $value) {
+                array_push($total, '', Money::fromPaise($value));
+            }
+            $total[] = '';
+
+            return CsvExport::download("stock-ageing-{$asOf}.csv", $header, $rows->push($total));
+        }
+
+        return view('inventory.reports.ageing', $report + [
+            'asOf' => $asOf,
+            'godownId' => $godownId,
+            'godowns' => Godown::query()->orderBy('name')->get(),
+            'groups' => StockGroup::tree(),
+            'filters' => $filters,
+            'slabText' => implode(',', $slabs),
+        ]);
+    }
+
     /** Batch-wise stock with expiry status. */
     public function batches(Request $request)
     {

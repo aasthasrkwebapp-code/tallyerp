@@ -189,6 +189,7 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
 
         Route::get('/summary', [StockReportController::class, 'summary'])->name('stock-summary')->middleware('can:inventory.view');
         Route::get('/reorder', [StockReportController::class, 'reorder'])->name('stock-reorder')->middleware('can:inventory.view');
+        Route::get('/ageing', [StockReportController::class, 'ageing'])->name('stock-ageing')->middleware('can:inventory.view');
         Route::get('/batches', [StockReportController::class, 'batches'])->name('stock-batches')->middleware('can:inventory.view');
         Route::get('/serials', [StockReportController::class, 'serials'])->name('stock-serials')->middleware('can:inventory.view');
     });
