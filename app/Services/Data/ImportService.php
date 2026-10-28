@@ -89,6 +89,16 @@ class ImportService
             ],
             'example' => ['Steel Rod 12mm', 'Nos', 'Steel', '', 'SR12', '7214', '18', '450', '380', '100', '380', '', '', '20', '', 'batch', 'no', 'average', 'LOT-24A', '', '', ''],
         ],
+        'opening_bills' => [
+            'label' => 'Opening bills of parties', 'permission' => 'masters.edit',
+            'columns' => [
+                'party' => ['Party', true, 'Existing customer or supplier kept bill-by-bill'],
+                'bill_ref' => ['Bill Ref', true, 'The bill number; an existing opening bill with this number is updated'],
+                'date' => ['Date', true, 'On or before the books begin'], 'due_date' => ['Due Date', false, ''],
+                'amount' => ['Amount', true, ''], 'dr_cr' => ['Dr/Cr', false, 'Default: the side of the party\'s opening balance'],
+            ],
+            'example' => ['Mumbai Retail', 'INV/25-26/0412', '2026-03-15', '2026-04-14', '25000', 'Dr'],
+        ],
         'vouchers' => [
             'label' => 'Vouchers (journal, payment, receipt, contra)', 'permission' => 'vouchers.post',
             'columns' => [
@@ -228,6 +238,7 @@ class ImportService
             $groupKey = match ($type) {
                 'vouchers' => 'voucher',
                 'sales_invoices', 'purchase_invoices' => 'invoice',
+                'opening_bills' => 'party',
                 default => null,
             };
             $groups = $groupKey ? $this->voucherGroups($rows, $result, $groupKey) : array_map(fn ($r) => [$r], $rows);
@@ -237,6 +248,7 @@ class ImportService
                     $duplicate = match ($type) {
                         'vouchers' => $this->importVoucher($group, $user, $skipDuplicates),
                         'sales_invoices', 'purchase_invoices' => $this->importInvoice($type, $group, $user, $skipDuplicates),
+                        'opening_bills' => $this->importOpeningBills($group),
                         default => $this->importMaster($type, $group[0], $skipDuplicates),
                     };
                     if ($duplicate) {
@@ -371,6 +383,49 @@ class ImportService
             'opening_serials' => $this->serials($row['opening_serials'] ?? ''),
         ], [], ['unit' => 'unit_id', 'godown' => 'opening_godown_id', 'costing' => 'costing_method', 'opening_batch' => 'opening_batch_no']);
         StockItem::create($request->itemData());
+    }
+
+    /**
+     * One party's opening bills: added to the bills it already has, or updating those with the
+     * same reference. The opening bills screen's checks apply (dates, amounts, settled bills,
+     * and a total no more than the opening balance).
+     */
+    protected function importOpeningBills(array $lines): ?string
+    {
+        $name = trim($lines[0]['party'] ?? '');
+        $party = Account::query()->where('account_type', 'party')->where(fn ($q) => $q->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->orWhereRaw('LOWER(alias) = ?', [mb_strtolower($name)]))->first();
+        if (! $party) {
+            throw ValidationException::withMessages(['party' => "\"{$name}\" is not a customer or supplier."]);
+        }
+        $rows = [];
+        $sheetRows = [];
+        foreach ($lines as $line) {
+            $side = trim($line['dr_cr'] ?? '');
+            $rows[] = [
+                'bill_ref' => trim($line['bill_ref'] ?? ''), 'date' => $this->date($line['date'] ?? '') ?? trim($line['date'] ?? ''),
+                'due_date' => trim($line['due_date'] ?? '') === '' ? null : ($this->date($line['due_date']) ?? trim($line['due_date'])),
+                'amount' => $this->amount($line['amount'] ?? ''), 'side' => $side === '' ? null : $this->side($side, $party->opening_balance_type),
+            ];
+            $sheetRows[] = $line['_row'];
+        }
+        $refs = collect($rows)->pluck('bill_ref')->map(fn ($r) => mb_strtolower($r))->all();
+        foreach ($party->openingBills()->orderBy('date')->orderBy('id')->get() as $bill) {
+            if (! in_array(mb_strtolower($bill->bill_ref), $refs, true)) {
+                $rows[] = ['id' => $bill->id, 'bill_ref' => $bill->bill_ref, 'date' => $bill->date->toDateString(), 'due_date' => $bill->due_date?->toDateString(), 'amount' => $bill->amount, 'side' => $bill->side];
+            }
+        }
+        try {
+            app(\App\Services\Accounting\OpeningBills::class)->save($party, $rows);
+        } catch (ValidationException $e) {
+            // The screen numbers rows within the party; name the spreadsheet row instead.
+            $messages = [];
+            foreach (collect($e->errors())->flatten() as $n => $message) {
+                $messages['party_'.$n] = preg_replace_callback('/^Row (\d+)/', fn ($m) => isset($sheetRows[$m[1] - 1]) ? 'Row '.$sheetRows[$m[1] - 1] : 'Existing bill', $message);
+            }
+            throw ValidationException::withMessages($messages);
+        }
+
+        return null;
     }
 
     /** Groups rows by their "Voucher" (or "Invoice") key, keeping the first row number of each. */

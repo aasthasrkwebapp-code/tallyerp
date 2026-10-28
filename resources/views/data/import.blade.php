@@ -6,7 +6,7 @@
 <div class="page-header">
     <div>
         <h1>Import</h1>
-        <p class="text-secondary mb-0">Bring in ledgers, customers, suppliers, stock items, vouchers, sales invoices or purchase bills from a CSV or Excel file.</p>
+        <p class="text-secondary mb-0">Bring in ledgers, customers, suppliers, opening bills, stock items, vouchers, sales invoices or purchase bills from a CSV or Excel file.</p>
     </div>
 </div>
 
