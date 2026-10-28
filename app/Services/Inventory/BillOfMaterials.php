@@ -21,13 +21,18 @@ use Illuminate\Validation\ValidationException;
  * component goes out of its godown, and the finished item comes in valued at
  * the cost of the components used (at their costing method) plus any other
  * cost entered, such as labour.
+ *
+ * By-products and scrap are lines that come out with the main item. They are
+ * brought into stock at their rate (the BOM rate, or else the item's cost on the
+ * date) and that value is taken off the main item's cost, so the journal's
+ * value in equals the components' cost plus other costs.
  */
 class BillOfMaterials
 {
     public function __construct(protected StockJournalService $journals, protected StockLedger $ledger) {}
 
     /**
-     * @param  array{bom_quantity: string, components: array<int, array{component_id?: ?int, quantity?: ?string}>}  $data
+     * @param  array{bom_quantity: string, components: array<int, array{component_id?: ?int, kind?: ?string, quantity?: ?string, rate?: ?string}>}  $data
      */
     public function save(StockItem $item, array $data): StockItem
     {
@@ -44,6 +49,8 @@ class BillOfMaterials
         foreach ($input as $i => $line) {
             $id = (int) ($line['component_id'] ?? 0);
             $qty = str_replace(',', '', trim((string) ($line['quantity'] ?? '')));
+            $kind = array_key_exists($line['kind'] ?? '', BomComponent::KINDS) ? $line['kind'] : 'component';
+            $rate = str_replace(',', '', trim((string) ($line['rate'] ?? '')));
             if (! $id && $qty === '') {
                 continue;
             }
@@ -59,7 +66,7 @@ class BillOfMaterials
 
                 continue;
             }
-            if ($this->usesItem($component, $item->id)) {
+            if ($kind === 'component' && $this->usesItem($component, $item->id)) {
                 $errors["components.$i.component_id"] = "{$label}: {$component->name} is itself made from {$item->name}.";
 
                 continue;
@@ -74,10 +81,15 @@ class BillOfMaterials
 
                 continue;
             }
+            if ($kind !== 'component' && $rate !== '' && ! preg_match('/^\d{1,13}(\.\d{1,2})?$/', $rate)) {
+                $errors["components.$i.rate"] = "{$label}: enter the value per {$component->unit->symbol}, or leave it blank to use the item's cost.";
+
+                continue;
+            }
             $seen[$id] = true;
-            $rows[] = ['component_id' => $id, 'quantity' => $qty];
+            $rows[] = ['component_id' => $id, 'kind' => $kind, 'quantity' => $qty, 'rate' => $kind !== 'component' && $rate !== '' ? Money::normalize($rate) : null];
         }
-        if (! $rows && ! $errors) {
+        if (! collect($rows)->contains('kind', 'component') && ! $errors) {
             $errors['components'] = 'Add at least one component.';
         }
         if ($errors) {
@@ -85,13 +97,15 @@ class BillOfMaterials
         }
 
         return DB::transaction(function () use ($item, $output, $rows) {
-            $before = $item->bomComponents()->with('component')->get()->map(fn ($c) => $c->component->name.' '.Decimal::trim($c->quantity))->implode(', ');
+            $describe = fn () => $item->bomComponents()->with('component')->get()
+                ->map(fn ($c) => ($c->isOutput() ? BomComponent::KINDS[$c->kind].' ' : '').$c->component->name.' '.Decimal::trim($c->quantity))->implode(', ');
+            $before = $describe();
             $item->update(['bom_quantity' => $output]);
             $item->bomComponents()->delete();
             foreach ($rows as $n => $row) {
                 $item->bomComponents()->create($row + ['line_no' => $n + 1]);
             }
-            $after = $item->bomComponents()->with('component')->get()->map(fn ($c) => $c->component->name.' '.Decimal::trim($c->quantity))->implode(', ');
+            $after = $describe();
             AuditLog::record('updated', $item, ['bill_of_materials' => $before ?: null], ['bill_of_materials' => $after], "Bill of materials of {$item->name} saved");
 
             return $item->fresh('bomComponents.component.unit');
@@ -117,9 +131,10 @@ class BillOfMaterials
     {
         $item->loadMissing('bomComponents.component.unit');
         $output = Decimal::toScaled((string) $item->bom_quantity, 3);
-        $positions = $this->ledger->position($date, $item->bomComponents->pluck('component'));
+        $components = $item->bomComponents->where('kind', 'component');
+        $positions = $this->ledger->position($date, $components->pluck('component'));
         $out = [];
-        foreach ($item->bomComponents as $line) {
+        foreach ($components as $line) {
             $component = $line->component;
             // Rounded up to what the component's unit can hold.
             $step = 10 ** (3 - $component->unit->decimal_places);
@@ -137,7 +152,35 @@ class BillOfMaterials
     }
 
     /**
-     * @param  array{date: string, quantity: string, godown_id: int, component_godown_id?: ?int, other_cost?: ?string, narration?: ?string}  $data
+     * By-products and scrap that come out of making $quantity (thousandths) of the item, in
+     * proportion to the bill of materials (rounded to each unit), with their rate and value.
+     *
+     * @param  array<int, string>  $actual  BOM line id => quantity actually obtained, where it differs
+     * @return array<int, object{line: BomComponent, item: StockItem, quantity: int, rate: int, value: int}>
+     */
+    public function outputs(StockItem $item, int $quantity, string $date, array $actual = []): array
+    {
+        $item->loadMissing('bomComponents.component.unit');
+        $output = max(Decimal::toScaled((string) $item->bom_quantity, 3), 1);
+        $lines = $item->bomComponents->filter->isOutput();
+        $positions = $lines->isEmpty() ? collect() : $this->ledger->position($date, $lines->pluck('component'));
+        $out = [];
+        foreach ($lines as $line) {
+            $product = $line->component;
+            $step = 10 ** (3 - $product->unit->decimal_places);
+            $given = str_replace(',', '', trim((string) ($actual[$line->id] ?? '')));
+            $qty = $given !== '' && preg_match('/^\d{1,7}(\.\d{1,3})?$/', $given)
+                ? Decimal::toScaled($given, 3)
+                : intdiv(2 * Decimal::toScaled((string) $line->quantity, 3) * $quantity + $output * $step, 2 * $output * $step) * $step; // nearest
+            $rate = $line->rate !== null ? Money::toPaise($line->rate) : (int) ($positions[$product->id]->rate ?? 0);
+            $out[] = (object) ['line' => $line, 'item' => $product, 'quantity' => $qty, 'rate' => $rate, 'value' => Decimal::mulDiv($qty, $rate, 1000)];
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  array{date: string, quantity: string, godown_id: int, component_godown_id?: ?int, other_cost?: ?string, narration?: ?string, outputs?: array<int, string>}  $data
      */
     public function manufacture(StockItem $item, array $data, User $user): StockJournal
     {
@@ -164,6 +207,13 @@ class BillOfMaterials
         if ($other !== '' && ! preg_match('/^\d{1,11}(\.\d{1,2})?$/', $other)) {
             $errors['other_cost'] = 'Enter a valid amount.';
         }
+        foreach ($item->bomComponents->filter->isOutput() as $line) {
+            $given = str_replace(',', '', trim((string) ($data['outputs'][$line->id] ?? '')));
+            // Blank takes the BOM proportion; 0 means none was obtained.
+            if ($given !== '' && ! preg_match('/^0+(\.0+)?$/', $given) && ! $this->validQuantity($given, $line->component)) {
+                $errors["outputs.{$line->id}"] = "{$line->component->name}: enter the quantity obtained in {$line->component->unit->symbol}, with at most {$line->component->unit->decimal_places} decimals.";
+            }
+        }
         $tracked = collect([$item])->concat($item->bomComponents->pluck('component'))->filter(fn ($i) => $i->tracking !== 'none');
         if ($tracked->isNotEmpty()) {
             $errors['quantity'] = $tracked->pluck('name')->implode(', ').' '.($tracked->count() === 1 ? 'is' : 'are').' tracked by batch or serial number. Use a stock journal to enter them.';
@@ -177,7 +227,13 @@ class BillOfMaterials
 
         $qtyMilli = Decimal::toScaled($qty, 3);
         $needs = $this->requirements($item, $qtyMilli, $date);
-        $cost = array_sum(array_column($needs, 'cost')) + ($other !== '' ? Money::toPaise($other) : 0);
+        $outputs = array_values(array_filter($this->outputs($item, $qtyMilli, $date, (array) ($data['outputs'] ?? [])), fn ($o) => $o->quantity > 0));
+        $recovered = array_sum(array_column($outputs, 'value'));
+        $cost = array_sum(array_column($needs, 'cost')) + ($other !== '' ? Money::toPaise($other) : 0) - $recovered;
+        if ($cost < 0) {
+            throw ValidationException::withMessages(['outputs' => 'The by-products and scrap are valued at '.Money::format($recovered, paiseInput: true)
+                .', more than the cost of making the item. Lower their rates.']);
+        }
         $rate = Decimal::mulDiv($cost, 1000, $qtyMilli);
 
         $lines = array_map(fn ($n) => [
@@ -185,10 +241,15 @@ class BillOfMaterials
             'quantity' => Decimal::fromScaled($n->quantity, 3), 'rate' => '',
         ], $needs);
         $lines[] = ['stock_item_id' => $item->id, 'godown_id' => $godown, 'direction' => 'in', 'quantity' => $qty, 'rate' => Money::fromPaise($rate)];
+        foreach ($outputs as $o) {
+            $lines[] = ['stock_item_id' => $o->item->id, 'godown_id' => $godown, 'direction' => 'in', 'quantity' => Decimal::fromScaled($o->quantity, 3), 'rate' => Money::fromPaise($o->rate)];
+        }
 
         $narration = trim((string) ($data['narration'] ?? ''));
         $narration = 'Manufactured '.StockLedger::qty($qtyMilli, $item->unit).' '.$item->name.' from its bill of materials'
-            .($other !== '' && (float) $other > 0 ? ' (other costs '.Money::format($other).')' : '').($narration !== '' ? '. '.$narration : '');
+            .($other !== '' && (float) $other > 0 ? ' (other costs '.Money::format($other).')' : '')
+            .($outputs ? '; by-products and scrap '.implode(', ', array_map(fn ($o) => StockLedger::qty($o->quantity, $o->item->unit).' '.$o->item->name, $outputs)).' valued at '.Money::format($recovered, paiseInput: true).' and taken off its cost' : '')
+            .($narration !== '' ? '. '.$narration : '');
 
         return $this->journals->create(['date' => $date, 'purpose' => 'production', 'narration' => $narration, 'lines' => $lines], $user);
     }

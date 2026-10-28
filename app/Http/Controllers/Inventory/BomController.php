@@ -61,6 +61,7 @@ class BomController extends Controller
             'quantity' => $qty,
             'date' => $date,
             'needs' => $qtyMilli > 0 ? $this->boms->requirements($stockItem, $qtyMilli, $date) : [],
+            'outputs' => $qtyMilli > 0 ? $this->boms->outputs($stockItem, $qtyMilli, $date) : [],
             'godowns' => Godown::query()->usable()->orderBy('name')->get(),
             'defaultGodown' => Godown::defaultId(),
         ]);
@@ -74,6 +75,8 @@ class BomController extends Controller
             'godown_id' => ['required', 'integer'],
             'component_godown_id' => ['nullable', 'integer'],
             'other_cost' => ['nullable', 'string', 'max:20'],
+            'outputs' => ['nullable', 'array'],
+            'outputs.*' => ['nullable', 'string', 'max:20'],
             'narration' => ['nullable', 'string', 'max:1000'],
         ]);
         $journal = $this->boms->manufacture($stockItem, $data, $request->user());

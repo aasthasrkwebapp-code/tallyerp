@@ -83,7 +83,8 @@ class StockItemController extends Controller
             'ledger' => $this->ledger->itemLedger($stockItem, $from, $to, $godownId),
             'godowns' => $godowns,
             'godownId' => $godownId,
-            'usedIn' => StockItem::query()->whereIn('id', \App\Models\BomComponent::query()->where('component_id', $stockItem->id)->select('stock_item_id'))->orderBy('name')->get(),
+            'usedIn' => StockItem::query()->whereIn('id', \App\Models\BomComponent::query()->where('component_id', $stockItem->id)->where('kind', 'component')->select('stock_item_id'))->orderBy('name')->get(),
+            'comesFrom' => StockItem::query()->whereIn('id', \App\Models\BomComponent::query()->where('component_id', $stockItem->id)->where('kind', '!=', 'component')->select('stock_item_id'))->orderBy('name')->get(),
             'from' => $from,
             'to' => $to,
         ]);
