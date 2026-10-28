@@ -81,8 +81,13 @@ class ImportService
                 'sales_rate' => ['Sales Rate', false, ''], 'purchase_rate' => ['Purchase Rate', false, ''],
                 'opening_quantity' => ['Opening Qty', false, ''], 'opening_rate' => ['Opening Rate', false, ''], 'opening_value' => ['Opening Value', false, 'Or quantity × rate'],
                 'godown' => ['Godown', false, 'Default godown if blank'], 'reorder_level' => ['Reorder Level', false, ''], 'description' => ['Description', false, ''],
+                'tracking' => ['Tracking', false, 'none, batch or serial'], 'track_expiry' => ['Track Expiry', false, 'yes or no (batches only)'],
+                'costing' => ['Costing', false, 'average (default) or fifo'],
+                'opening_batch' => ['Opening Batch', false, 'Batch of the opening stock'], 'opening_mfg_date' => ['Opening Mfg Date', false, ''],
+                'opening_expiry_date' => ['Opening Expiry Date', false, 'Needed when expiry is tracked'],
+                'opening_serials' => ['Opening Serials', false, 'One per unit, separated by commas or semicolons'],
             ],
-            'example' => ['Steel Rod 12mm', 'Nos', 'Steel', '', 'SR12', '7214', '18', '450', '380', '100', '380', '', '', '20', ''],
+            'example' => ['Steel Rod 12mm', 'Nos', 'Steel', '', 'SR12', '7214', '18', '450', '380', '100', '380', '', '', '20', '', 'batch', 'no', 'average', 'LOT-24A', '', '', ''],
         ],
         'vouchers' => [
             'label' => 'Vouchers (journal, payment, receipt, contra)', 'permission' => 'vouchers.post',
@@ -106,8 +111,9 @@ class ImportService
                 'discount' => ['Discount %', false, ''], 'gst_rate' => ['GST Rate', false, 'Default from the stock item'], 'hsn_sac' => ['HSN/SAC', false, ''],
                 'godown' => ['Godown', false, 'Default godown if blank'], 'batch' => ['Batch', false, 'For batch-tracked items'],
                 'narration' => ['Narration', false, 'From the first row'],
+                'serials' => ['Serials', false, 'For serial-numbered items: one per unit, separated by commas or semicolons'],
             ],
-            'example' => ['1', 'sales', '2026-04-05', 'Mumbai Retail', 'PO-77', '', 'Steel Rod 12mm', '', '', '10', '', '450', '', '18', '', '', '', 'Imported from old software'],
+            'example' => ['1', 'sales', '2026-04-05', 'Mumbai Retail', 'PO-77', '', 'Steel Rod 12mm', '', '', '10', '', '450', '', '18', '', '', '', 'Imported from old software', ''],
         ],
         'purchase_invoices' => [
             'label' => 'Purchase bills and debit notes', 'permission' => 'purchases.create', 'kinds' => ['purchase', 'debit_note'],
@@ -121,8 +127,10 @@ class ImportService
                 'discount' => ['Discount %', false, ''], 'gst_rate' => ['GST Rate', false, 'Default from the stock item'], 'hsn_sac' => ['HSN/SAC', false, ''],
                 'godown' => ['Godown', false, 'Default godown if blank'], 'batch' => ['Batch', false, 'For batch-tracked items'],
                 'narration' => ['Narration', false, 'From the first row'],
+                'mfg_date' => ['Mfg Date', false, 'Of a new batch'], 'expiry_date' => ['Expiry Date', false, 'Of a new batch; needed when expiry is tracked'],
+                'serials' => ['Serials', false, 'For serial-numbered items: one per unit, separated by commas or semicolons'],
             ],
-            'example' => ['1', 'purchase', '2026-04-03', 'Pune Steel Supply', 'PSS/101', '', 'Steel Rod 12mm', '', '', '50', '', '380', '', '18', '', '', '', ''],
+            'example' => ['1', 'purchase', '2026-04-03', 'Pune Steel Supply', 'PSS/101', '', 'Steel Rod 12mm', '', '', '50', '', '380', '', '18', '', '', '', '', '', '', ''],
         ],
     ];
 
@@ -355,7 +363,13 @@ class ImportService
             'sales_rate' => $row['sales_rate'] ?? null, 'purchase_rate' => $row['purchase_rate'] ?? null,
             'opening_quantity' => $row['opening_quantity'] ?? null, 'opening_rate' => $row['opening_rate'] ?? null, 'opening_value' => $row['opening_value'] ?? null,
             'opening_godown_id' => $godown?->id, 'reorder_level' => $row['reorder_level'] ?? null, 'description' => $this->blank($row['description'] ?? null), 'is_active' => '1',
-        ], [], ['unit' => 'unit_id', 'godown' => 'opening_godown_id']);
+            'tracking' => strtolower(trim($row['tracking'] ?? '')) ?: 'none', 'track_expiry' => $this->yes($row['track_expiry'] ?? '') ? '1' : '0',
+            'costing_method' => strtolower(trim($row['costing'] ?? '')) ?: 'average',
+            'opening_batch_no' => $this->blank($row['opening_batch'] ?? null),
+            'opening_mfg_date' => $this->optionalDate($row['opening_mfg_date'] ?? '', 'opening_mfg_date'),
+            'opening_expiry_date' => $this->optionalDate($row['opening_expiry_date'] ?? '', 'opening_expiry_date'),
+            'opening_serials' => $this->serials($row['opening_serials'] ?? ''),
+        ], [], ['unit' => 'unit_id', 'godown' => 'opening_godown_id', 'costing' => 'costing_method', 'opening_batch' => 'opening_batch_no']);
         StockItem::create($request->itemData());
     }
 
@@ -524,7 +538,10 @@ class ImportService
                 'quantity' => $this->amount($line['quantity'] ?? ''), 'unit' => $this->blank($line['unit'] ?? null),
                 'rate' => $this->amount($line['rate'] ?? ''), 'discount_percent' => $this->amount($line['discount'] ?? ''),
                 'gst_rate' => str_replace('%', '', $this->amount($line['gst_rate'] ?? '')), 'hsn_sac' => $this->blank($line['hsn_sac'] ?? null),
-                'batch_no' => $this->blank($line['batch'] ?? null), '_row' => $row,
+                'batch_no' => $this->blank($line['batch'] ?? null),
+                'mfg_date' => $this->optionalDate($line['mfg_date'] ?? '', "mfg_date_{$row}", "Row {$row}: "),
+                'expiry_date' => $this->optionalDate($line['expiry_date'] ?? '', "expiry_date_{$row}", "Row {$row}: "),
+                'serials' => $this->serials($line['serials'] ?? ''), '_row' => $row,
             ];
         }
         if ($errors) {
@@ -651,6 +668,29 @@ class ImportService
         }
 
         return $state; // left for the validator to reject
+    }
+
+    /** A blank or valid date; anything else is an error under $field. */
+    protected function optionalDate(string $value, string $field, string $prefix = ''): ?string
+    {
+        if (trim($value) === '') {
+            return null;
+        }
+
+        return $this->date($value) ?? throw ValidationException::withMessages([$field => $prefix.'"'.trim($value).'" is not a date. Use YYYY-MM-DD or DD-MM-YYYY.']);
+    }
+
+    /** Serial numbers separated by commas, semicolons or new lines, one per line. */
+    protected function serials(string $value): ?string
+    {
+        $list = array_values(array_filter(array_map('trim', preg_split('/[\r\n,;]+/', $value)), fn ($s) => $s !== ''));
+
+        return $list ? implode("\n", $list) : null;
+    }
+
+    protected function yes(string $value): bool
+    {
+        return in_array(strtolower(trim($value)), ['1', 'y', 'yes', 'true'], true);
     }
 
     protected function date(string $value): ?string
