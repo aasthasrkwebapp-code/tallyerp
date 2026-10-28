@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Payroll;
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceDay;
 use App\Models\LeaveType;
+use App\Services\Payroll\AttendanceImport;
 use App\Services\Payroll\AttendanceService;
 use App\Support\CsvExport;
 use App\Support\CurrentCompany;
@@ -70,6 +71,82 @@ class AttendanceController extends Controller
         return redirect()->route('attendance.index', ['month' => $data['month']])->with('success', "Attendance saved for {$count} ".str('employee')->plural($count).'.');
     }
 
+    public function import(Request $request)
+    {
+        $month = preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) $request->input('month')) ? $request->input('month') : now()->format('Y-m');
+
+        return view('payroll.attendance.import', ['month' => $month, 'leaveTypes' => LeaveType::query()->where('is_active', true)->orderBy('name')->get()]);
+    }
+
+    public function importTemplate(Request $request)
+    {
+        [$header, $rows] = AttendanceImport::template();
+
+        return $request->input('format') === 'xlsx'
+            ? CsvExport::xlsx('attendance-import-template.xlsx', $header, $rows, 'Attendance')
+            : CsvExport::download('attendance-import-template.csv', $header, $rows);
+    }
+
+    /** Reads the file and shows what it would change; nothing is saved yet. */
+    public function previewImport(Request $request, AttendanceImport $import)
+    {
+        $data = $request->validate([
+            'file' => ['required', 'file', 'max:10240', 'mimes:csv,txt,xlsx,xls,ods'],
+            'month' => ['nullable', 'string'],
+        ], ['file.mimes' => 'Upload a .csv or .xlsx file.']);
+        $file = $request->file('file');
+        $extension = strtolower($file->getClientOriginalExtension());
+        $result = $import->parse($file->getRealPath(), in_array($extension, ['xlsx', 'xls', 'ods'], true) ? $extension : 'csv', $data['month'] ?? null);
+
+        return view('payroll.attendance.import-preview', $this->previewData($result) + ['name' => $file->getClientOriginalName()]);
+    }
+
+    public function confirmImport(Request $request, AttendanceImport $import)
+    {
+        $data = $request->validate(['payload' => ['required', 'string', 'max:5000000']]);
+        $payload = json_decode($data['payload'], true);
+        if (! is_array($payload) || ! is_array($payload['entries'] ?? null) || ! is_array($payload['overtime'] ?? null)) {
+            return redirect()->route('attendance.import')->with('error', 'Upload the file again.');
+        }
+        foreach (array_merge(array_keys($payload['entries']), array_keys($payload['overtime'])) as $month) {
+            $this->attendance->monthRange((string) $month);
+        }
+        $count = $import->apply($payload['entries'], $payload['overtime']);
+        $months = array_unique(array_merge(array_keys($payload['entries']), array_keys($payload['overtime'])));
+        sort($months);
+
+        return redirect()->route('attendance.index', ['month' => end($months) ?: now()->format('Y-m')])
+            ->with('success', 'Attendance imported: '.$count.' employee '.str('month')->plural($count).' updated.');
+    }
+
+    protected function previewData(array $result): array
+    {
+        $employees = \App\Models\Employee::query()->get()->keyBy('id');
+        $leaveCodes = LeaveType::query()->pluck('code', 'id')->all();
+        $summary = [];
+        foreach ($result['entries'] as $month => $byEmployee) {
+            foreach ($byEmployee as $id => $days) {
+                $counts = [];
+                foreach ($days as $code) {
+                    [$status, $leaveType] = array_pad(explode(':', $code, 2), 2, null);
+                    $label = $leaveType ? ($status === 'half_leave' ? '½' : '').($leaveCodes[$leaveType] ?? 'L') : AttendanceDay::STATUSES[$status][0];
+                    $counts[$label] = ($counts[$label] ?? 0) + 1;
+                }
+                ksort($counts);
+                $summary[] = (object) ['month' => $month, 'employee' => $employees[$id] ?? null, 'days' => count($days), 'counts' => $counts, 'overtime' => $result['overtime'][$month][$id] ?? null];
+            }
+        }
+        foreach ($result['overtime'] as $month => $byEmployee) {
+            foreach ($byEmployee as $id => $hours) {
+                if (! isset($result['entries'][$month][$id])) {
+                    $summary[] = (object) ['month' => $month, 'employee' => $employees[$id] ?? null, 'days' => 0, 'counts' => [], 'overtime' => $hours];
+                }
+            }
+        }
+
+        return ['result' => $result, 'summary' => collect($summary)->sortBy(fn ($s) => $s->month.' '.$s->employee?->code)->values()];
+    }
+
     public function leaveRegister(Request $request)
     {
         $date = $request->input('date', now()->toDateString());
@@ -79,6 +156,9 @@ class AttendanceController extends Controller
         if (CsvExport::requested($request)) {
             $header = ['Code', 'Employee'];
             foreach ($report['types'] as $t) {
+                if ($t->carry_forward) {
+                    $header[] = "{$t->code} carried in";
+                }
                 array_push($header, "{$t->code} allowed", "{$t->code} taken", "{$t->code} balance");
             }
             $fmt = fn ($v) => $v === null ? '' : Decimal::trim(number_format($v, 1, '.', ''));
@@ -86,6 +166,9 @@ class AttendanceController extends Controller
                 $row = [$r->employee->code, $r->employee->name];
                 foreach ($report['types'] as $t) {
                     $c = $r->types[$t->id];
+                    if ($t->carry_forward) {
+                        $row[] = $fmt($c['carried']);
+                    }
                     array_push($row, $fmt($c['allowed']), $fmt($c['taken']), $fmt($c['balance']));
                 }
 
@@ -140,7 +223,13 @@ class AttendanceController extends Controller
             'name' => ['required', 'string', 'max:50', Rule::unique('leave_types')->where('company_id', $current->id())->ignore($type?->id)],
             'code' => ['required', 'string', 'max:10', 'regex:/^[A-Z0-9]+$/', Rule::unique('leave_types')->where('company_id', $current->id())->ignore($type?->id)],
             'annual_days' => ['nullable', 'numeric', 'min:0', 'max:366', 'regex:/^\d{1,3}(\.[05])?$/'],
-        ], ['code.regex' => 'Use letters and digits only, e.g. CL.', 'annual_days.regex' => 'Use whole or half days.']);
+            'max_carry_forward' => ['nullable', 'numeric', 'min:0', 'max:999', 'regex:/^\d{1,3}(\.[05])?$/'],
+        ], ['code.regex' => 'Use letters and digits only, e.g. CL.', 'annual_days.regex' => 'Use whole or half days.', 'max_carry_forward.regex' => 'Use whole or half days.']);
+        $data['carry_forward'] = $request->boolean('carry_forward');
+        if ($data['carry_forward'] && ($data['annual_days'] ?? null) === null) {
+            throw ValidationException::withMessages(['carry_forward' => 'Only leave with days a year can be carried forward.']);
+        }
+        $data['max_carry_forward'] = $data['carry_forward'] ? ($data['max_carry_forward'] ?? null) : null;
         $data['is_paid'] = $request->boolean('is_paid');
         $data['is_active'] = $request->boolean('is_active');
         if ($type && $type->is_paid !== $data['is_paid'] && AttendanceDay::query()->where('leave_type_id', $type->id)->exists()) {

@@ -149,8 +149,8 @@ class AttendanceLoanTest extends TestCase
 
         $this->assertSame(['2026-04-01', '2027-03-31'], [$report['from'], $report['to']]);
         $asha = $report['rows']->firstWhere('employee.id', $this->asha->id);
-        $this->assertSame(['allowed' => 12.0, 'taken' => 1.5, 'balance' => 10.5], $asha->types[$this->leave('CL')]);
-        $this->assertSame(['allowed' => null, 'taken' => 1.0, 'balance' => null], $asha->types[$this->leave('LWP')]);
+        $this->assertSame(['carried' => null, 'allowed' => 12.0, 'taken' => 1.5, 'balance' => 10.5], $asha->types[$this->leave('CL')]);
+        $this->assertSame(['carried' => null, 'allowed' => null, 'taken' => 1.0, 'balance' => null], $asha->types[$this->leave('LWP')]);
     }
 
     public function test_loan_is_paid_and_recovered_through_payroll(): void

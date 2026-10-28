@@ -22,7 +22,7 @@
         <div class="erp-card">
             <div class="table-responsive">
                 <table class="table align-middle mb-0 table-stack">
-                    <thead class="table-light"><tr><th>Leave type</th><th>Code</th><th>Pay</th><th class="text-end">Days a year</th><th class="text-end">Days marked</th><th class="text-end">Actions</th></tr></thead>
+                    <thead class="table-light"><tr><th>Leave type</th><th>Code</th><th>Pay</th><th class="text-end">Days a year</th><th>Carry forward</th><th class="text-end">Days marked</th><th class="text-end">Actions</th></tr></thead>
                     <tbody>
                     @forelse ($types as $t)
                         <tr>
@@ -30,6 +30,7 @@
                             <td data-label="Code">{{ $t->code }}</td>
                             <td data-label="Pay">{{ $t->is_paid ? 'Paid' : 'Without pay' }}</td>
                             <td data-label="Days a year" class="text-end">{{ $t->annual_days !== null ? \App\Support\Decimal::trim($t->annual_days) : 'No limit' }}</td>
+                            <td data-label="Carry forward">@if ($t->carry_forward)Yes{{ $t->max_carry_forward !== null ? ', up to '.\App\Support\Decimal::trim($t->max_carry_forward).' days' : ', no limit' }}@else<span class="text-secondary">No</span>@endif</td>
                             <td data-label="Days marked" class="text-end">{{ $usage[$t->id] ?? 0 }}</td>
                             <td data-label="" class="text-end text-nowrap">
                                 @can('payroll.edit')<a href="{{ route('leave-types.index', ['edit' => $t->id]) }}" class="btn btn-sm btn-outline-secondary">Edit</a>@endcan
@@ -42,7 +43,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="text-center text-secondary py-3">No leave types yet.</td></tr>
+                        <tr><td colspan="7" class="text-center text-secondary py-3">No leave types yet.</td></tr>
                     @endforelse
                     </tbody>
                 </table>
@@ -71,6 +72,17 @@
                         <input id="annual_days" name="annual_days" value="{{ $v('annual_days') !== null ? \App\Support\Decimal::trim($v('annual_days')) : '' }}" class="form-control text-end @error('annual_days') is-invalid @enderror" inputmode="decimal" placeholder="No limit">
                         @error('annual_days')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
+                </div>
+                <div class="form-check">
+                    <input type="hidden" name="carry_forward" value="0">
+                    <input class="form-check-input @error('carry_forward') is-invalid @enderror" type="checkbox" name="carry_forward" value="1" id="carry_forward" @checked($v('carry_forward', false))>
+                    <label class="form-check-label" for="carry_forward">Carry unused days to next year</label>
+                    @error('carry_forward')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+                <div class="mb-2 ms-4">
+                    <label for="max_carry_forward" class="form-label small mb-0">Most days carried</label>
+                    <input id="max_carry_forward" name="max_carry_forward" value="{{ $v('max_carry_forward') !== null ? \App\Support\Decimal::trim($v('max_carry_forward')) : '' }}" class="form-control form-control-sm text-end @error('max_carry_forward') is-invalid @enderror" inputmode="decimal" placeholder="No limit">
+                    @error('max_carry_forward')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
                 @foreach (['is_paid' => 'Paid leave', 'is_active' => 'Active'] as $flag => $label)
                     <div class="form-check">

@@ -35,9 +35,9 @@
             <thead class="table-light">
                 <tr>
                     <th rowspan="2">Employee</th>
-                    @foreach ($types as $t)<th colspan="3" class="text-center">{{ $t->name }} ({{ $t->code }}){{ $t->is_paid ? '' : ' · unpaid' }}</th>@endforeach
+                    @foreach ($types as $t)<th colspan="{{ $t->carry_forward ? 4 : 3 }}" class="text-center">{{ $t->name }} ({{ $t->code }}){{ $t->is_paid ? '' : ' · unpaid' }}</th>@endforeach
                 </tr>
-                <tr>@foreach ($types as $t)<th class="text-end">Allowed</th><th class="text-end">Taken</th><th class="text-end">Balance</th>@endforeach</tr>
+                <tr>@foreach ($types as $t)@if ($t->carry_forward)<th class="text-end">Carried in</th>@endif<th class="text-end">Allowed</th><th class="text-end">Taken</th><th class="text-end">Balance</th>@endforeach</tr>
             </thead>
             <tbody>
             @forelse ($rows as $r)
@@ -45,17 +45,18 @@
                     <td><a href="{{ route('employees.show', $r->employee) }}">{{ $r->employee->name }}</a> <span class="text-secondary small">{{ $r->employee->code }}</span></td>
                     @foreach ($types as $t)
                         @php($c = $r->types[$t->id])
+                        @if ($t->carry_forward)<td class="text-end text-secondary">{{ $fmt($c['carried']) }}</td>@endif
                         <td class="text-end">{{ $fmt($c['allowed']) }}</td>
                         <td class="text-end">{{ $fmt($c['taken']) }}</td>
                         <td class="text-end {{ $c['balance'] !== null && $c['balance'] < 0 ? 'text-danger fw-semibold' : '' }}">{{ $fmt($c['balance']) }}</td>
                     @endforeach
                 </tr>
             @empty
-                <tr><td colspan="{{ 1 + 3 * $types->count() }}" class="text-center text-secondary py-3">No employees in this year.</td></tr>
+                <tr><td colspan="{{ 1 + 3 * $types->count() + $types->where('carry_forward', true)->count() }}" class="text-center text-secondary py-3">No employees in this year.</td></tr>
             @endforelse
             </tbody>
         </table>
     </div>
 </div>
-<p class="small text-secondary mt-2">A negative balance (in red) means more leave was taken than allowed. The allowance is per financial year and is not carried forward.</p>
+<p class="small text-secondary mt-2">A negative balance (in red) means more leave was taken than allowed. The allowance is per financial year. For leave types that carry forward, the unused balance at each year end (up to the type's limit) is added to the next year's allowance; an overdrawn year carries nothing.</p>
 @endsection

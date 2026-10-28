@@ -7,6 +7,7 @@ use App\Models\AttendanceMonth;
 use App\Models\Employee;
 use App\Models\LeaveType;
 use App\Services\Reports\AccountBalances;
+use App\Support\CurrentCompany;
 use App\Support\Decimal;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -22,7 +23,7 @@ use Illuminate\Validation\ValidationException;
  */
 class AttendanceService
 {
-    public function __construct(protected AccountBalances $balances) {}
+    public function __construct(protected AccountBalances $balances, protected CurrentCompany $current) {}
 
     /** First and last day of a "YYYY-MM" month, or a validation error. */
     public function monthRange(string $month): array
@@ -180,7 +181,11 @@ class AttendanceService
 
     /**
      * Leave register for the financial year that contains $date: for each employee and leave type,
-     * the allowance, leave taken in the year and the balance.
+     * the leave carried in from earlier years, the allowance, leave taken in the year and the balance.
+     *
+     * A carry-forward type with a yearly allowance rolls each year's unused balance into the next,
+     * up to its limit, starting from the year of the books' beginning (or the employee's joining,
+     * if later). An overdrawn year carries nothing.
      *
      * @return array{from: string, to: string, types: Collection, rows: Collection}
      */
@@ -189,25 +194,77 @@ class AttendanceService
         $from = $this->balances->yearStart($date);
         $to = Carbon::parse($from)->addYear()->subDay()->toDateString();
         $types = LeaveType::query()->orderBy('is_paid', 'desc')->orderBy('name')->get();
-        $taken = AttendanceDay::query()->whereBetween('date', [$from, $to])->whereNotNull('leave_type_id')
-            ->selectRaw("employee_id, leave_type_id, SUM(CASE WHEN status = 'half_leave' THEN 1 ELSE 2 END) as halves")
-            ->groupBy('employee_id', 'leave_type_id')->get()
+        $taken = $this->halvesTaken($from, $to, $types->pluck('id')->all())
             ->groupBy('employee_id')->map(fn ($c) => $c->pluck('halves', 'leave_type_id'));
 
         $employees = Employee::query()->where('date_of_joining', '<=', $to)
             ->where(fn ($q) => $q->whereNull('date_of_leaving')->orWhere('date_of_leaving', '>=', $from))
             ->orderBy('code')->get();
+        $carried = $this->carriedIn($from, $types->filter(fn (LeaveType $t) => $t->carry_forward && $t->annual_days !== null), $employees);
 
         $rows = $employees->map(fn (Employee $e) => (object) [
             'employee' => $e,
-            'types' => $types->mapWithKeys(function (LeaveType $t) use ($taken, $e) {
+            'types' => $types->mapWithKeys(function (LeaveType $t) use ($taken, $carried, $e) {
                 $used = ((int) ($taken[$e->id][$t->id] ?? 0)) / 2.0;
-                $allowed = $t->annual_days !== null ? (float) $t->annual_days : null;
+                $in = isset($carried[$e->id][$t->id]) ? $carried[$e->id][$t->id] / 2.0 : null;
+                $allowed = $t->annual_days !== null ? (float) $t->annual_days + ($in ?? 0) : null;
 
-                return [$t->id => ['allowed' => $allowed, 'taken' => $used, 'balance' => $allowed !== null ? $allowed - $used : null]];
+                return [$t->id => ['carried' => $in, 'allowed' => $allowed, 'taken' => $used, 'balance' => $allowed !== null ? $allowed - $used : null]];
             }),
         ]);
 
-        return ['from' => $from, 'to' => $to, 'types' => $types, 'rows' => $rows];
+        return ['from' => $from, 'to' => $to, 'types' => $types, 'rows' => $rows, 'carry' => $types->contains(fn ($t) => $t->carry_forward && $t->annual_days !== null)];
+    }
+
+    /** Leave taken between two dates, in half days, by employee and leave type. */
+    protected function halvesTaken(string $from, string $to, array $typeIds): Collection
+    {
+        return AttendanceDay::query()->whereBetween('date', [$from, $to])->whereIn('leave_type_id', $typeIds ?: [0])
+            ->selectRaw("employee_id, leave_type_id, SUM(CASE WHEN status = 'half_leave' THEN 1 ELSE 2 END) as halves")
+            ->groupBy('employee_id', 'leave_type_id')->get();
+    }
+
+    /**
+     * Half days carried into the year starting $from, by employee and leave type.
+     *
+     * @return array<int, array<int, int>>
+     */
+    protected function carriedIn(string $from, Collection $types, Collection $employees): array
+    {
+        if ($types->isEmpty() || $employees->isEmpty()) {
+            return [];
+        }
+        $begin = $this->current->get()->books_begin_date;
+        $first = $begin ? $this->balances->yearStart($begin->toDateString()) : $from;
+        // Earlier years, oldest first (at most 50).
+        $years = [];
+        for ($y = Carbon::parse($from)->subYear(); $y->toDateString() >= $first && count($years) < 50; $y->subYear()) {
+            array_unshift($years, [$y->toDateString(), $y->copy()->addYear()->subDay()->toDateString()]);
+        }
+        $taken = [];
+        foreach ($years as [$start, $end]) {
+            foreach ($this->halvesTaken($start, $end, $types->pluck('id')->all()) as $r) {
+                $taken[$start][$r->employee_id][$r->leave_type_id] = (int) $r->halves;
+            }
+        }
+
+        $out = [];
+        foreach ($employees as $e) {
+            $joined = $e->date_of_joining->toDateString();
+            foreach ($types as $t) {
+                $annual = (int) round((float) $t->annual_days * 2);
+                $max = $t->max_carry_forward !== null ? (int) round((float) $t->max_carry_forward * 2) : PHP_INT_MAX;
+                $carry = 0;
+                foreach ($years as [$start, $end]) {
+                    if ($joined > $end) {
+                        continue; // not on the rolls yet
+                    }
+                    $carry = max(0, min($max, $annual + $carry - ($taken[$start][$e->id][$t->id] ?? 0)));
+                }
+                $out[$e->id][$t->id] = $carry;
+            }
+        }
+
+        return $out;
     }
 }

@@ -229,6 +229,10 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
 
         Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index')->middleware('can:payroll.view');
         Route::put('/attendance', [AttendanceController::class, 'update'])->name('attendance.update')->middleware('can:payroll.edit');
+        Route::get('/attendance/import', [AttendanceController::class, 'import'])->name('attendance.import')->middleware('can:payroll.edit');
+        Route::get('/attendance/import/template', [AttendanceController::class, 'importTemplate'])->name('attendance.import-template')->middleware('can:payroll.edit');
+        Route::post('/attendance/import', [AttendanceController::class, 'previewImport'])->name('attendance.import.preview')->middleware('can:payroll.edit');
+        Route::post('/attendance/import/confirm', [AttendanceController::class, 'confirmImport'])->name('attendance.import.confirm')->middleware('can:payroll.edit');
         Route::get('/leave-register', [AttendanceController::class, 'leaveRegister'])->name('leave-register')->middleware('can:payroll.view');
         Route::get('/leave-types', [AttendanceController::class, 'leaveTypes'])->name('leave-types.index')->middleware('can:payroll.view');
         Route::post('/leave-types', [AttendanceController::class, 'storeLeaveType'])->name('leave-types.store')->middleware('can:payroll.create');

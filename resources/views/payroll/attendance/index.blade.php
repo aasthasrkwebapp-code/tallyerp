@@ -12,6 +12,7 @@
         <p class="text-secondary mb-0">{{ $start->format('F Y') }} · a day left blank counts as present.</p>
     </div>
     <div class="d-flex flex-wrap gap-2 no-print">
+        @can('payroll.edit')<a href="{{ route('attendance.import', ['month' => $month]) }}" class="btn btn-outline-secondary"><i class="bi bi-upload"></i> Import</a>@endcan
         <a href="{{ route('leave-register') }}" class="btn btn-outline-secondary">Leave register</a>
         <a href="{{ route('leave-types.index') }}" class="btn btn-outline-secondary">Leave types</a>
         <a href="{{ request()->fullUrlWithQuery(['month' => $month, 'export' => 'csv']) }}" class="btn btn-outline-secondary"><i class="bi bi-filetype-csv"></i> CSV</a>
