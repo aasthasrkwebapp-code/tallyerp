@@ -28,6 +28,7 @@ use App\Http\Controllers\Payroll\AttendanceController;
 use App\Http\Controllers\Payroll\EmployeeController;
 use App\Http\Controllers\Payroll\EmployeeLoanController;
 use App\Http\Controllers\Payroll\PayHeadController;
+use App\Http\Controllers\Payroll\PayrollFileController;
 use App\Http\Controllers\Payroll\PayrollRunController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Reports\AccountingReportController;
@@ -218,6 +219,11 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
         Route::delete('/runs/{payrollRun}', [PayrollRunController::class, 'destroy'])->name('payroll-runs.destroy')->middleware('can:payroll.delete');
         Route::get('/runs/{payrollRun}/payslips/{payslip}', [PayrollRunController::class, 'payslip'])->name('payroll-runs.payslip')->middleware('can:payroll.view');
         Route::post('/runs/{payrollRun}/attendance', [PayrollRunController::class, 'attendance'])->name('payroll-runs.attendance')->middleware('can:payroll.edit');
+        Route::get('/runs/{payrollRun}/files', [PayrollFileController::class, 'index'])->name('payroll-runs.files')->middleware('can:payroll.view');
+        Route::get('/runs/{payrollRun}/files/bank', [PayrollFileController::class, 'bank'])->name('payroll-runs.bank-file')->middleware('can:payroll.view');
+        Route::get('/runs/{payrollRun}/files/ecr', [PayrollFileController::class, 'ecr'])->name('payroll-runs.ecr')->middleware('can:payroll.view');
+        Route::get('/runs/{payrollRun}/files/esi', [PayrollFileController::class, 'esi'])->name('payroll-runs.esi-file')->middleware('can:payroll.view');
+        Route::post('/runs/{payrollRun}/pay', [PayrollFileController::class, 'pay'])->name('payroll-runs.pay')->middleware('can:payroll.edit');
 
         Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index')->middleware('can:payroll.view');
         Route::put('/attendance', [AttendanceController::class, 'update'])->name('attendance.update')->middleware('can:payroll.edit');

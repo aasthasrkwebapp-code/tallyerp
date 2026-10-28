@@ -14,7 +14,7 @@ class PayrollRun extends Model
 {
     use Auditable, BelongsToCompany;
 
-    protected $fillable = ['company_id', 'month', 'date', 'status', 'voucher_id', 'gross_total', 'deduction_total', 'employer_total', 'net_total', 'narration', 'cancellation_reason', 'created_by'];
+    protected $fillable = ['company_id', 'month', 'date', 'status', 'voucher_id', 'payment_voucher_id', 'gross_total', 'deduction_total', 'employer_total', 'net_total', 'narration', 'cancellation_reason', 'created_by'];
 
     protected function casts(): array
     {
@@ -32,6 +32,17 @@ class PayrollRun extends Model
     public function voucher(): BelongsTo
     {
         return $this->belongsTo(Voucher::class);
+    }
+
+    public function paymentVoucher(): BelongsTo
+    {
+        return $this->belongsTo(Voucher::class, 'payment_voucher_id');
+    }
+
+    /** True when the net salary has a payment voucher that is not cancelled. */
+    public function isPaid(): bool
+    {
+        return $this->paymentVoucher !== null && ! $this->paymentVoucher->isCancelled();
     }
 
     public function creator(): BelongsTo

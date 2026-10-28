@@ -11,10 +11,11 @@
 <div class="page-header">
     <div>
         <h1>Payroll {{ $run->label() }} <span class="badge text-bg-{{ $badge[$run->status] }} align-middle">{{ ucfirst($run->status) }}</span></h1>
-        <p class="text-secondary mb-0">{{ $slips->count() }} {{ \Illuminate\Support\Str::plural('employee', $slips->count()) }} @if ($run->voucher) · journal <a href="{{ route('vouchers.show', $run->voucher) }}">{{ $run->voucher->voucher_number }}</a> dated {{ $run->date->format('d M Y') }}@endif</p>
+        <p class="text-secondary mb-0">{{ $slips->count() }} {{ \Illuminate\Support\Str::plural('employee', $slips->count()) }} @if ($run->voucher) · journal <a href="{{ route('vouchers.show', $run->voucher) }}">{{ $run->voucher->voucher_number }}</a> dated {{ $run->date->format('d M Y') }}@endif @if ($run->isPaid()) · paid by <a href="{{ route('vouchers.show', $run->paymentVoucher) }}">{{ $run->paymentVoucher->voucher_number }}</a>@elseif ($run->status === 'posted') · <span class="text-warning-emphasis">salary not paid yet</span>@endif</p>
     </div>
     <div class="d-flex flex-wrap gap-2 no-print">
         <a href="{{ route('payroll-runs.index') }}" class="btn btn-outline-secondary">All months</a>
+        @if ($run->status === 'posted')<a href="{{ route('payroll-runs.files', $run) }}" class="btn btn-outline-primary"><i class="bi bi-bank"></i> Payment &amp; files</a>@endif
         <a href="{{ request()->fullUrlWithQuery(['export' => 'csv']) }}" class="btn btn-outline-secondary"><i class="bi bi-filetype-csv"></i> CSV</a>
         <a href="{{ request()->fullUrlWithQuery(['export' => 'xlsx']) }}" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-excel"></i> Excel</a>
         <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-pdf"></i> PDF</a>

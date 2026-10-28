@@ -177,6 +177,70 @@ class PayrollService
         });
     }
 
+    /** Cash and bank ledgers salary can be paid from. */
+    public function paidFromQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return \App\Models\Account::query()->where('is_active', true)->whereIn('account_type', ['cash', 'bank']);
+    }
+
+    /**
+     * Record the payment of a posted payroll's net salary: a payment voucher debiting
+     * Salary Payable and crediting the chosen cash or bank ledger.
+     *
+     * @param  array{date: string, paid_account_id: int}  $data
+     */
+    public function pay(PayrollRun $run, array $data, User $user): PayrollRun
+    {
+        $run->load('paymentVoucher');
+        if ($run->status !== 'posted') {
+            throw ValidationException::withMessages(['run' => 'Post the payroll before recording its payment.']);
+        }
+        if ($run->isPaid()) {
+            throw ValidationException::withMessages(['run' => 'This payroll is already paid by voucher '.$run->paymentVoucher->voucher_number.'.']);
+        }
+        $net = Money::toPaise($run->net_total);
+        if ($net <= 0) {
+            throw ValidationException::withMessages(['run' => 'There is no net pay to pay.']);
+        }
+        $errors = [];
+        $paid = $this->paidFromQuery()->find($data['paid_account_id'] ?? 0);
+        if (! $paid) {
+            $errors['paid_account_id'] = 'Choose the cash or bank ledger the salary is paid from.';
+        }
+        $date = (string) ($data['date'] ?? '');
+        if ($date < $run->date->toDateString()) {
+            $errors['date'] = 'The payment cannot be dated before the payroll ('.$run->date->format('d M Y').').';
+        }
+        $salaryPayable = \App\Models\Account::idFor('salary_payable');
+        $type = VoucherType::forBase('payment');
+        if (! $salaryPayable || ! $type) {
+            $errors['run'] = 'The Payment voucher type and the Salary Payable ledger are needed.';
+        }
+        if ($errors) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        return DB::transaction(function () use ($run, $user, $date, $paid, $net, $salaryPayable, $type) {
+            try {
+                $voucher = $this->vouchers->create([
+                    'voucher_type_id' => $type->id,
+                    'date' => $date,
+                    'narration' => 'Salary paid for '.$run->label().' ('.$run->payslips()->where('net', '>', 0)->count().' employees)',
+                    'entries' => [
+                        ['account_id' => $salaryPayable, 'side' => 'Dr', 'amount' => Money::fromPaise($net)],
+                        ['account_id' => $paid->id, 'side' => 'Cr', 'amount' => Money::fromPaise($net)],
+                    ],
+                ], $user, Voucher::POSTED, $run);
+            } catch (ValidationException $e) {
+                throw ValidationException::withMessages(collect($e->errors())->mapWithKeys(fn ($m, $k) => [str_starts_with($k, 'date') ? 'date' : 'run' => $m])->all());
+            }
+            $run->update(['payment_voucher_id' => $voucher->id]);
+            AuditLog::record('updated', $run, null, ['payment_voucher' => $voucher->voucher_number], "Salary of {$run->label()} paid from {$paid->name} by voucher {$voucher->voucher_number}");
+
+            return $run->fresh('paymentVoucher');
+        });
+    }
+
     public function cancel(PayrollRun $run, User $user, string $reason): PayrollRun
     {
         if ($run->status !== 'posted') {
@@ -186,6 +250,10 @@ class PayrollService
         return DB::transaction(function () use ($run, $user, $reason) {
             if ($run->voucher && ! $run->voucher->isCancelled()) {
                 $this->vouchers->cancel($run->voucher, $user, $reason);
+            }
+            // The salary payment goes with it.
+            if ($run->paymentVoucher && ! $run->paymentVoucher->isCancelled()) {
+                $this->vouchers->cancel($run->paymentVoucher, $user, $reason);
             }
             $run->update(['status' => 'cancelled', 'cancellation_reason' => mb_substr($reason, 0, 255)]);
             AuditLog::record('cancelled', $run, null, null, "Payroll {$run->label()} cancelled: {$reason}");
