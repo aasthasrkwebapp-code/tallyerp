@@ -32,18 +32,25 @@ class ChequeController extends Controller
             'direction' => ['nullable', 'in:issued,received'],
             'type' => ['nullable', Rule::in(array_keys(Voucher::INSTRUMENTS))],
             'q' => ['nullable', 'string', 'max:50'],
+            'printed' => ['nullable', 'in:yes,no'],
         ]);
         $rows = $this->register->rows($filters);
+        foreach ($rows as $r) {
+            $r->printable = $r->kind === 'voucher' && $this->printable($r->voucher);
+        }
+        if ($filters['printed'] ?? null) {
+            $rows = $rows->filter(fn ($r) => $r->printable && (($filters['printed'] === 'yes') === ($r->voucher->cheque_print_count > 0)))->values();
+        }
 
         if (CsvExport::requested($request)) {
             $this->authorize('reports.export');
 
             return CsvExport::download('cheque-register-'.now()->toDateString().'.csv',
-                ['Date', 'Instrument', 'Number', 'Issued / received', 'Bank', 'Party', 'Amount', 'Status', 'Cleared on', 'Voucher', 'Note'],
+                ['Date', 'Instrument', 'Number', 'Issued / received', 'Bank', 'Party', 'Amount', 'Status', 'Cleared on', 'Voucher', 'Printed', 'Note'],
                 $rows->map(fn ($r) => [
                     $r->date, Voucher::INSTRUMENTS[$r->type] ?? $r->type, $r->number, ucfirst($r->direction), $r->bank?->name, $r->party,
                     Money::normalize($r->amount), ChequeRegister::STATUSES[$r->status], $r->bank_date?->toDateString() ?? '',
-                    $r->voucher?->displayNumber() ?? '', $r->reason ?? '',
+                    $r->voucher?->displayNumber() ?? '', $r->printable ? ($r->voucher->cheque_printed_at?->format('Y-m-d H:i') ?? 'No') : '', $r->reason ?? '',
                 ]));
         }
 
@@ -51,6 +58,7 @@ class ChequeController extends Controller
             'rows' => $rows,
             'filters' => $filters,
             'banks' => $this->banks(),
+            'printable' => $rows->where('printable', true)->isNotEmpty(),
             'totals' => $rows->groupBy('status')->map(fn ($g) => ['count' => $g->count(), 'amount' => $g->sum('amount')]),
         ]);
     }
@@ -138,20 +146,56 @@ class ChequeController extends Controller
     /** The cheque laid out for printing on the bank's leaf. */
     public function print(Voucher $voucher)
     {
-        abort_unless($voucher->instrument_type === 'cheque' && $voucher->instrument_direction === 'issued' && ! $voucher->isCancelled(), 404);
-        $voucher->load('instrumentAccount', 'entries');
-        $book = ChequeBook::query()->where('account_id', $voucher->instrument_account_id)->get()->first(fn ($b) => $b->contains((string) $voucher->instrument_number));
-        $entry = $voucher->entries->first(fn ($e) => $e->account_id === $voucher->instrument_account_id && (float) $e->credit > 0);
-        $paise = Money::toPaise($entry?->credit ?? $voucher->total);
-        AuditLog::record('cheque_printed', $voucher, null, null, "Cheque {$voucher->instrument_number} printed");
+        abort_unless($this->printable($voucher), 404);
 
-        return view('banking.cheques.print', [
-            'voucher' => $voucher,
-            'layout' => $book?->printLayout() ?? ChequeBook::DEFAULT_LAYOUT,
-            'amount' => Money::format(Money::fromPaise($paise)),
-            'words' => preg_replace('/^(Indian )?Rupees /', '', NumberToWords::rupees($paise)),
-            'date' => ($voucher->instrument_date ?? $voucher->date)->format('dmY'),
-        ]);
+        return $this->printLeaves(collect([$voucher]));
+    }
+
+    /** Several issued cheques at once, one leaf per page, in cheque number order. */
+    public function printBatch(Request $request)
+    {
+        $data = $request->validate(['ids' => ['required', 'array', 'max:100'], 'ids.*' => ['integer']], ['ids.required' => 'Tick the cheques to print.']);
+        $vouchers = Voucher::query()->whereIn('id', $data['ids'])->get()->filter(fn ($v) => $this->printable($v));
+        if ($vouchers->isEmpty()) {
+            return back()->with('error', 'None of the ticked entries is an issued cheque that can be printed.');
+        }
+
+        return $this->printLeaves($vouchers);
+    }
+
+    protected function printable(Voucher $voucher): bool
+    {
+        return $voucher->instrument_type === 'cheque' && $voucher->instrument_direction === 'issued' && ! $voucher->isCancelled();
+    }
+
+    protected function printLeaves($vouchers)
+    {
+        $vouchers->each->load('instrumentAccount', 'entries');
+        $books = ChequeBook::query()->whereIn('account_id', $vouchers->pluck('instrument_account_id')->unique())->get();
+        $leaves = $vouchers->sortBy(fn ($v) => [$v->instrument_account_id, str_pad((string) $v->instrument_number, 12, '0', STR_PAD_LEFT)])->values()->map(function (Voucher $voucher) use ($books) {
+            $book = $books->where('account_id', $voucher->instrument_account_id)->first(fn ($b) => $b->contains((string) $voucher->instrument_number));
+            $entry = $voucher->entries->first(fn ($e) => $e->account_id === $voucher->instrument_account_id && (float) $e->credit > 0);
+            $paise = Money::toPaise($entry?->credit ?? $voucher->total);
+
+            return (object) [
+                'voucher' => $voucher,
+                'layout' => $book?->printLayout() ?? ChequeBook::DEFAULT_LAYOUT,
+                'amount' => Money::format(Money::fromPaise($paise)),
+                'words' => preg_replace('/^(Indian )?Rupees /', '', NumberToWords::rupees($paise)),
+                'date' => ($voucher->instrument_date ?? $voucher->date)->format('dmY'),
+                'reprint' => $voucher->cheque_print_count > 0,
+            ];
+        });
+        // One sheet size per print job.
+        if ($leaves->map(fn ($l) => $l->layout['width'].'x'.$l->layout['height'])->unique()->count() > 1) {
+            return back()->with('error', 'The ticked cheques use different cheque sizes. Print one bank or cheque book at a time.');
+        }
+        foreach ($leaves as $l) {
+            Voucher::query()->whereKey($l->voucher->id)->update(['cheque_printed_at' => now(), 'cheque_print_count' => $l->voucher->cheque_print_count + 1]);
+            AuditLog::record('cheque_printed', $l->voucher, null, null, "Cheque {$l->voucher->instrument_number} ".($l->reprint ? 'reprinted' : 'printed'));
+        }
+
+        return view('banking.cheques.print', ['leaves' => $leaves, 'layout' => $leaves->first()->layout]);
     }
 
     // ------------------------------------------------------------------

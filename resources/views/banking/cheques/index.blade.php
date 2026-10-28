@@ -50,6 +50,14 @@
                 @foreach (\App\Models\Voucher::INSTRUMENTS as $k => $label)<option value="{{ $k }}" @selected(($filters['type'] ?? '') === $k)>{{ $label }}</option>@endforeach
             </select>
         </div>
+        <div class="col-6 col-md-2 col-lg-1">
+            <label class="form-label small" for="f-printed">Printed</label>
+            <select id="f-printed" name="printed" class="form-select form-select-sm">
+                <option value="">Any</option>
+                <option value="no" @selected(($filters['printed'] ?? '') === 'no')>Not yet</option>
+                <option value="yes" @selected(($filters['printed'] ?? '') === 'yes')>Printed</option>
+            </select>
+        </div>
         <div class="col-6 col-md-2 col-lg-1"><label class="form-label small" for="f-from">From</label><input id="f-from" type="date" name="from" value="{{ $filters['from'] ?? '' }}" class="form-control form-control-sm"></div>
         <div class="col-6 col-md-2 col-lg-1"><label class="form-label small" for="f-to">To</label><input id="f-to" type="date" name="to" value="{{ $filters['to'] ?? '' }}" class="form-control form-control-sm"></div>
         <div class="col-6 col-md-3 col-lg-2"><label class="form-label small" for="f-q">Number / name</label><input id="f-q" name="q" value="{{ $filters['q'] ?? '' }}" class="form-control form-control-sm" maxlength="50"></div>
@@ -65,13 +73,22 @@
     @endforeach
 </div>
 
+<form method="GET" action="{{ route('cheques.print-batch') }}" target="_blank" id="batch-print">
+@if ($printable)
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2 no-print">
+        <span class="form-check mb-0"><input type="checkbox" class="form-check-input" id="tick-all"><label class="form-check-label small" for="tick-all">Tick all</label></span>
+        <button class="btn btn-sm btn-outline-primary" id="print-selected" disabled><i class="bi bi-printer me-1"></i>Print ticked cheques <span class="badge text-bg-primary" id="print-count">0</span></button>
+        <span class="small text-secondary">Tick issued cheques of one bank to print them together, one leaf per page.</span>
+    </div>
+@endif
 <div class="erp-card">
     <div class="table-responsive">
         <table class="table table-sm align-middle mb-0 table-stack">
-            <thead class="table-light"><tr><th>Date</th><th>Number</th><th>Bank</th><th>Party / payee</th><th class="text-end">Amount</th><th>Status</th><th>Voucher</th></tr></thead>
+            <thead class="table-light"><tr>@if ($printable)<th class="no-print" style="width: 2rem"><span class="visually-hidden">Print</span></th>@endif<th>Date</th><th>Number</th><th>Bank</th><th>Party / payee</th><th class="text-end">Amount</th><th>Status</th><th>Voucher</th></tr></thead>
             <tbody>
             @forelse ($rows as $r)
                 <tr>
+                    @if ($printable)<td data-label="Print" class="no-print">@if ($r->printable)<input type="checkbox" class="form-check-input tick" name="ids[]" value="{{ $r->voucher->id }}" aria-label="Print cheque {{ $r->number }}">@endif</td>@endif
                     <td data-label="Date">{{ \Illuminate\Support\Carbon::parse($r->date)->format('d-m-Y') }}</td>
                     <td data-label="Number"><span class="font-monospace">{{ $r->number ?? '—' }}</span>
                         <div class="small text-secondary">{{ \App\Models\Voucher::INSTRUMENTS[$r->type] ?? $r->type }} · {{ ucfirst($r->direction) }}</div></td>
@@ -82,16 +99,39 @@
                         @if ($r->bank_date)<div class="small text-secondary">on {{ $r->bank_date->format('d-m-Y') }}</div>@endif
                         @if ($r->days !== null)<div class="small text-secondary">{{ $r->days }} days</div>@endif
                         @if ($r->reason)<div class="small text-secondary">{{ \Illuminate\Support\Str::limit($r->reason, 60) }}</div>@endif
+                        @if ($r->printable && $r->voucher->cheque_print_count)<div class="small text-secondary"><i class="bi bi-printer"></i> printed {{ $r->voucher->cheque_printed_at?->format('d-m-Y') }}@if ($r->voucher->cheque_print_count > 1) ({{ $r->voucher->cheque_print_count }}×)@endif</div>@endif
                     </td>
                     <td data-label="Voucher">
                         @if ($r->voucher)<a href="{{ route('vouchers.show', $r->voucher) }}">{{ $r->voucher->type?->name }} {{ $r->voucher->displayNumber() }}</a>@else — @endif
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="7" class="text-center text-secondary py-4">No cheques match. Enter the cheque or transfer details under "Cheque / bank transfer details" on payment, receipt and contra vouchers.</td></tr>
+                <tr><td colspan="{{ $printable ? 8 : 7 }}" class="text-center text-secondary py-4">No cheques match. Enter the cheque or transfer details under "Cheque / bank transfer details" on payment, receipt and contra vouchers.</td></tr>
             @endforelse
             </tbody>
         </table>
     </div>
 </div>
+</form>
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    var form = document.getElementById('batch-print');
+    var button = document.getElementById('print-selected');
+    if (!form || !button) return;
+    var ticks = form.querySelectorAll('.tick');
+    function update() {
+        var n = form.querySelectorAll('.tick:checked').length;
+        document.getElementById('print-count').textContent = n;
+        button.disabled = n === 0;
+    }
+    form.addEventListener('change', function (e) {
+        if (e.target.id === 'tick-all') ticks.forEach(function (t) { t.checked = e.target.checked; });
+        update();
+    });
+    update();
+})();
+</script>
+@endpush

@@ -46,6 +46,7 @@ class Voucher extends Model
             'total' => 'decimal:2',
             'approved_at' => 'datetime',
             'posted_at' => 'datetime',
+            'cheque_printed_at' => 'datetime',
             'cancelled_at' => 'datetime',
         ];
     }

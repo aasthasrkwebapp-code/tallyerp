@@ -334,6 +334,7 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
 
     // Cheque register, cheque books and printing
     Route::get('/cheques', [ChequeController::class, 'index'])->name('cheques.index')->middleware('can:banking.view');
+    Route::get('/cheques/print', [ChequeController::class, 'printBatch'])->name('cheques.print-batch')->middleware('can:banking.view');
     Route::get('/cheques/{voucher}/print', [ChequeController::class, 'print'])->name('cheques.print')->middleware('can:banking.view');
     Route::get('/cheque-books', [ChequeController::class, 'books'])->name('cheque-books.index')->middleware('can:banking.view');
     Route::post('/cheque-books', [ChequeController::class, 'storeBook'])->name('cheque-books.store')->middleware('can:banking.create');

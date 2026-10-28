@@ -176,6 +176,50 @@ class ChequeRegisterTest extends TestCase
         $this->assertSame(0, SpoiltCheque::count());
     }
 
+    public function test_batch_printing_marks_cheques_printed(): void
+    {
+        $a = $this->payment('12', '1500');
+        $b = $this->payment('11', '2500');
+        $cancelled = $this->payment('13');
+        app(VoucherService::class)->cancel($cancelled, $this->owner, 'Wrong party');
+        $received = app(VoucherService::class)->create([
+            'voucher_type_id' => VoucherType::where('base_type', 'receipt')->value('id'), 'date' => '2026-10-10',
+            'instrument_type' => 'cheque', 'instrument_number' => '777',
+            'entries' => [['account_id' => $this->bank->id, 'side' => 'Dr', 'amount' => '100'], ['account_id' => $this->customer->id, 'side' => 'Cr', 'amount' => '100']],
+        ], $this->owner);
+
+        $this->actingAs($this->owner)->get(route('cheques.index', ['printed' => 'no']))->assertOk()
+            ->assertSee('Print ticked cheques')->assertSee('value="'.$a->id.'"', false)->assertDontSee('value="'.$cancelled->id.'"', false)->assertDontSee('000777');
+
+        // In cheque number order; the cancelled and the received cheque are left out.
+        $page = $this->get(route('cheques.print-batch', ['ids' => [$a->id, $b->id, $cancelled->id, $received->id]]))->assertOk()
+            ->assertSee('2 cheques, one per page')->assertSee('One Thousand Five Hundred Only')->assertSee('Two Thousand Five Hundred Only')->assertDontSee('Printed before');
+        $this->assertLessThan(strpos($page->getContent(), '**1,500.00/-'), strpos($page->getContent(), '**2,500.00/-'));
+        $this->assertSame(1, $a->fresh()->cheque_print_count);
+        $this->assertNotNull($a->fresh()->cheque_printed_at);
+        $this->assertSame(0, $cancelled->fresh()->cheque_print_count);
+
+        // Reprinting is allowed and flagged.
+        $this->get(route('cheques.print', $a))->assertSee('Printed before: 000012');
+        $this->assertSame(2, $a->fresh()->cheque_print_count);
+        $this->get(route('cheques.index', ['printed' => 'yes']))->assertSee('000012')->assertSee('(2×)')->assertDontSee('000777');
+        $this->get(route('cheques.index', ['printed' => 'no']))->assertDontSee('000012');
+        $this->assertStringContainsString('Printed', $this->get(route('cheques.index', ['export' => 'csv']))->streamedContent());
+
+        $this->from(route('cheques.index'))->get(route('cheques.print-batch', ['ids' => [$received->id]]))->assertRedirect(route('cheques.index'))->assertSessionHas('error');
+        $this->get(route('cheques.print-batch'))->assertSessionHasErrors('ids');
+
+        // Cheques of books with different sizes are printed separately.
+        $sbi = Account::create(['name' => 'SBI', 'account_group_id' => AccountGroup::idFor('bank_accounts'), 'account_type' => 'bank', 'opening_balance' => 100000]);
+        ChequeBook::create(['account_id' => $sbi->id, 'name' => 'S1', 'from_number' => 1, 'to_number' => 50, 'layout' => ['width' => 180] + ChequeBook::DEFAULT_LAYOUT]);
+        $c = app(VoucherService::class)->create([
+            'voucher_type_id' => VoucherType::where('base_type', 'payment')->value('id'), 'date' => '2026-10-10', 'instrument_type' => 'cheque', 'instrument_number' => '3',
+            'entries' => [['account_id' => $this->supplier->id, 'side' => 'Dr', 'amount' => '10'], ['account_id' => $sbi->id, 'side' => 'Cr', 'amount' => '10']],
+        ], $this->owner);
+        $this->from(route('cheques.index'))->get(route('cheques.print-batch', ['ids' => [$a->id, $c->id]]))->assertRedirect()->assertSessionHas('error', fn ($m) => str_contains($m, 'different cheque sizes'));
+        $this->assertSame(0, $c->fresh()->cheque_print_count);
+    }
+
     protected function expectValidation(callable $fn, string $needle): void
     {
         try {
