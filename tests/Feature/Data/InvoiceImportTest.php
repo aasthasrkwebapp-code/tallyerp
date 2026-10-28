@@ -160,7 +160,7 @@ class InvoiceImportTest extends TestCase
         $this->actingAs($this->owner)->get(route('imports.index'))->assertOk()
             ->assertSee('Sales invoices and credit notes')->assertSee('Purchase bills and debit notes')->assertSee('Supplier Bill No');
         $this->get(route('imports.template', ['purchase_invoices', 'csv']))->assertOk();
-        $this->get(route('exports.index'))->assertOk()->assertDontSee('Purchase bills and debit notes');
+        $this->get(route('exports.index'))->assertOk()->assertSee('Purchase bills and debit notes');
 
         $path = $this->csv([self::HEAD, $this->row([0 => '1', 2 => '2026-04-05', 3 => 'Mumbai Retail', 6 => 'SR12', 9 => '2', 11 => '450'])]);
         $this->post(route('imports.preview'), ['type' => 'sales_invoices', 'file' => new UploadedFile($path, 'sales.csv', 'text/csv', null, true)])

@@ -4,13 +4,16 @@ namespace App\Services\Data;
 
 use App\Models\Account;
 use App\Models\AccountGroup;
+use App\Models\Invoice;
+use App\Models\InvoiceItem;
+use App\Models\OpeningBill;
 use App\Models\StockItem;
 use App\Models\Voucher;
 use App\Support\Decimal;
 use App\Support\Money;
 
 /**
- * Exports masters and vouchers with the same headings as the import, so an
+ * Exports masters, opening bills, vouchers and invoices with the same headings as the import, so an
  * exported file can be corrected and imported into another company.
  */
 class ExportService
@@ -25,6 +28,8 @@ class ExportService
             'customers', 'suppliers' => $this->parties($type),
             'stock_items' => $this->stockItems(),
             'vouchers' => $this->vouchers($from, $to),
+            'sales_invoices', 'purchase_invoices' => $this->invoices($type, $from, $to),
+            'opening_bills' => $this->openingBills(),
         }];
     }
 
@@ -60,7 +65,51 @@ class ExportService
                 $i->gst_rate !== null ? Decimal::trim($i->gst_rate) : '', $i->sales_rate, $i->purchase_rate,
                 Decimal::trim($i->opening_quantity), '', Money::normalize($i->opening_value), $i->openingGodown?->name,
                 $i->reorder_level !== null ? Decimal::trim($i->reorder_level) : '', $i->description,
+                $i->tracking, $i->track_expiry ? 'yes' : 'no', $i->costing_method, $i->opening_batch_no,
+                $i->opening_mfg_date?->toDateString(), $i->opening_expiry_date?->toDateString(), str_replace("\n", ', ', (string) $i->opening_serials),
             ]);
+    }
+
+    /**
+     * Posted invoices and notes, one row per line, in the import layout. A stock line names the
+     * item (and its ledger only when it is not the item's own); other lines name their ledger.
+     */
+    protected function invoices(string $type, ?string $from, ?string $to): iterable
+    {
+        $kinds = ImportService::TYPES[$type]['kinds'];
+        $purchase = $type === 'purchase_invoices';
+
+        return Invoice::query()->with('voucher', 'party', 'items.stockItem', 'items.account', 'items.godown')->whereIn('kind', $kinds)
+            ->whereHas('voucher', fn ($q) => $q->where('status', Voucher::POSTED))
+            ->when($from, fn ($q) => $q->whereDate('date', '>=', $from))->when($to, fn ($q) => $q->whereDate('date', '<=', $to))
+            ->orderBy('date')->orderBy('id')->lazy(100)
+            ->flatMap(fn (Invoice $inv) => $inv->items->sortBy('line_no')->values()->map(function (InvoiceItem $l, int $n) use ($inv, $purchase) {
+                $stock = $l->stockItem;
+                $own = $stock?->{$purchase ? 'purchase_account_id' : 'sales_account_id'};
+                $first = $n === 0;
+                $row = [
+                    $inv->displayNumber(), $first ? $inv->kind : '', $first ? $inv->date->toDateString() : '', $first ? ($inv->party?->name ?? $inv->party_name) : '',
+                    $first ? (string) $inv->reference : '', $first ? (string) $inv->due_date?->toDateString() : '',
+                    $stock ? ($stock->code ?: $stock->name) : $l->account?->name, $stock && $l->account_id !== $own ? $l->account?->name : '',
+                    $stock ? (string) $l->description : ($l->description !== $l->account?->name ? (string) $l->description : ''),
+                    Decimal::trim($l->quantity), (string) $l->unit, Money::normalize($l->rate),
+                    (float) $l->discount_percent > 0 ? Decimal::trim($l->discount_percent) : '', Decimal::trim($l->gst_rate), (string) $l->hsn_sac,
+                    (string) $l->godown?->name, (string) $l->batch_no, $first ? (string) $inv->narration : '',
+                ];
+                if ($purchase) {
+                    $row[] = (string) $l->mfg_date?->toDateString();
+                    $row[] = (string) $l->expiry_date?->toDateString();
+                }
+                $row[] = str_replace("\n", ', ', (string) $l->serials);
+
+                return $row;
+            }));
+    }
+
+    protected function openingBills(): iterable
+    {
+        return OpeningBill::query()->with('account')->orderBy('account_id')->orderBy('date')->orderBy('id')->get()
+            ->map(fn (OpeningBill $b) => [$b->account->name, $b->bill_ref, $b->date->toDateString(), (string) $b->due_date?->toDateString(), Money::normalize($b->amount), $b->side]);
     }
 
     protected function vouchers(?string $from, ?string $to): iterable

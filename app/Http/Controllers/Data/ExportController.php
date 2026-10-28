@@ -13,7 +13,8 @@ use Illuminate\Http\Request;
 class ExportController extends Controller
 {
     /** Export type => permission needed to see that data. */
-    public const VIEW = ['ledgers' => 'masters.view', 'customers' => 'sales.view', 'suppliers' => 'purchases.view', 'stock_items' => 'inventory.view', 'vouchers' => 'vouchers.view'];
+    public const VIEW = ['ledgers' => 'masters.view', 'customers' => 'sales.view', 'suppliers' => 'purchases.view', 'stock_items' => 'inventory.view', 'vouchers' => 'vouchers.view',
+        'opening_bills' => 'masters.view', 'sales_invoices' => 'sales.view', 'purchase_invoices' => 'purchases.view'];
 
     public function index(Request $request, AccountBalances $balances)
     {
