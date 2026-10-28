@@ -6,6 +6,7 @@ use App\Http\Controllers\Accounting\VoucherTypeController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Banking\BankReconciliationController;
 use App\Http\Controllers\Banking\ChequeController;
+use App\Http\Controllers\Banking\PositivePayController;
 use App\Http\Controllers\Billing\InvoiceController;
 use App\Http\Controllers\Billing\RecurringInvoiceController;
 use App\Http\Controllers\Billing\OrderAdvanceController;
@@ -372,6 +373,9 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     Route::get('/cheques', [ChequeController::class, 'index'])->name('cheques.index')->middleware('can:banking.view');
     Route::get('/cheques/print', [ChequeController::class, 'printBatch'])->name('cheques.print-batch')->middleware('can:banking.view');
     Route::get('/cheques/{voucher}/print', [ChequeController::class, 'print'])->name('cheques.print')->middleware('can:banking.view');
+    Route::get('/positive-pay', [PositivePayController::class, 'index'])->name('positive-pay.index')->middleware('can:banking.view');
+    Route::post('/positive-pay', [PositivePayController::class, 'store'])->name('positive-pay.store')->middleware('can:banking.create');
+    Route::get('/positive-pay/{batch}', [PositivePayController::class, 'show'])->name('positive-pay.show')->middleware('can:banking.view');
     Route::get('/cheque-books', [ChequeController::class, 'books'])->name('cheque-books.index')->middleware('can:banking.view');
     Route::post('/cheque-books', [ChequeController::class, 'storeBook'])->name('cheque-books.store')->middleware('can:banking.create');
     Route::get('/cheque-books/{chequeBook}/edit', [ChequeController::class, 'editBook'])->name('cheque-books.edit')->middleware('can:banking.edit');

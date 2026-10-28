@@ -78,6 +78,8 @@ return [
     'backup_path' => env('ERP_BACKUP_PATH', storage_path('app/private/backups')),
 
     'deletion_tables' => [
+        'positive_pay_items' => null,
+        'positive_pay_batches' => null,
         'tds_returns' => null,
         'tax_declarations' => null,
         'opening_bills' => null,
@@ -145,6 +147,7 @@ return [
         'bill_allocations' => 'account_id',
         'vouchers' => ['party_account_id', 'instrument_account_id'],
         'cheque_books' => 'account_id',
+        'positive_pay_batches' => 'account_id',
         'invoices' => 'party_account_id',
         'orders' => 'party_account_id',
         'delivery_notes' => 'party_account_id',
@@ -297,6 +300,7 @@ return [
         ['label' => 'Banking', 'icon' => 'bank', 'route' => 'bank-reconciliation.index', 'can' => 'banking.view'],
         ['label' => 'Cheque Register', 'icon' => 'credit-card-2-front', 'route' => 'cheques.index', 'can' => 'banking.view'],
         ['label' => 'Cheque Books', 'icon' => 'journal-bookmark', 'route' => 'cheque-books.index', 'can' => 'banking.view'],
+        ['label' => 'Positive Pay', 'icon' => 'shield-check', 'route' => 'positive-pay.index', 'can' => 'banking.view'],
         ['heading' => 'Reports'],
         ['label' => 'Trial Balance', 'icon' => 'list-columns', 'route' => 'reports.trial-balance', 'can' => 'reports.view'],
         ['label' => 'Profit & Loss', 'icon' => 'graph-up-arrow', 'route' => 'reports.profit-loss', 'can' => 'reports.view'],
