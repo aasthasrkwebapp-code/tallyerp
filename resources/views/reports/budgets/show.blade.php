@@ -14,7 +14,8 @@
     </div>
     <div class="d-flex flex-wrap gap-2 no-print">
         <a href="{{ route('budgets.index') }}" class="btn btn-outline-secondary">All budgets</a>
-        @can('masters.edit')<a href="{{ route('budgets.edit', $budget) }}" class="btn btn-outline-primary" data-shortcut="e"><i class="bi bi-pencil me-1"></i>Alter</a>@endcan
+        @can('masters.edit')<a href="{{ route('budgets.edit', $budget) }}" class="btn btn-outline-primary" data-shortcut="e"><i class="bi bi-pencil me-1"></i>Alter</a>
+            <a href="{{ route('budgets.phasing', $budget) }}" class="btn btn-outline-secondary"><i class="bi bi-calendar3 me-1"></i>Monthly phasing</a>@endcan
         @can('masters.create')
             <form method="POST" action="{{ route('budgets.copy', $budget) }}">@csrf<button class="btn btn-outline-secondary"><i class="bi bi-copy me-1"></i>Copy to next year</button></form>
         @endcan
@@ -67,7 +68,7 @@
                         @endif
                         @if ($r->line->costCentre)<div class="small text-secondary"><i class="bi bi-bullseye"></i> {{ $r->line->costCentre->name }}</div>@endif
                     </td>
-                    <td data-label="Basis" class="small">{{ \App\Models\BudgetLine::BASES[$r->line->basis] }}</td>
+                    <td data-label="Basis" class="small">{{ \App\Models\BudgetLine::BASES[$r->line->basis] }}@if ($r->line->isPhased())<div><span class="badge text-bg-info">Phased by month</span></div>@endif</td>
                     <td data-label="Budget" class="amount">{{ $m($r->budget) }}</td>
                     <td data-label="Budget to date" class="amount">{{ $m($r->budget_to_date) }}</td>
                     <td data-label="Actual" class="amount">{{ $signed($r->actual) }}</td>

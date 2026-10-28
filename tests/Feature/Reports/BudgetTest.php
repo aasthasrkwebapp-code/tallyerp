@@ -198,4 +198,70 @@ class BudgetTest extends TestCase
         $this->post(route('budgets.store'), ['name' => 'Sneaky', 'from_date' => '2026-04-01', 'to_date' => '2027-03-31', 'lines' => [['target' => 'l:'.$this->l['rent']->id, 'amount' => '1']]])
             ->assertSessionHasErrors('lines.0.target');
     }
+    public function test_monthly_phasing(): void
+    {
+        $service = app(BudgetVariance::class);
+        $rentLine = ['target' => 'l:'.$this->l['rent']->id, 'basis' => 'nett', 'amount' => '36500'];
+        $budget = $this->budget([$rentLine, ['target' => 'l:'.$this->l['bank']->id, 'basis' => 'closing', 'amount' => '90000']]);
+        $line = $budget->lines[0];
+        $this->assertCount(12, $budget->periods());
+        $this->assertSame(['2026-04-01', '2026-04-30', 'Apr 2026'], $budget->periods()[0]);
+        // Even by days: April 3,000, May 3,100, adding up to the year.
+        $even = $line->monthly($budget);
+        $this->assertSame([300000, 310000], array_slice($even, 0, 2));
+        $this->assertSame(3650000, array_sum($even));
+
+        // Nothing in April, 10,000 in May, 2,650 a month after.
+        $months = array_merge(['0', '10000'], array_fill(0, 10, '2,650'));
+        $budget = $service->savePhasing($budget, [$line->id => $months, $budget->lines[1]->id => $months]);
+        $line = $budget->lines[0];
+        $this->assertTrue($line->isPhased());
+        $this->assertFalse($budget->lines[1]->isPhased()); // closing balances are not phased
+        $this->assertSame('36500.00', $line->amount);
+
+        $row = $service->report($budget, '2026-05-31')['rows'][0];
+        $this->assertSame([1000000, 800000, -200000, null], [$row->budget_to_date, $row->actual, $row->variance, $row->flag]);
+        $this->assertSame(intdiv(1000000 * 16, 31), $service->report($budget, '2026-05-16')['rows'][0]->budget_to_date);
+        $this->assertSame(0, $service->report($budget, '2026-04-20')['rows'][0]->budget_to_date);
+
+        // Months that add up to more change the annual budget.
+        $months[11] = '3650';
+        $this->assertSame('37500.00', $service->savePhasing($budget, [$line->id => $months])->lines[0]->amount);
+        $this->assertArrayHasKey("months.{$line->id}", $this->validationErrors(fn () => $service->savePhasing($budget, [$line->id => ['1', '2']])));
+
+        // Altering the budget keeps phasing on unchanged lines and drops it where the amount changes.
+        $budget = $service->save($budget->fresh(), ['name' => $budget->name, 'from_date' => '2026-04-01', 'to_date' => '2027-03-31', 'lines' => [['amount' => '37500'] + $rentLine]], $this->owner);
+        $this->assertTrue($budget->lines[0]->isPhased());
+        $copy = $service->copyToNextYear($budget, $this->owner);
+        $this->assertSame($budget->lines[0]->phasing, $copy->lines[0]->phasing);
+        $budget = $service->save($budget->fresh(), ['name' => $budget->name, 'from_date' => '2026-04-01', 'to_date' => '2027-03-31', 'lines' => [['amount' => '40000'] + $rentLine]], $this->owner);
+        $this->assertFalse($budget->lines[0]->isPhased());
+
+        // Back to even.
+        $budget = $service->savePhasing($copy, [$copy->lines[0]->id => []]);
+        $this->assertFalse($budget->lines[0]->isPhased());
+    }
+
+    public function test_phasing_screen(): void
+    {
+        $budget = $this->budget([['target' => 'l:'.$this->l['rent']->id, 'basis' => 'nett', 'amount' => '36500']]);
+        $line = $budget->lines[0];
+        $this->actingAs($this->owner)->get(route('budgets.phasing', $budget))->assertOk()->assertSee('Monthly phasing')->assertSee('Mar 2027')->assertSee('3100.00');
+        $months = array_merge(['0', '10000'], array_fill(0, 10, '2650'));
+        $this->put(route('budgets.phasing.update', $budget), ['mode' => [$line->id => 'monthly'], 'months' => [$line->id => $months]])->assertRedirect(route('budgets.show', $budget));
+        $this->get(route('budgets.show', $budget))->assertSee('Phased by month');
+
+        $viewer = $this->addMember($this->company, 'viewer');
+        $this->actingAs($viewer)->get(route('budgets.phasing', $budget))->assertForbidden();
+    }
+
+    protected function validationErrors(callable $fn): array
+    {
+        try {
+            $fn();
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $e->errors();
+        }
+        $this->fail('Expected a validation error.');
+    }
 }

@@ -370,6 +370,8 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
         Route::get('/{budget}/edit', [BudgetController::class, 'edit'])->name('edit')->middleware('can:masters.edit');
         Route::put('/{budget}', [BudgetController::class, 'update'])->name('update')->middleware('can:masters.edit');
         Route::post('/{budget}/copy', [BudgetController::class, 'copy'])->name('copy')->middleware('can:masters.create');
+        Route::get('/{budget}/phasing', [BudgetController::class, 'phasing'])->name('phasing')->middleware('can:masters.edit');
+        Route::put('/{budget}/phasing', [BudgetController::class, 'savePhasing'])->name('phasing.update')->middleware('can:masters.edit');
         Route::delete('/{budget}', [BudgetController::class, 'destroy'])->name('destroy')->middleware('can:masters.delete');
     });
 

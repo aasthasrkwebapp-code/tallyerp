@@ -22,7 +22,8 @@ use Illuminate\Validation\ValidationException;
  * Amounts are on the natural side of the line's group: debit for assets and
  * expenses, credit for liabilities and income. A "nett" line is compared with
  * the transactions from the budget's start to the report date, against the
- * budget for those days (pro rata). A "closing" line is compared with the
+ * budget for those days: pro rata by days, or, for a phased line, the months
+ * before the report date's month plus that month's amount pro rata. A "closing" line is compared with the
  * balance on the report date. Group and cost centre lines include their
  * sub-groups, ledgers and sub-cost-centres.
  */
@@ -90,7 +91,8 @@ class BudgetVariance
                 continue;
             }
             $seen[$key] = true;
-            $lines[] = ['account_group_id' => $groupId, 'account_id' => $accountId, 'cost_centre_id' => $centre, 'basis' => $basis, 'amount' => Money::fromPaise($paise)];
+            $phasing = is_array($line['phasing'] ?? null) && $basis === 'nett' && array_sum(array_map('intval', $line['phasing'])) === $paise ? array_map('intval', $line['phasing']) : null;
+            $lines[] = ['account_group_id' => $groupId, 'account_id' => $accountId, 'cost_centre_id' => $centre, 'basis' => $basis, 'amount' => Money::fromPaise($paise), 'phasing' => $phasing];
         }
         if ($errors) {
             throw ValidationException::withMessages($errors);
@@ -107,8 +109,15 @@ class BudgetVariance
                 'to_date' => $data['to_date'],
                 'description' => $data['description'] ?? null,
             ])->save();
+            // Phasing survives an edit when the line keeps its target, basis and amount.
+            $kept = $budget->exists ? $budget->lines()->whereNotNull('phasing')->get()
+                ->keyBy(fn ($l) => $l->target().'|'.$l->cost_centre_id.'|'.$l->basis.'|'.Money::toPaise((string) $l->amount)) : collect();
+            $periods = count($budget->periods());
             $budget->lines()->delete();
             foreach ($lines as $i => $line) {
+                $key = ($line['account_id'] ? 'l:'.$line['account_id'] : 'g:'.$line['account_group_id']).'|'.$line['cost_centre_id'].'|'.$line['basis'].'|'.Money::toPaise($line['amount']);
+                $phasing = $line['phasing'] ?? $kept->get($key)?->phasing;
+                $line['phasing'] = is_array($phasing) && count($phasing) === $periods ? $phasing : null;
                 $budget->lines()->create(['line_no' => $i + 1] + $line);
             }
 
@@ -126,6 +135,7 @@ class BudgetVariance
             'description' => $budget->description,
             'lines' => $budget->lines->map(fn (BudgetLine $l) => [
                 'target' => $l->target(), 'cost_centre_id' => $l->cost_centre_id, 'basis' => $l->basis, 'amount' => (string) $l->amount,
+                'phasing' => $l->phasing,
             ])->all(),
         ], $user);
     }
@@ -165,7 +175,7 @@ class BudgetVariance
             ? $this->balances->forPeriod($this->balances->yearStart($asOf), $asOf)->mapWithKeys(fn ($b) => [$b->account->id => $b->closing])
             : collect();
 
-        $rows = $budget->lines->map(function (BudgetLine $line) use ($groupLedgers, $centres, $movements, $closing, $elapsed, $days) {
+        $rows = $budget->lines->map(function (BudgetLine $line) use ($groupLedgers, $centres, $movements, $closing, $elapsed, $days, $asOf) {
             $ledgers = $line->account_id ? [$line->account_id] : ($groupLedgers[$line->account_group_id] ?? []);
             $nature = $line->nature();
             $sign = in_array($nature, ['asset', 'expense'], true) ? 1 : -1;
@@ -178,7 +188,7 @@ class BudgetVariance
                 $actual = $sign * (int) round((float) $movements
                     ->filter(fn ($m) => in_array((int) $m->account_id, $ledgers, true) && ($family === null || in_array((int) $m->cost_centre_id, $family, true)))
                     ->sum('net'));
-                $budgetToDate = intdiv(Money::toPaise((string) $line->amount) * $elapsed, $days);
+                $budgetToDate = $line->isPhased() ? $this->phasedToDate($line, $asOf) : intdiv(Money::toPaise((string) $line->amount) * $elapsed, $days);
             }
             $variance = $actual - $budgetToDate;
 
@@ -202,6 +212,83 @@ class BudgetVariance
         });
 
         return ['as_of' => $asOf, 'elapsed' => $elapsed, 'days' => $days, 'rows' => $rows];
+    }
+
+    /**
+     * Save month amounts for nett lines: [line id => [paise strings per period]].
+     * A line's annual amount becomes the sum of its months; an empty row clears the phasing.
+     *
+     * @param  array<int|string, array<int, ?string>>  $months
+     */
+    public function savePhasing(Budget $budget, array $months): Budget
+    {
+        $budget->loadMissing('lines');
+        $count = count($budget->periods());
+        $errors = [];
+        $updates = [];
+        foreach ($budget->lines as $line) {
+            $row = $months[$line->id] ?? null;
+            if ($row === null || $line->basis !== 'nett') {
+                continue;
+            }
+            $row = array_values($row);
+            if (collect($row)->every(fn ($v) => trim((string) $v) === '')) {
+                $updates[$line->id] = null;
+
+                continue;
+            }
+            if (count($row) !== $count) {
+                $errors["months.{$line->id}"] = "Line {$line->line_no}: enter an amount for each of the {$count} months.";
+
+                continue;
+            }
+            $paise = [];
+            foreach ($row as $i => $value) {
+                try {
+                    $paise[] = Money::toPaise(trim((string) $value) === '' ? '0' : str_replace(',', '', (string) $value));
+                } catch (\InvalidArgumentException) {
+                    $errors["months.{$line->id}.{$i}"] = "Line {$line->line_no}, month ".($i + 1).': enter a valid amount.';
+                }
+            }
+            if (count($paise) === $count) {
+                $updates[$line->id] = $paise;
+            }
+        }
+        if ($errors) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        DB::transaction(function () use ($budget, $updates) {
+            foreach ($budget->lines as $line) {
+                if (! array_key_exists($line->id, $updates)) {
+                    continue;
+                }
+                $months = $updates[$line->id];
+                $line->update($months === null
+                    ? ['phasing' => null]
+                    : ['phasing' => $months, 'amount' => Money::fromPaise(array_sum($months))]);
+            }
+            \App\Models\AuditLog::record('updated', $budget, null, ['phased_lines' => $budget->lines()->whereNotNull('phasing')->count()], "Monthly phasing of budget \"{$budget->name}\" saved");
+        });
+
+        return $budget->fresh('lines');
+    }
+
+    /** Budget to date of a phased line: whole months before the date's month, plus that month pro rata by days. */
+    protected function phasedToDate(BudgetLine $line, string $asOf): int
+    {
+        $sum = 0;
+        foreach ($line->budget->periods() as $i => [$from, $to]) {
+            $amount = (int) ($line->phasing[$i] ?? 0);
+            if ($to <= $asOf) {
+                $sum += $amount;
+            } elseif ($from <= $asOf) {
+                $days = (int) Carbon::parse($from)->diffInDays(Carbon::parse($to)) + 1;
+                $sum += intdiv($amount * ((int) Carbon::parse($from)->diffInDays(Carbon::parse($asOf)) + 1), $days);
+            }
+        }
+
+        return $sum;
     }
 
     /** Ledger ids under each group, including its sub-groups. */

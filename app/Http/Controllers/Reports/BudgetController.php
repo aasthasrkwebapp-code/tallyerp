@@ -85,6 +85,41 @@ class BudgetController extends Controller
         return redirect()->route('budgets.show', $budget)->with('success', 'Budget updated.');
     }
 
+    /** Month-by-month amounts for the lines budgeted on transactions. */
+    public function phasing(Budget $budget)
+    {
+        $budget->load('lines.group', 'lines.account', 'lines.costCentre');
+
+        return view('reports.budgets.phasing', [
+            'budget' => $budget,
+            'periods' => $budget->periods(),
+            'lines' => $budget->lines->where('basis', 'nett')->values(),
+        ]);
+    }
+
+    public function savePhasing(Request $request, Budget $budget)
+    {
+        $data = $request->validate([
+            'mode' => ['array'],
+            'mode.*' => ['in:even,monthly'],
+            'months' => ['array'],
+            'months.*' => ['array', 'max:13'],
+            'months.*.*' => ['nullable', 'string', 'max:20'],
+        ]);
+        $months = [];
+        foreach ($budget->lines as $line) {
+            $mode = $data['mode'][$line->id] ?? null;
+            if ($mode === 'even') {
+                $months[$line->id] = [];
+            } elseif ($mode === 'monthly') {
+                $months[$line->id] = $data['months'][$line->id] ?? [];
+            }
+        }
+        $this->variance->savePhasing($budget, $months);
+
+        return redirect()->route('budgets.show', $budget)->with('success', 'Monthly phasing saved. Each phased line\'s budget is now the total of its months.');
+    }
+
     public function copy(Request $request, Budget $budget)
     {
         try {
