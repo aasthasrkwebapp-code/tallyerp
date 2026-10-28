@@ -6,7 +6,7 @@
 <div class="page-header">
     <div>
         <h1>Import</h1>
-        <p class="text-secondary mb-0">Bring in ledgers, customers, suppliers, stock items or vouchers from a CSV or Excel file.</p>
+        <p class="text-secondary mb-0">Bring in ledgers, customers, suppliers, stock items, vouchers, sales invoices or purchase bills from a CSV or Excel file.</p>
     </div>
 </div>
 
@@ -32,7 +32,7 @@
             </div>
             <div class="form-check mb-3">
                 <input class="form-check-input" type="checkbox" id="skip_duplicates" name="skip_duplicates" value="1" @checked(old('skip_duplicates'))>
-                <label class="form-check-label" for="skip_duplicates">Skip rows that already exist (same name, or the same voucher)</label>
+                <label class="form-check-label" for="skip_duplicates">Skip rows that already exist (same name, the same voucher, or the same invoice)</label>
             </div>
             <button class="btn btn-primary">Check file</button>
             <p class="small text-secondary mt-2 mb-0">Nothing is saved yet: the next screen shows every problem found. The file is imported only when all rows are valid.</p>
@@ -64,7 +64,7 @@
                 @endforeach
             </div>
         </div>
-        <p class="small text-secondary mt-2">Rows are checked with the same rules as the entry screens: unique names, GSTIN and PAN format, state codes, opening balances, balanced vouchers, locked periods. Files exported from <a href="{{ route('exports.index') }}">Export</a> use the same columns.</p>
+        <p class="small text-secondary mt-2">Rows are checked with the same rules as the entry screens: unique names, GSTIN and PAN format, state codes, opening balances, balanced vouchers, GST and stock on invoices, locked periods. Files exported from <a href="{{ route('exports.index') }}">Export</a> use the same columns.</p>
     </div>
 </div>
 @endif

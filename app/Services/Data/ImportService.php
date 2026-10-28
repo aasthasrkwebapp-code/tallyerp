@@ -9,6 +9,7 @@ use App\Models\Account;
 use App\Models\AccountGroup;
 use App\Models\AuditLog;
 use App\Models\Godown;
+use App\Models\Invoice;
 use App\Models\Party;
 use App\Models\StockCategory;
 use App\Models\StockGroup;
@@ -19,6 +20,7 @@ use App\Models\Voucher;
 use App\Models\VoucherEntry;
 use App\Models\VoucherType;
 use App\Services\Accounting\VoucherService;
+use App\Services\Billing\InvoiceService;
 use App\Support\Money;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
@@ -29,9 +31,9 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use Throwable;
 
 /**
- * CSV / Excel import of ledgers, customers, suppliers, stock items and
- * vouchers. Each row is validated by the same rules as the entry screens
- * (the form requests and the voucher engine). A preview runs the whole
+ * CSV / Excel import of ledgers, customers, suppliers, stock items,
+ * vouchers and sales / purchase invoices. Each row is validated by the same rules as the entry screens
+ * (the form requests, the voucher engine and the invoice engine). A preview runs the whole
  * import inside a transaction and rolls it back; the real import commits
  * only when every row is valid, so a file is imported completely or not at all.
  */
@@ -92,9 +94,39 @@ class ImportService
             ],
             'example' => ['1', '2026-04-01', 'journal', 'Office Rent', '15000', '', 'Rent for April', ''],
         ],
+        'sales_invoices' => [
+            'label' => 'Sales invoices and credit notes', 'permission' => 'sales.create', 'kinds' => ['sales', 'credit_note'],
+            'columns' => [
+                'invoice' => ['Invoice', true, 'Rows with the same value form one invoice'], 'type' => ['Type', false, 'sales (default) or credit_note'],
+                'date' => ['Date', true, 'YYYY-MM-DD or DD-MM-YYYY'], 'party' => ['Party', true, 'Existing customer, or a cash / bank ledger'],
+                'reference' => ['Reference', false, 'Your own invoice or order reference'], 'due_date' => ['Due Date', false, 'Default from the party\'s credit days'],
+                'item' => ['Item', true, 'Existing stock item (name or code), or a sales ledger for a service line'],
+                'ledger' => ['Ledger', false, 'Sales ledger, when not the item\'s own'], 'description' => ['Description', false, ''],
+                'quantity' => ['Quantity', true, ''], 'unit' => ['Unit', false, 'Default from the stock item'], 'rate' => ['Rate', true, 'Before GST'],
+                'discount' => ['Discount %', false, ''], 'gst_rate' => ['GST Rate', false, 'Default from the stock item'], 'hsn_sac' => ['HSN/SAC', false, ''],
+                'godown' => ['Godown', false, 'Default godown if blank'], 'batch' => ['Batch', false, 'For batch-tracked items'],
+                'narration' => ['Narration', false, 'From the first row'],
+            ],
+            'example' => ['1', 'sales', '2026-04-05', 'Mumbai Retail', 'PO-77', '', 'Steel Rod 12mm', '', '', '10', '', '450', '', '18', '', '', '', 'Imported from old software'],
+        ],
+        'purchase_invoices' => [
+            'label' => 'Purchase bills and debit notes', 'permission' => 'purchases.create', 'kinds' => ['purchase', 'debit_note'],
+            'columns' => [
+                'invoice' => ['Invoice', true, 'Rows with the same value form one bill'], 'type' => ['Type', false, 'purchase (default) or debit_note'],
+                'date' => ['Date', true, 'YYYY-MM-DD or DD-MM-YYYY'], 'party' => ['Party', true, 'Existing supplier, or a cash / bank ledger'],
+                'reference' => ['Supplier Bill No', false, 'The supplier\'s bill number; a bill is imported once per supplier'], 'due_date' => ['Due Date', false, 'Default from the party\'s credit days'],
+                'item' => ['Item', true, 'Existing stock item (name or code), or a purchase ledger for an expense line'],
+                'ledger' => ['Ledger', false, 'Purchase ledger, when not the item\'s own'], 'description' => ['Description', false, ''],
+                'quantity' => ['Quantity', true, ''], 'unit' => ['Unit', false, 'Default from the stock item'], 'rate' => ['Rate', true, 'Before GST'],
+                'discount' => ['Discount %', false, ''], 'gst_rate' => ['GST Rate', false, 'Default from the stock item'], 'hsn_sac' => ['HSN/SAC', false, ''],
+                'godown' => ['Godown', false, 'Default godown if blank'], 'batch' => ['Batch', false, 'For batch-tracked items'],
+                'narration' => ['Narration', false, 'From the first row'],
+            ],
+            'example' => ['1', 'purchase', '2026-04-03', 'Pune Steel Supply', 'PSS/101', '', 'Steel Rod 12mm', '', '', '50', '', '380', '', '18', '', '', '', ''],
+        ],
     ];
 
-    public function __construct(protected VoucherService $vouchers) {}
+    public function __construct(protected VoucherService $vouchers, protected InvoiceService $invoices) {}
 
     public static function columns(string $type): array
     {
@@ -185,12 +217,18 @@ class ImportService
 
         DB::beginTransaction();
         try {
-            $groups = $type === 'vouchers' ? $this->voucherGroups($rows, $result) : array_map(fn ($r) => [$r], $rows);
+            $groupKey = match ($type) {
+                'vouchers' => 'voucher',
+                'sales_invoices', 'purchase_invoices' => 'invoice',
+                default => null,
+            };
+            $groups = $groupKey ? $this->voucherGroups($rows, $result, $groupKey) : array_map(fn ($r) => [$r], $rows);
             foreach ($groups as $first => $group) {
                 $rowNumber = $first;
                 try {
                     $duplicate = match ($type) {
                         'vouchers' => $this->importVoucher($group, $user, $skipDuplicates),
+                        'sales_invoices', 'purchase_invoices' => $this->importInvoice($type, $group, $user, $skipDuplicates),
                         default => $this->importMaster($type, $group[0], $skipDuplicates),
                     };
                     if ($duplicate) {
@@ -321,15 +359,15 @@ class ImportService
         StockItem::create($request->itemData());
     }
 
-    /** Groups voucher rows by their "Voucher" key, keeping the first row number of each. */
-    protected function voucherGroups(array $rows, array &$result): array
+    /** Groups rows by their "Voucher" (or "Invoice") key, keeping the first row number of each. */
+    protected function voucherGroups(array $rows, array &$result, string $column = 'voucher'): array
     {
         $groups = [];
         $firstRow = [];
         foreach ($rows as $n => $row) {
-            $key = $row['voucher'] ?? '';
+            $key = $row[$column] ?? '';
             if ($key === '') {
-                $result['errors'][] = ['row' => $n, 'message' => 'Voucher: enter a voucher number or key to group the lines.'];
+                $result['errors'][] = ['row' => $n, 'message' => Str::headline($column).': enter a number or key to group the lines.'];
 
                 continue;
             }
@@ -404,6 +442,147 @@ class ImportService
         return null;
     }
 
+    /**
+     * One sales invoice, credit note, purchase bill or debit note from its
+     * rows, saved and posted through the invoice engine (so GST, stock,
+     * batches, locked periods and numbering follow the entry screen).
+     */
+    protected function importInvoice(string $type, array $lines, User $user, bool $skipDuplicates): ?string
+    {
+        $head = $lines[0];
+        $kinds = self::TYPES[$type]['kinds'];
+        $kind = str_replace([' ', '-'], '_', strtolower(trim($head['type'] ?? ''))) ?: $kinds[0];
+        $kind = match ($kind) {
+            'invoice', 'bill', 'purchase_bill', 'sales_invoice' => $kinds[0],
+            'return', 'note', 'sales_return', 'purchase_return' => $kinds[1],
+            default => $kind,
+        };
+        if (! in_array($kind, $kinds, true)) {
+            throw ValidationException::withMessages(['type' => 'Use '.implode(' or ', $kinds).'.']);
+        }
+        $config = Invoice::kindConfig($kind);
+        if (! $user->can($config['module'].'.create')) {
+            throw ValidationException::withMessages(['type' => 'You do not have permission to create '.mb_strtolower($config['plural']).'.']);
+        }
+        $date = $this->date($head['date'] ?? '');
+        if (! $date) {
+            throw ValidationException::withMessages(['date' => 'Enter the date as YYYY-MM-DD or DD-MM-YYYY.']);
+        }
+        $dueDate = null;
+        if (($head['due_date'] ?? '') !== '' && ! ($dueDate = $this->date($head['due_date']))) {
+            throw ValidationException::withMessages(['due_date' => 'Enter the due date as YYYY-MM-DD or DD-MM-YYYY.']);
+        }
+        $partyName = trim($head['party'] ?? '');
+        $party = $this->invoices->partyQuery($kind)->whereRaw('LOWER(name) = ?', [mb_strtolower($partyName)])->first();
+        if (! $party) {
+            $who = $config['party_group'] === 'sundry_debtors' ? 'customer' : 'supplier';
+            throw ValidationException::withMessages(['party' => "\"{$partyName}\" is not an active {$who} (or a cash / bank ledger). Import or add the {$who} first."]);
+        }
+
+        $errors = [];
+        $items = [];
+        $ledgerType = $config['item_type'];
+        foreach ($lines as $line) {
+            $row = $line['_row'];
+            foreach (['type', 'date', 'party'] as $field) {
+                if (($line[$field] ?? '') !== '' && $line !== $head && mb_strtolower(trim($line[$field])) !== mb_strtolower(trim($head[$field] ?? ''))) {
+                    $errors["{$field}_{$row}"] = "Row {$row}: every row of an invoice must have the same ".Str::lower(self::columns($type)[$field][0]).'.';
+                }
+            }
+            $name = trim($line['item'] ?? '');
+            $stock = $name === '' ? null : StockItem::query()->where(fn ($q) => $q->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->orWhereRaw('LOWER(code) = ?', [mb_strtolower($name)]))->first();
+            $ledger = null;
+            if (($line['ledger'] ?? '') !== '') {
+                $ledger = Account::query()->where('account_type', $ledgerType)->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($line['ledger']))])->first();
+                if (! $ledger) {
+                    $errors["ledger_{$row}"] = "Row {$row}: \"{$line['ledger']}\" is not a {$ledgerType} ledger.";
+
+                    continue;
+                }
+            } elseif (! $stock && $name !== '') {
+                $ledger = Account::query()->where('account_type', $ledgerType)->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->first();
+            }
+            if (! $stock && ! $ledger) {
+                $errors["item_{$row}"] = "Row {$row}: \"{$name}\" is neither a stock item nor a {$ledgerType} ledger.";
+
+                continue;
+            }
+            // A stock item without its own ledger goes to the default Sales / Purchase ledger.
+            if ($stock && ! $ledger && ! $stock->{$ledgerType === 'sales' ? 'sales_account_id' : 'purchase_account_id'}) {
+                $ledger = Account::query()->find(Account::idFor($ledgerType));
+            }
+            $godownId = null;
+            if (($line['godown'] ?? '') !== '') {
+                $godownId = Godown::query()->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($line['godown']))])->value('id');
+                if (! $godownId) {
+                    $errors["godown_{$row}"] = "Row {$row}: godown \"{$line['godown']}\" does not exist.";
+                }
+            }
+            $items[] = [
+                'stock_item_id' => $stock?->id, 'account_id' => $ledger?->id, 'godown_id' => $godownId,
+                'description' => $this->blank($line['description'] ?? null) ?? ($stock ? null : $name),
+                'quantity' => $this->amount($line['quantity'] ?? ''), 'unit' => $this->blank($line['unit'] ?? null),
+                'rate' => $this->amount($line['rate'] ?? ''), 'discount_percent' => $this->amount($line['discount'] ?? ''),
+                'gst_rate' => str_replace('%', '', $this->amount($line['gst_rate'] ?? '')), 'hsn_sac' => $this->blank($line['hsn_sac'] ?? null),
+                'batch_no' => $this->blank($line['batch'] ?? null), '_row' => $row,
+            ];
+        }
+        if ($errors) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        $reference = $this->blank($head['reference'] ?? null);
+        $data = [
+            'date' => $date, 'due_date' => $dueDate, 'party_account_id' => $party->id, 'reference' => $reference,
+            'narration' => $this->blank($head['narration'] ?? null), 'items' => $items,
+        ];
+
+        $byBillNumber = $reference !== null && in_array($kind, ['purchase', 'debit_note'], true);
+        $others = fn () => Invoice::query()->ofKind($kind)->where('party_account_id', $party->id)
+            ->whereHas('voucher', fn ($q) => $q->where('status', '!=', Voucher::CANCELLED))->with('voucher');
+
+        // A supplier's bill number identifies a bill.
+        $existing = $byBillNumber ? $others()->whereRaw('LOWER(reference) = ?', [mb_strtolower($reference)])->first() : null;
+        try {
+            // Otherwise the same date, reference and total; saved inside a savepoint so that check can undo it.
+            $existing ?? DB::transaction(function () use ($kind, $data, $user, $reference, $date, $byBillNumber, $others, &$existing) {
+                $invoice = $this->invoices->save(null, $kind, $data, $user);
+                if ($byBillNumber) {
+                    return;
+                }
+                $existing = $others()->whereKeyNot($invoice->id)->whereDate('date', $date)->where('grand_total', $invoice->grand_total)
+                    ->when($reference !== null, fn ($w) => $w->where('reference', $reference), fn ($w) => $w->whereNull('reference'))->first();
+                if ($existing) {
+                    throw new \RuntimeException('duplicate');
+                }
+            });
+        } catch (\RuntimeException $e) {
+            if (! $existing) {
+                throw $e;
+            }
+        } catch (ValidationException $e) {
+            // Name the CSV row instead of "Item 2".
+            $messages = [];
+            foreach ($e->errors() as $field => $list) {
+                $row = preg_match('/^items\.(\d+)/', $field, $m) ? ($items[(int) $m[1]]['_row'] ?? null) : null;
+                foreach ($list as $message) {
+                    $messages[$field][] = $row ? "Row {$row}: ".preg_replace('/^Item \d+: /', '', $message) : $message;
+                }
+            }
+            throw ValidationException::withMessages($messages);
+        }
+
+        if ($existing) {
+            $what = mb_strtolower($config['label']).' '.$existing->number();
+            if ($skipDuplicates) {
+                return "Same as {$what} already entered.";
+            }
+            throw ValidationException::withMessages(['invoice' => "This looks like {$what}, already entered for {$party->name}".($byBillNumber ? " with bill number {$reference}." : ' on the same date with the same total.')]);
+        }
+
+        return null;
+    }
+
     /** Validates input with a form request as if it came from its screen. */
     protected function formRequest(string $class, array $input, array $route, array $rename = []): FormRequest
     {
@@ -437,7 +616,14 @@ class ImportService
             return $columns[$field][0].': ';
         }
 
-        return str_starts_with($field, 'ledger_') || str_starts_with($field, 'amount_') ? '' : Str::headline($field).': ';
+        if (preg_match('/^(ledger|amount|item|godown|type|date|party)_\d+$/', $field) || str_starts_with($field, 'items')) {
+            return '';
+        }
+
+        return match ($field) {
+            'party_account_id' => 'Party: ',
+            default => Str::headline($field).': ',
+        };
     }
 
     protected function group(string $name): ?AccountGroup

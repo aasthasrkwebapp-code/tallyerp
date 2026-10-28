@@ -20,7 +20,7 @@ class ExportController extends Controller
         [$from, $to] = $balances->defaultPeriod();
 
         return view('data.export', [
-            'types' => array_filter(ImportService::TYPES, fn ($t, $k) => $request->user()->can(self::VIEW[$k]), ARRAY_FILTER_USE_BOTH),
+            'types' => array_filter(ImportService::TYPES, fn ($t, $k) => isset(self::VIEW[$k]) && $request->user()->can(self::VIEW[$k]), ARRAY_FILTER_USE_BOTH),
             'from' => $from, 'to' => $to,
         ]);
     }
