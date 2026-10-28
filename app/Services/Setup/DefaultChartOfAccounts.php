@@ -78,6 +78,7 @@ class DefaultChartOfAccounts
         ['rcm_sgst', 'SGST Payable (Reverse Charge)', 'duties_taxes', 'tax', ['tax_type' => 'sgst']],
         ['rcm_igst', 'IGST Payable (Reverse Charge)', 'duties_taxes', 'tax', ['tax_type' => 'igst']],
         ['rcm_cess', 'Cess Payable (Reverse Charge)', 'duties_taxes', 'tax', ['tax_type' => 'cess']],
+        ['grni', 'Goods Received Not Invoiced', 'provisions', 'general', []],
     ];
 
     /**

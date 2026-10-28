@@ -101,7 +101,7 @@ class DeliveryNoteService
      *
      * @return array<int, int>
      */
-    public function invoicedQuantities(array $noteItemIds, ?int $exceptInvoiceId = null): array
+    public function invoicedQuantities(array $noteItemIds, ?int $exceptInvoiceId = null, ?string $asOf = null): array
     {
         if (! $noteItemIds) {
             return [];
@@ -113,6 +113,7 @@ class DeliveryNoteService
             ->where('v.status', Voucher::POSTED)
             ->whereIn('ii.note_item_id', $noteItemIds)
             ->when($exceptInvoiceId, fn ($q) => $q->where('i.id', '!=', $exceptInvoiceId))
+            ->when($asOf, fn ($q) => $q->where('i.date', '<=', $asOf))
             ->get(['ii.note_item_id', 'ii.quantity'])
             ->groupBy('note_item_id')
             ->map(fn ($rows) => $rows->sum(fn ($r) => Decimal::toScaled($r->quantity, 3)))
@@ -260,12 +261,13 @@ class DeliveryNoteService
     }
 
     /** Lines of posted notes not yet (fully) invoiced, oldest first. */
-    public function pending(string $kind, ?int $partyId = null): Collection
+    public function pending(string $kind, ?int $partyId = null, ?string $asOf = null): Collection
     {
         $notes = DeliveryNote::query()->ofKind($kind)->where('status', 'posted')
             ->when($partyId, fn ($q) => $q->where('party_account_id', $partyId))
+            ->when($asOf, fn ($q) => $q->where('date', '<=', $asOf))
             ->with('items.item.unit')->orderBy('date')->orderBy('id')->get();
-        $done = $this->invoicedQuantities($notes->flatMap->items->pluck('id')->all());
+        $done = $this->invoicedQuantities($notes->flatMap->items->pluck('id')->all(), null, $asOf);
 
         return $notes->flatMap(fn (DeliveryNote $n) => $n->items->map(function (DeliveryNoteItem $line) use ($n, $done) {
             $qty = Decimal::toScaled($line->quantity, 3);

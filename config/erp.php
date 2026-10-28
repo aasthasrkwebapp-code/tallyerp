@@ -272,6 +272,7 @@ return [
         ['label' => 'Pending Purchase Orders', 'icon' => 'hourglass-top', 'route' => 'orders.pending', 'can' => 'purchases.view', 'params' => ['kind' => 'purchase_order']],
         ['label' => 'Delivered, Not Invoiced', 'icon' => 'box-arrow-right', 'route' => 'notes.pending', 'can' => 'sales.view', 'params' => ['kind' => 'delivery_note']],
         ['label' => 'Received, Not Billed', 'icon' => 'box-arrow-in-left', 'route' => 'notes.pending', 'can' => 'purchases.view', 'params' => ['kind' => 'receipt_note']],
+        ['label' => 'GRNI Provision', 'icon' => 'journal-arrow-down', 'route' => 'grni.index', 'can' => 'purchases.view'],
         ['label' => 'Stock Summary', 'icon' => 'clipboard-check', 'route' => 'stock-summary', 'can' => 'inventory.view'],
         ['label' => 'Reorder Status', 'icon' => 'arrow-repeat', 'route' => 'stock-reorder', 'can' => 'inventory.view'],
         ['label' => 'Stock Ageing', 'icon' => 'calendar-range', 'route' => 'stock-ageing', 'can' => 'inventory.view'],

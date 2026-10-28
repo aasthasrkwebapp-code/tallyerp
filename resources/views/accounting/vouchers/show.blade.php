@@ -50,6 +50,9 @@
 @elseif ($voucher->source_type === \App\Models\EmployeeLoan::class && $voucher->source)
     <div class="alert alert-info small no-print"><i class="bi bi-cash-coin me-1"></i>Generated from a
         <a href="{{ route('employee-loans.show', $voucher->source) }}">{{ strtolower(\App\Models\EmployeeLoan::KINDS[$voucher->source->kind]) }} to {{ $voucher->source->employee->name }}</a>. Cancel it from there.</div>
+@elseif ($voucher->source_type === \App\Models\GrniProvision::class && $voucher->source)
+    <div class="alert alert-info small no-print"><i class="bi bi-box-arrow-in-left me-1"></i>Generated from the
+        <a href="{{ route('grni.index') }}">goods received not invoiced provision</a> of {{ $voucher->source->date->format('d M Y') }}. Cancel it from there.</div>
 @elseif ($voucher->source_type === \App\Models\TransportExpense::class && $voucher->source)
     <div class="alert alert-info small no-print"><i class="bi bi-truck me-1"></i>Generated from a transport expense ({{ $voucher->source->categoryLabel() }}, {{ $voucher->source->vehicle->number }})@if ($voucher->source->trip) on <a href="{{ route('trips.show', $voucher->source->trip) }}">trip {{ $voucher->source->trip->number }}</a>@endif. Cancel it from <a href="{{ route('transport-expenses.index') }}">transport expenses</a>.</div>
 @endif

@@ -19,6 +19,7 @@ use App\Http\Controllers\Inventory\BomController;
 use App\Http\Controllers\Inventory\StockItemController;
 use App\Http\Controllers\Inventory\StockJournalController;
 use App\Http\Controllers\Inventory\DeliveryNoteController;
+use App\Http\Controllers\Inventory\GrniController;
 use App\Http\Controllers\Inventory\StockReportController;
 use App\Http\Controllers\Masters\AccountGroupController;
 use App\Http\Controllers\Masters\CostCentreController;
@@ -293,6 +294,11 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     Route::post('/orders/{order}/close', [OrderController::class, 'close'])->name('orders.close');
     Route::post('/orders/{order}/reopen', [OrderController::class, 'reopen'])->name('orders.reopen');
     Route::post('/orders/{order}/convert', [OrderController::class, 'convert'])->name('orders.convert');
+
+    // Goods received not invoiced provisions
+    Route::get('/grni', [GrniController::class, 'index'])->name('grni.index')->middleware('can:purchases.view');
+    Route::post('/grni', [GrniController::class, 'store'])->name('grni.store')->middleware('can:purchases.create');
+    Route::post('/grni/{grniProvision}/cancel', [GrniController::class, 'cancel'])->name('grni.cancel')->middleware('can:purchases.delete');
 
     // Delivery notes and goods receipt notes (permissions checked per kind in the controller)
     Route::get('/notes', [DeliveryNoteController::class, 'index'])->name('notes.index');
