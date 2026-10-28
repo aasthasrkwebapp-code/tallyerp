@@ -353,6 +353,7 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     // Goods received not invoiced provisions
     Route::get('/grni', [GrniController::class, 'index'])->name('grni.index')->middleware('can:purchases.view');
     Route::post('/grni', [GrniController::class, 'store'])->name('grni.store')->middleware('can:purchases.create');
+    Route::put('/grni/settings', [GrniController::class, 'settings'])->name('grni.settings')->middleware('can:purchases.create');
     Route::post('/grni/{grniProvision}/cancel', [GrniController::class, 'cancel'])->name('grni.cancel')->middleware('can:purchases.delete');
 
     // Delivery notes and goods receipt notes (permissions checked per kind in the controller)

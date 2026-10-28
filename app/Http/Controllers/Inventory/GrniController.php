@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Inventory;
 use App\Http\Controllers\Controller;
 use App\Models\GrniProvision;
 use App\Services\Inventory\GrniService;
+use App\Support\CurrentCompany;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -33,6 +34,19 @@ class GrniController extends Controller
 
         return redirect()->route('grni.index', ['date' => $provision->date->toDateString()])
             ->with('success', 'Provision of '.\App\Support\Money::format($provision->amount).' posted as '.$provision->voucher->voucher_number.($provision->reversal ? ', reversed on '.$provision->reversal->date->format('d M Y').' by '.$provision->reversal->voucher_number : '').'.');
+    }
+
+    /** Turns the automatic month-end provision on or off. */
+    public function settings(Request $request, CurrentCompany $current)
+    {
+        $request->validate(['grni_auto' => ['nullable', 'boolean'], 'grni_auto_reverse' => ['nullable', 'boolean']]);
+        $company = $current->get();
+        $company->update(['settings' => array_merge($company->settings ?? [], [
+            'grni_auto' => $request->boolean('grni_auto'),
+            'grni_auto_reverse' => $request->boolean('grni_auto_reverse'),
+        ])]);
+
+        return back()->with('success', 'Automatic provision settings saved.');
     }
 
     public function cancel(Request $request, GrniProvision $grniProvision)

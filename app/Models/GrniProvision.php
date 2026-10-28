@@ -12,11 +12,11 @@ class GrniProvision extends Model
 {
     use Auditable, BelongsToCompany;
 
-    protected $fillable = ['company_id', 'date', 'amount', 'note_lines', 'status', 'voucher_id', 'reversal_voucher_id', 'cancellation_reason', 'created_by'];
+    protected $fillable = ['company_id', 'date', 'amount', 'note_lines', 'status', 'automatic', 'voucher_id', 'reversal_voucher_id', 'cancellation_reason', 'created_by'];
 
     protected function casts(): array
     {
-        return ['date' => \App\Casts\DateOnly::class, 'amount' => 'decimal:2', 'note_lines' => 'integer'];
+        return ['date' => \App\Casts\DateOnly::class, 'amount' => 'decimal:2', 'note_lines' => 'integer', 'automatic' => 'boolean'];
     }
 
     public function voucher(): BelongsTo

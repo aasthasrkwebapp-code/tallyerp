@@ -47,7 +47,7 @@ class GrniService
         return ['rows' => $valued, 'unvalued' => $rows->filter(fn ($r) => $r->value === 0)->values(), 'ledgers' => $ledgers, 'total' => $valued->sum('value')];
     }
 
-    public function post(string $asOf, bool $reverse, User $user): GrniProvision
+    public function post(string $asOf, bool $reverse, User $user, bool $automatic = false): GrniProvision
     {
         if (! $asOf || ! strtotime($asOf)) {
             throw ValidationException::withMessages(['date' => 'Enter the date of the provision.']);
@@ -65,11 +65,11 @@ class GrniService
             throw ValidationException::withMessages(['date' => 'The Journal voucher type is needed.']);
         }
 
-        return DB::transaction(function () use ($asOf, $reverse, $user, $preview, $type) {
+        return DB::transaction(function () use ($asOf, $reverse, $user, $preview, $type, $automatic) {
             $grni = DefaultChartOfAccounts::ledgerId('grni');
             $provision = GrniProvision::create([
                 'date' => $asOf, 'amount' => Money::fromPaise($preview['total']), 'note_lines' => $preview['rows']->count(),
-                'status' => 'posted', 'created_by' => $user->id,
+                'status' => 'posted', 'automatic' => $automatic, 'created_by' => $user->id,
             ]);
             $debits = $preview['ledgers']->map(fn ($l) => ['account_id' => $l->account_id, 'side' => 'Dr', 'amount' => Money::fromPaise($l->amount)])->all();
             $credit = ['account_id' => $grni, 'side' => 'Cr', 'amount' => Money::fromPaise($preview['total'])];
@@ -94,10 +94,40 @@ class GrniService
                 throw ValidationException::withMessages(['date' => collect($e->errors())->flatten()->all()]);
             }
             $provision->update(['voucher_id' => $voucher->id, 'reversal_voucher_id' => $reversal?->id]);
-            AuditLog::record('posted', $provision, null, ['amount' => $provision->amount], "GRNI provision on {$label} posted as {$voucher->voucher_number}".($reversal ? ", reversed by {$reversal->voucher_number}" : ''));
+            AuditLog::record('posted', $provision, null, ['amount' => $provision->amount], ($automatic ? 'Automatic ' : '')."GRNI provision on {$label} posted as {$voucher->voucher_number}".($reversal ? ", reversed by {$reversal->voucher_number}" : ''));
 
             return $provision->fresh(['voucher', 'reversal']);
         });
+    }
+
+    /**
+     * The automatic month-end run: posts the provision for the last day of the month before
+     * $today when none exists for that date. A provision cancelled by hand is not posted again.
+     * The outcome is kept in the company setting grni_auto_last so the GRNI page can show it.
+     *
+     * @return array{date: string, status: string, message: string}
+     */
+    public function runMonthEnd(\App\Models\Company $company, User $user, string $today): array
+    {
+        $date = Carbon::parse($today)->subMonthNoOverflow()->endOfMonth()->toDateString();
+        $existing = GrniProvision::query()->where('date', $date)->orderByDesc('id')->first();
+        if ($existing) {
+            return ['date' => $date, 'status' => 'skipped', 'message' => $existing->status === 'posted' ? 'Already posted.' : 'Cancelled by hand; not posted again.'];
+        }
+        if (! $company->financialYearFor($date)) {
+            return ['date' => $date, 'status' => 'skipped', 'message' => 'The date is outside the books.'];
+        }
+        try {
+            $provision = $this->post($date, (bool) $company->setting('grni_auto_reverse', true), $user, true);
+            $result = ['date' => $date, 'status' => 'posted', 'message' => 'Posted '.Money::format($provision->amount).' as '.$provision->voucher->voucher_number.'.'];
+        } catch (ValidationException $e) {
+            $message = collect($e->errors())->flatten()->implode(' ');
+            $nothing = str_starts_with($message, 'There are no unbilled');
+            $result = ['date' => $date, 'status' => $nothing ? 'nothing' : 'failed', 'message' => $nothing ? 'Nothing to provide for.' : $message];
+        }
+        $company->update(['settings' => array_merge($company->settings ?? [], ['grni_auto_last' => $result + ['ran_at' => now()->toDateTimeString()]])]);
+
+        return $result;
     }
 
     public function cancel(GrniProvision $provision, User $user, string $reason): GrniProvision

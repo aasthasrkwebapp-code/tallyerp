@@ -24,6 +24,28 @@
     </div>
 </form>
 
+<div class="erp-card p-3 mb-3 no-print">
+    @php($last = $currentCompany->setting('grni_auto_last'))
+    <form method="POST" action="{{ route('grni.settings') }}" class="d-flex flex-wrap align-items-center gap-3">
+        @csrf @method('PUT')
+        <div class="fw-semibold">Automatic month-end provision</div>
+        <div class="form-check form-switch mb-0">
+            <input type="hidden" name="grni_auto" value="0">
+            <input class="form-check-input" type="checkbox" role="switch" name="grni_auto" value="1" id="grni_auto" @checked($currentCompany->setting('grni_auto', false)) @cannot('purchases.create') disabled @endcannot>
+            <label class="form-check-label" for="grni_auto">Post on the 1st for the last day of the month before</label>
+        </div>
+        <div class="form-check mb-0">
+            <input type="hidden" name="grni_auto_reverse" value="0">
+            <input class="form-check-input" type="checkbox" name="grni_auto_reverse" value="1" id="grni_auto_reverse" @checked($currentCompany->setting('grni_auto_reverse', true)) @cannot('purchases.create') disabled @endcannot>
+            <label class="form-check-label" for="grni_auto_reverse">Reverse it the next day</label>
+        </div>
+        @can('purchases.create')<button class="btn btn-sm btn-outline-primary">Save</button>@endcan
+    </form>
+    @if ($last)
+        <div class="small mt-2 {{ $last['status'] === 'failed' ? 'text-danger' : 'text-secondary' }}">Last run {{ \Illuminate\Support\Carbon::parse($last['ran_at'])->format('d M Y H:i') }} for {{ \Illuminate\Support\Carbon::parse($last['date'])->format('d M Y') }}: {{ $last['message'] }}@if ($last['status'] === 'failed') It is tried again each day.@endif</div>
+    @endif
+</div>
+
 <div class="row g-3 mb-3">
     <div class="col-12 col-lg-5">
         <div class="erp-card h-100">
@@ -97,7 +119,7 @@
             <tbody>
             @forelse ($provisions as $pr)
                 <tr>
-                    <td data-label="Date"><a href="{{ route('grni.index', ['date' => $pr->date->toDateString()]) }}">{{ $pr->date->format('d M Y') }}</a></td>
+                    <td data-label="Date"><div><a href="{{ route('grni.index', ['date' => $pr->date->toDateString()]) }}">{{ $pr->date->format('d M Y') }}</a>@if ($pr->automatic) <span class="badge text-bg-light border">Automatic</span>@endif</div></td>
                     <td data-label="Amount" class="amount">{{ \App\Support\Money::format($pr->amount) }}</td>
                     <td data-label="Journal">@if ($pr->voucher)<a href="{{ route('vouchers.show', $pr->voucher) }}">{{ $pr->voucher->voucher_number }}</a>@endif</td>
                     <td data-label="Reversal">@if ($pr->reversal)<a href="{{ route('vouchers.show', $pr->reversal) }}">{{ $pr->reversal->voucher_number }}</a> {{ $pr->reversal->date->format('d M Y') }}@else<span class="text-secondary">Not reversed</span>@endif</td>

@@ -15,6 +15,9 @@ Schedule::command('erp:backup --scheduled')->dailyAt('01:30')->withoutOverlappin
 Schedule::command('erp:recurring-vouchers')->dailyAt('00:30')->withoutOverlapping();
 Schedule::command('erp:recurring-invoices')->dailyAt('00:40')->withoutOverlapping();
 
+// Month-end provision for goods received not invoiced, where turned on (Inventory → GRNI Provision).
+Schedule::command('erp:grni-provisions')->dailyAt('00:50')->withoutOverlapping();
+
 // Uploaded import files that were never imported.
 Schedule::call(function () {
     foreach (glob(storage_path('app/private/imports/*')) ?: [] as $file) {

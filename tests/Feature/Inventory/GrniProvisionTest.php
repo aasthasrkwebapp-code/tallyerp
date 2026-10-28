@@ -145,4 +145,57 @@ class GrniProvisionTest extends TestCase
         $this->actingAs($this->owner)->post(route('grni.cancel', $provision), ['reason' => 'Wrong'])->assertRedirect();
         $this->assertSame('cancelled', $provision->fresh()->status);
     }
+
+    public function test_automatic_month_end_provision(): void
+    {
+        $this->grn($this->widget, '10', '100', '2026-05-02');
+        $cmd = fn (string $date) => $this->artisan('erp:grni-provisions', ['--date' => $date]);
+
+        // Off by default: nothing posted.
+        $cmd('2026-06-01')->assertSuccessful();
+        $this->assertSame(0, GrniProvision::count());
+
+        $this->actingAs($this->owner)->put(route('grni.settings'), ['grni_auto' => '1', 'grni_auto_reverse' => '1'])->assertRedirect();
+        $this->assertTrue($this->company->fresh()->setting('grni_auto'));
+        $cmd('2026-06-01')->expectsOutputToContain('2026-05-31 posted')->assertSuccessful();
+        $provision = GrniProvision::sole();
+        $this->assertTrue($provision->automatic);
+        $this->assertSame('2026-05-31', $provision->date->toDateString());
+        $this->assertSame('1000.00', $provision->amount);
+        $this->assertSame('2026-06-01', $provision->reversal->date->toDateString());
+        $this->assertSame($this->owner->id, $provision->created_by);
+
+        // Daily runs in the same month do nothing more.
+        $cmd('2026-06-15')->assertSuccessful();
+        $this->assertSame(1, GrniProvision::count());
+
+        // A provision cancelled by hand is not posted again.
+        app(GrniService::class)->cancel($provision, $this->owner, 'Wrong rate');
+        $cmd('2026-06-20')->assertSuccessful();
+        $this->assertSame(1, GrniProvision::count());
+
+        // Billed in June: nothing to provide for at the end of June.
+        $this->bill($this->grn($this->steel, '2', '50', '2026-06-10'), '2', '2026-06-12');
+        $this->bill(DeliveryNote::query()->orderBy('id')->first(), '10', '2026-06-12');
+        $cmd('2026-07-01')->assertSuccessful();
+        $this->assertSame(1, GrniProvision::count());
+        $this->assertSame('nothing', $this->company->fresh()->setting('grni_auto_last')['status']);
+
+        // A locked period fails, is shown on the page and is tried again later.
+        $this->grn($this->widget, '3', '100', '2026-07-05');
+        $fy = $this->company->financialYears()->first();
+        $july = $fy->periods()->whereDate('start_date', '<=', '2026-07-31')->whereDate('end_date', '>=', '2026-07-31')->first();
+        $july->update(['is_locked' => true]);
+        $cmd('2026-08-01')->assertFailed();
+        $this->assertSame('failed', $this->company->fresh()->setting('grni_auto_last')['status']);
+        $this->get(route('grni.index'))->assertOk()->assertSee('Automatic month-end provision')->assertSee('tried again each day');
+        $july->update(['is_locked' => false]);
+        $cmd('2026-08-02')->assertSuccessful();
+        $this->assertSame(1, GrniProvision::where('status', 'posted')->where('date', '2026-07-31')->where('automatic', true)->count());
+        $this->get(route('grni.index'))->assertSee('Automatic');
+
+        // Viewers cannot change the setting.
+        $viewer = $this->addMember($this->company, 'viewer');
+        $this->actingAs($viewer)->put(route('grni.settings'), ['grni_auto' => '0'])->assertForbidden();
+    }
 }
