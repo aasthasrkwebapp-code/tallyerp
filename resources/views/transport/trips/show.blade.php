@@ -19,6 +19,7 @@
         @if ($trip->status !== 'cancelled')
             @can('transport.create')<a href="{{ route('transport-expenses.create', ['trip' => $trip->id]) }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Add expense</a>@endcan
             @can('transport.edit')<a href="{{ route('trips.edit', $trip) }}" class="btn btn-outline-primary">Edit</a>@endcan
+            <a href="{{ route('trips.lr', $trip) }}" class="btn btn-outline-secondary" target="_blank"><i class="bi bi-printer me-1"></i>Print LR</a>
         @endif
     </div>
 </div>
@@ -37,7 +38,10 @@
             <dl class="row mb-0 p-3 small">
                 <dt class="col-5">Customer</dt><dd class="col-7">{{ $trip->party?->name ?? '—' }}</dd>
                 <dt class="col-5">Route</dt><dd class="col-7">{{ $trip->route?->name ?? '—' }}</dd>
-                <dt class="col-5">LR number</dt><dd class="col-7">{{ $trip->lr_number ?: '—' }}</dd>
+                <dt class="col-5">LR number</dt><dd class="col-7">{{ $trip->lr_number ?: '—' }}@if ($trip->lr_date) <span class="text-secondary">{{ $trip->lr_date->format('d-m-Y') }}</span>@endif</dd>
+                <dt class="col-5">Consignee</dt><dd class="col-7">{{ $trip->consignee_name ?: '—' }}</dd>
+                <dt class="col-5">E-way bill</dt><dd class="col-7">{{ $trip->eway_bill_no ?: '—' }}@if ($trip->eway_bill_valid_till) <span class="{{ $trip->status === 'open' && $trip->ewayBillExpired() ? 'text-danger fw-semibold' : 'text-secondary' }}">till {{ $trip->eway_bill_valid_till->format('d-m-Y') }}{{ $trip->status === 'open' && $trip->ewayBillExpired() ? ' (expired)' : '' }}</span>@endif</dd>
+                <dt class="col-5">Goods</dt><dd class="col-7">{{ $trip->packages ? $trip->packages.' '.($trip->packing ?: 'packages') : '—' }}@if ($trip->goods_value !== null) · {{ $m($trip->goods_value) }}@endif</dd>
                 <dt class="col-5">Material</dt><dd class="col-7">{{ $trip->material ?: '—' }}@if ($trip->weight_tonnes !== null) · {{ \App\Support\Decimal::trim($trip->weight_tonnes) }} t @endif</dd>
                 <dt class="col-5">Odometer</dt><dd class="col-7">{{ $trip->start_km ?? '—' }} → {{ $trip->end_km ?? '—' }}</dd>
                 @if ($trip->narration)<dt class="col-5">Notes</dt><dd class="col-7">{{ $trip->narration }}</dd>@endif

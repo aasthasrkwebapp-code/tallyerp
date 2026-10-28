@@ -146,6 +146,10 @@ class TripController extends Controller
         $id = $current->id();
         $exists = fn (string $table) => Rule::exists($table, 'id')->where('company_id', $id);
 
+        foreach (['consignor_gstin', 'consignee_gstin'] as $field) {
+            $request->merge([$field => $request->filled($field) ? strtoupper(trim((string) $request->input($field))) : null]);
+        }
+        $request->merge(['eway_bill_no' => $request->filled('eway_bill_no') ? preg_replace('/\s+/', '', (string) $request->input('eway_bill_no')) : null]);
         $data = $request->validate([
             'vehicle_id' => ['required', 'integer', $exists('vehicles')],
             'driver_id' => ['nullable', 'integer', $exists('drivers')],
@@ -160,7 +164,34 @@ class TripController extends Controller
             'freight_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99', 'decimal:0,2'],
             'start_km' => ['nullable', 'integer', 'min:0', 'max:99999999'],
             'narration' => ['nullable', 'string', 'max:2000'],
-        ], ['party_account_id.in' => 'Choose a customer.']);
+            'lr_date' => ['nullable', 'date'],
+            'consignor_name' => ['nullable', 'string', 'max:150'],
+            'consignor_address' => ['nullable', 'string', 'max:500'],
+            'consignor_gstin' => ['nullable', 'string', 'regex:'.\App\Services\Gst\Gstr1Json::GSTIN_PATTERN],
+            'consignee_name' => ['nullable', 'string', 'max:150'],
+            'consignee_address' => ['nullable', 'string', 'max:500'],
+            'consignee_gstin' => ['nullable', 'string', 'regex:'.\App\Services\Gst\Gstr1Json::GSTIN_PATTERN],
+            'packages' => ['nullable', 'integer', 'min:0', 'max:9999999'],
+            'packing' => ['nullable', 'string', 'max:50'],
+            'goods_invoice_no' => ['nullable', 'string', 'max:50'],
+            'goods_value' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99', 'decimal:0,2'],
+            'freight_terms' => ['nullable', Rule::in(array_keys(Trip::FREIGHT_TERMS))],
+            'eway_bill_no' => ['nullable', 'regex:/^\d{12}$/'],
+            'eway_bill_valid_till' => ['nullable', 'date', 'after_or_equal:start_date'],
+        ], [
+            'party_account_id.in' => 'Choose a customer.',
+            'consignor_gstin.regex' => 'Enter a valid 15-character GSTIN.',
+            'consignee_gstin.regex' => 'Enter a valid 15-character GSTIN.',
+            'eway_bill_no.regex' => 'An e-way bill number has 12 digits.',
+            'eway_bill_valid_till.after_or_equal' => 'The e-way bill cannot run out before the trip starts.',
+        ]);
+        $data['freight_terms'] = $data['freight_terms'] ?? 'to_be_billed';
+        if (! $trip && empty($data['lr_number']) && $request->boolean('auto_lr')) {
+            $data['lr_number'] = $this->transport->nextLrNumber();
+        }
+        if (! empty($data['lr_number']) && empty($data['lr_date'])) {
+            $data['lr_date'] = $data['start_date'];
+        }
 
         // A route fills in origin and destination when they are left blank.
         $route = ! empty($data['transport_route_id']) ? TransportRoute::query()->find($data['transport_route_id']) : null;
@@ -174,10 +205,30 @@ class TripController extends Controller
         return $data;
     }
 
+    /** The lorry receipt (consignment note): consignor, consignee, driver and office copies. */
+    public function lr(Request $request, CurrentCompany $current, Trip $trip)
+    {
+        abort_if($trip->status === 'cancelled', 404);
+        $trip->load('vehicle', 'driver', 'party.partyDetails');
+        $copies = array_values(array_intersect(['Consignor copy', 'Consignee copy', 'Driver copy', 'Office copy'], (array) $request->input('copies', ['Consignor copy', 'Consignee copy', 'Driver copy', 'Office copy'])))
+            ?: ['Consignor copy'];
+        $data = ['trip' => $trip, 'company' => $current->get(), 'copies' => $copies];
+
+        if ($request->input('format') === 'pdf') {
+            return \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.lr', $data)->setPaper('a4')
+                ->download('LR-'.str_replace('/', '-', $trip->lr_number ?: $trip->number).'.pdf');
+        }
+
+        return view('pdf.lr', $data + ['printable' => true]);
+    }
+
     /** Expired vehicle documents or driving licence on the trip's start date (the trip is still saved). */
     protected function documentWarning(Trip $trip): ?string
     {
         $warnings = app(\App\Services\Transport\DocumentExpiry::class)->tripWarnings($trip->vehicle_id, $trip->driver_id, $trip->start_date->toDateString());
+        if (! $trip->eway_bill_no && (float) $trip->goods_value > Trip::EWAY_BILL_LIMIT) {
+            $warnings[] = 'The goods are worth more than '.\App\Support\Money::format((string) Trip::EWAY_BILL_LIMIT).' and no e-way bill number is entered.';
+        }
 
         return $warnings ? implode(' ', $warnings) : null;
     }

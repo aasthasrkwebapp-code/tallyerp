@@ -37,6 +37,15 @@ class TransportService
         return 'TR/'.str_pad((string) ($last + 1), 4, '0', STR_PAD_LEFT);
     }
 
+    /** The next LR number in the LR/0001 series (manually entered numbers in other formats are ignored). */
+    public function nextLrNumber(): string
+    {
+        $last = Trip::query()->lockForUpdate()->where('lr_number', 'like', 'LR/%')->pluck('lr_number')
+            ->map(fn ($n) => (int) preg_replace('/\D/', '', substr((string) $n, 3)))->max() ?? 0;
+
+        return 'LR/'.str_pad((string) ($last + 1), 4, '0', STR_PAD_LEFT);
+    }
+
     /** Creates the driver with an advances ledger under Loans & Advances (Asset). */
     public function createDriver(array $data): Driver
     {
