@@ -51,6 +51,7 @@ use App\Http\Controllers\Transport\TransportExpenseController;
 use App\Http\Controllers\Transport\TransportMasterController;
 use App\Http\Controllers\Transport\TransportReportController;
 use App\Http\Controllers\Transport\TripController;
+use App\Http\Controllers\Transport\TyreController;
 use App\Http\Controllers\Transport\VehicleDocumentController;
 use App\Http\Controllers\Data\BackupController;
 use App\Http\Controllers\Data\IntegrityController;
@@ -305,6 +306,14 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
         Route::put('/documents/{vehicleDocument}', [VehicleDocumentController::class, 'update'])->name('vehicle-documents.update')->middleware('can:transport.edit');
         Route::delete('/documents/{vehicleDocument}', [VehicleDocumentController::class, 'destroy'])->name('vehicle-documents.destroy')->middleware('can:transport.delete');
 
+        Route::get('/tyres', [TyreController::class, 'index'])->name('tyres.index')->middleware('can:transport.view');
+        Route::post('/tyres', [TyreController::class, 'store'])->name('tyres.store')->middleware('can:transport.create');
+        Route::get('/tyres/{tyre}', [TyreController::class, 'show'])->name('tyres.show')->middleware('can:transport.view');
+        Route::put('/tyres/{tyre}', [TyreController::class, 'update'])->name('tyres.update')->middleware('can:transport.edit');
+        Route::post('/tyres/{tyre}/fit', [TyreController::class, 'fit'])->name('tyres.fit')->middleware('can:transport.edit');
+        Route::post('/tyres/{tyre}/retread', [TyreController::class, 'retread'])->name('tyres.retread')->middleware('can:transport.edit');
+        Route::post('/tyres/{tyre}/scrap', [TyreController::class, 'scrap'])->name('tyres.scrap')->middleware('can:transport.delete');
+        Route::post('/tyre-fitments/{fitment}/remove', [TyreController::class, 'remove'])->name('tyres.remove')->middleware('can:transport.edit');
         Route::get('/reports/{report}', TransportReportController::class)->name('transport-reports')->where('report', 'trips|vehicles|routes|customers|drivers')->middleware('can:transport.view');
     });
 
