@@ -114,6 +114,8 @@ class TwoFactorTest extends TestCase
     public function test_challenge_expires_and_is_rate_limited(): void
     {
         [$user] = $this->enabledUser();
+        // Frozen clock: otherwise a slow run can cross a second and report "59 seconds".
+        Carbon::setTestNow(now()->startOfSecond());
         $this->get(route('two-factor.login'))->assertRedirect(route('login'));
 
         $this->post('/login', ['email' => $user->email, 'password' => 'password']);
