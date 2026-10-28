@@ -4,10 +4,10 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToCompany;
+use App\Models\Concerns\RecursOnSchedule;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Carbon;
 
 /**
  * A voucher template with a schedule (rent, EMIs, monthly provisions).
@@ -15,7 +15,7 @@ use Illuminate\Support\Carbon;
  */
 class RecurringVoucher extends Model
 {
-    use Auditable, BelongsToCompany;
+    use Auditable, BelongsToCompany, RecursOnSchedule;
 
     public const FREQUENCIES = [
         'weekly' => 'Weekly',
@@ -62,33 +62,5 @@ class RecurringVoucher extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
-    }
-
-    /**
-     * The occurrence after $date. Monthly and longer schedules keep the start
-     * date's day of month, falling back to the month's last day (31 Jan → 28 Feb → 31 Mar).
-     */
-    public function dateAfter(Carbon|string $date): Carbon
-    {
-        $date = Carbon::parse($date);
-        if ($this->frequency === 'weekly') {
-            return $date->copy()->addWeek();
-        }
-        $months = ['monthly' => 1, 'quarterly' => 3, 'half_yearly' => 6, 'yearly' => 12][$this->frequency];
-        $day = Carbon::parse($this->start_date)->day;
-        $next = $date->copy()->startOfMonth()->addMonthsNoOverflow($months);
-
-        return $next->day(min($day, $next->daysInMonth));
-    }
-
-    /** True when the schedule has a date due on or before $asOf. */
-    public function isDue(string $asOf): bool
-    {
-        return $this->is_active && $this->next_date !== null && $this->next_date->toDateString() <= $asOf;
-    }
-
-    public function frequencyLabel(): string
-    {
-        return self::FREQUENCIES[$this->frequency] ?? $this->frequency;
     }
 }

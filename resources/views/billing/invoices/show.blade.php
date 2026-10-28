@@ -26,6 +26,9 @@
         @if (in_array($status, ['draft', 'pending_approval'], true) && $user->can($config['module'].'.delete'))
             <form method="POST" action="{{ route('invoices.destroy', $invoice) }}" data-confirm="Delete this draft?">@csrf @method('DELETE')<button class="btn btn-outline-danger">Delete draft</button></form>
         @endif
+        @if ($status !== 'cancelled' && in_array($invoice->kind, \App\Models\RecurringInvoice::KINDS, true) && $user->can($config['module'].'.create'))
+            <a href="{{ route('recurring-invoices.create', ['invoice' => $invoice->id]) }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-repeat me-1"></i>Make recurring</a>
+        @endif
         @if ($status === 'posted' && in_array($invoice->kind, ['sales', 'purchase'], true) && $user->can($config['module'].'.create'))
             <a href="{{ route('invoices.create', ['kind' => $invoice->kind === 'sales' ? 'credit_note' : 'debit_note', 'from' => $invoice->id]) }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-return-left me-1"></i>{{ $invoice->kind === 'sales' ? 'Credit note' : 'Debit note' }}</a>
         @endif

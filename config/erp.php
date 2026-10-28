@@ -249,6 +249,7 @@ return [
         ['heading' => 'Transactions'],
         ['label' => 'Vouchers', 'icon' => 'journal-text', 'route' => 'vouchers.index', 'can' => 'vouchers.view'],
         ['label' => 'Recurring Vouchers', 'icon' => 'arrow-repeat', 'route' => 'recurring-vouchers.index', 'can' => 'vouchers.view'],
+        ['label' => 'Recurring Invoices', 'icon' => 'calendar2-week', 'route' => 'recurring-invoices.index', 'can' => 'sales.view'],
         ['label' => 'Quotations', 'icon' => 'chat-square-quote', 'route' => 'orders.index', 'can' => 'sales.view', 'params' => ['kind' => 'quotation']],
         ['label' => 'Sales Orders', 'icon' => 'clipboard-plus', 'route' => 'orders.index', 'can' => 'sales.view', 'params' => ['kind' => 'sales_order']],
         ['label' => 'Delivery Notes', 'icon' => 'box-arrow-right', 'route' => 'notes.index', 'can' => 'sales.view', 'params' => ['kind' => 'delivery_note']],

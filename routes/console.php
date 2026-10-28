@@ -13,6 +13,7 @@ Schedule::command('erp:backup --scheduled')->dailyAt('01:30')->withoutOverlappin
 
 // Recurring vouchers that are due (Transactions → Recurring Vouchers).
 Schedule::command('erp:recurring-vouchers')->dailyAt('00:30')->withoutOverlapping();
+Schedule::command('erp:recurring-invoices')->dailyAt('00:40')->withoutOverlapping();
 
 // Uploaded import files that were never imported.
 Schedule::call(function () {

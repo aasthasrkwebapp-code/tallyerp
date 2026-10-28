@@ -7,6 +7,7 @@ use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Banking\BankReconciliationController;
 use App\Http\Controllers\Banking\ChequeController;
 use App\Http\Controllers\Billing\InvoiceController;
+use App\Http\Controllers\Billing\RecurringInvoiceController;
 use App\Http\Controllers\Billing\OrderAdvanceController;
 use App\Http\Controllers\Billing\OrderController;
 use App\Http\Controllers\Billing\PartyController;
@@ -276,6 +277,15 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     });
 
     // Sales invoices, purchase bills, credit and debit notes (permissions checked per kind)
+    Route::get('/invoices/recurring', [RecurringInvoiceController::class, 'index'])->name('recurring-invoices.index');
+    Route::get('/invoices/recurring/create', [RecurringInvoiceController::class, 'create'])->name('recurring-invoices.create');
+    Route::post('/invoices/recurring', [RecurringInvoiceController::class, 'store'])->name('recurring-invoices.store');
+    Route::post('/invoices/recurring/run', [RecurringInvoiceController::class, 'runAll'])->name('recurring-invoices.run-all');
+    Route::get('/invoices/recurring/{recurringInvoice}', [RecurringInvoiceController::class, 'show'])->name('recurring-invoices.show');
+    Route::get('/invoices/recurring/{recurringInvoice}/edit', [RecurringInvoiceController::class, 'edit'])->name('recurring-invoices.edit');
+    Route::put('/invoices/recurring/{recurringInvoice}', [RecurringInvoiceController::class, 'update'])->name('recurring-invoices.update');
+    Route::delete('/invoices/recurring/{recurringInvoice}', [RecurringInvoiceController::class, 'destroy'])->name('recurring-invoices.destroy');
+    Route::post('/invoices/recurring/{recurringInvoice}/run', [RecurringInvoiceController::class, 'run'])->name('recurring-invoices.run');
     Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
     Route::get('/invoices/create', [InvoiceController::class, 'create'])->name('invoices.create');
     Route::post('/invoices', [InvoiceController::class, 'store'])->name('invoices.store');
