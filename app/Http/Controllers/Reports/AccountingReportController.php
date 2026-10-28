@@ -11,6 +11,8 @@ use App\Models\VoucherType;
 use App\Services\Reports\AccountBalances;
 use App\Services\Reports\CashFlow;
 use App\Services\Reports\FinancialStatements;
+use App\Services\Reports\PeriodComparison;
+use App\Services\Reports\RatioAnalysis;
 use App\Support\CsvExport;
 use App\Support\Money;
 use Illuminate\Http\Request;
@@ -147,6 +149,84 @@ class AccountingReportController extends Controller
         }
 
         return view('reports.balance-sheet', $data + ['to' => $to]);
+    }
+
+    /** Ratio analysis, optionally beside the same period of the previous year. */
+    public function ratios(Request $request, RatioAnalysis $analysis)
+    {
+        [$from, $to] = $this->period($request);
+        $compare = $request->boolean('compare');
+        $columns = [$analysis->compute($from, $to)];
+        if ($compare) {
+            array_unshift($columns, $analysis->compute(
+                \Illuminate\Support\Carbon::parse($from)->subYearNoOverflow()->toDateString(),
+                \Illuminate\Support\Carbon::parse($to)->subYearNoOverflow()->toDateString(),
+            ));
+        }
+
+        if (CsvExport::requested($request)) {
+            $this->authorize('reports.export');
+            $headers = array_merge(['Particulars', 'Basis'], array_map(fn ($c) => $c['from'].' to '.$c['to'], $columns));
+            $rows = collect([['Principal groups', '']]);
+            foreach (RatioAnalysis::GROUPS as $key => $label) {
+                $rows->push(array_merge([$label, 'Amount'], array_map(fn ($c) => Money::fromPaise($c['groups'][$key]), $columns)));
+            }
+            $rows->push(['Principal ratios', '']);
+            foreach (RatioAnalysis::RATIOS as $key => [$label, $unit, $basis]) {
+                $rows->push(array_merge([$label, $basis], array_map(fn ($c) => RatioAnalysis::format($c['ratios'][$key], $unit), $columns)));
+            }
+
+            return CsvExport::download("ratio-analysis-{$from}-to-{$to}.csv", $headers, $rows);
+        }
+
+        return view('reports.ratios', compact('columns', 'from', 'to', 'compare'));
+    }
+
+    /** Profit & loss or balance sheet for several periods side by side. */
+    public function comparison(Request $request, PeriodComparison $comparison)
+    {
+        [$from, $to] = $this->period($request);
+        $options = $request->validate([
+            'statement' => ['nullable', 'in:pl,bs'],
+            'mode' => ['nullable', 'in:'.implode(',', array_keys(PeriodComparison::MODES))],
+            'detailed' => ['nullable', 'boolean'],
+        ]);
+        $statement = $options['statement'] ?? 'pl';
+        $mode = $options['mode'] ?? 'previous';
+        $detailed = (bool) ($options['detailed'] ?? false);
+
+        $columns = $comparison->columns($mode, $from, $to);
+        // A long period is cut to the first columns rather than refused, with a note on the page.
+        $truncated = count($columns) > PeriodComparison::MAX_COLUMNS;
+        $columns = array_slice($columns, 0, PeriodComparison::MAX_COLUMNS);
+        $data = $statement === 'bs' ? $comparison->balanceSheet($columns, $detailed) : $comparison->profitAndLoss($columns, $detailed);
+        $showChange = count($columns) === 2;
+        $showTotal = $statement === 'pl' && count($columns) > 2;
+
+        if (CsvExport::requested($request)) {
+            $this->authorize('reports.export');
+            $headers = array_merge(['Particulars'], array_column($columns, 'label'), $showChange ? ['Change', 'Change %'] : [], $showTotal ? ['Total'] : []);
+            $rows = $data['rows']->filter(fn ($r) => $r->kind !== 'empty')->map(function ($r) use ($showChange, $showTotal) {
+                $cells = [str_repeat('    ', $r->depth).$r->label];
+                foreach ($r->amounts as $a) {
+                    $cells[] = Money::fromPaise($a);
+                }
+                if ($r->amounts && $showChange) {
+                    [$diff, $pct] = PeriodComparison::change($r->amounts);
+                    array_push($cells, Money::fromPaise($diff), $pct === null ? '' : $pct.'%');
+                }
+                if ($r->amounts && $showTotal) {
+                    $cells[] = Money::fromPaise($r->total);
+                }
+
+                return $cells;
+            });
+            $name = $statement === 'bs' ? 'balance-sheet' : 'profit-and-loss';
+
+            return CsvExport::download("{$name}-comparison-{$from}-to-{$to}.csv", $headers, $rows);
+        }
+
+        return view('reports.comparison', $data + compact('from', 'to', 'statement', 'mode', 'detailed', 'showChange', 'showTotal', 'truncated'));
     }
 
     public function dayBook(Request $request)

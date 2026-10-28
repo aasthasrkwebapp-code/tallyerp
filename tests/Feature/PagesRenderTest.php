@@ -18,7 +18,7 @@ class PagesRenderTest extends TestCase
         $role = \App\Models\Role::whereNull('company_id')->where('name', 'viewer')->first();
 
         $pages = [
-            '/dashboard', '/search', '/search?q=sales', '/companies', '/companies/create', "/companies/{$company->id}", "/companies/{$company->id}/edit",
+            '/dashboard', '/search', '/search?q=sales', '/reports/ratios', '/reports/comparison', '/reports/comparison?statement=bs&mode=quarter', '/companies', '/companies/create', "/companies/{$company->id}", "/companies/{$company->id}/edit",
             '/settings', '/financial-years', '/members', '/roles/create', "/roles/{$role->id}", '/audit-logs', '/profile',
             '/account-groups', '/account-groups/create', '/ledgers', '/ledgers/create', '/cost-centres',
         ];

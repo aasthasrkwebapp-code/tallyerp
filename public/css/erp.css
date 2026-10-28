@@ -104,3 +104,9 @@ a { color: var(--erp-accent); }
 .erp-search { width: 260px; }
 @media (min-width: 1200px) { .erp-search { width: 340px; } }
 .search-result:hover { background: #f8fafc; }
+
+/* Wide comparison tables: keep the particulars column in view while scrolling sideways. */
+.table-sticky-first > :not(caption) > tr > :first-child { position: sticky; left: 0; z-index: 1; background-color: #fff; box-shadow: 1px 0 0 #e5e7eb; }
+.table-sticky-first > thead > tr > :first-child { background-color: #f8f9fa; }
+.table-sticky-first .row-group > td:first-child { background-color: #f8fafc; }
+@media (max-width: 575.98px) { .table-sticky-first > :not(caption) > tr > :first-child { white-space: normal; min-width: 9rem; max-width: 11rem; } }
