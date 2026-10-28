@@ -18,10 +18,12 @@ use Illuminate\Support\Facades\DB;
  * items made against a note line do not move stock again.
  * Quantities are integers in thousandths, values integers in paise.
  *
- * Valuation is weighted average cost: (opening value + purchases − purchase
- * returns + goods receipt notes + valued stock-journal inwards) ÷ the same quantities, all up to the
- * valuation date, applied to the closing quantity. Sales returns and godown
- * transfers move quantity without changing the average.
+ * Each item is valued by its costing method. Weighted average cost:
+ * (opening value + purchases − purchase returns + goods receipt notes + valued
+ * stock-journal inwards) ÷ the same quantities, all up to the valuation date,
+ * applied to the closing quantity; sales returns and godown transfers move
+ * quantity without changing the average. FIFO: the closing quantity is valued
+ * at the cost of the most recent receipts still in hand (see fifoLayers()).
  */
 class StockLedger
 {
@@ -154,7 +156,7 @@ class StockLedger
     }
 
     /**
-     * Closing quantity, average rate and value of each item as on a date.
+     * Closing quantity, rate and value of each item as on a date, by the item's costing method.
      *
      * @return Collection<int, object{item: StockItem, quantity:int, value:int, rate:int, inward_qty:int, inward_value:int}> keyed by item id
      */
@@ -171,16 +173,23 @@ class StockLedger
             $openingValue = Money::toPaise($item->opening_value);
             $rows = $movements->get($item->id, collect());
 
-            // The average cost is company-wide; quantities can be limited to a godown.
+            // Cost is company-wide; quantities can be limited to a godown.
             $inQty = $openingQty + $rows->filter(fn ($m) => in_array($m->kind, ['purchase', 'purchase_return', 'journal_in', 'receipt'], true))->sum('quantity');
             $inValue = $openingValue + $rows->sum('value');
+            $totalQty = $openingQty + $rows->sum('quantity');
 
             $qty = $godownId
                 ? ($inGodown($item->opening_godown_id) ? $openingQty : 0) + $rows->filter(fn ($m) => $inGodown($m->godown_id))->sum('quantity')
-                : $openingQty + $rows->sum('quantity');
+                : $totalQty;
 
-            $rate = $inQty > 0 ? Decimal::mulDiv($inValue, 1000, $inQty) : Money::toPaise($item->purchase_rate);
-            $value = $inQty > 0 ? Decimal::mulDiv($qty, $inValue, $inQty) : Decimal::mulDiv($qty, $rate, 1000);
+            if ($item->costing_method === 'fifo') {
+                $fifo = $this->fifoLayers($item, $rows);
+                $rate = $totalQty > 0 ? Decimal::mulDiv($fifo['value'], 1000, $totalQty) : $fifo['last_rate'];
+                $value = $totalQty > 0 ? Decimal::mulDiv($qty, $fifo['value'], $totalQty) : Decimal::mulDiv($qty, $rate, 1000);
+            } else {
+                $rate = $inQty > 0 ? Decimal::mulDiv($inValue, 1000, $inQty) : Money::toPaise($item->purchase_rate);
+                $value = $inQty > 0 ? Decimal::mulDiv($qty, $inValue, $inQty) : Decimal::mulDiv($qty, $rate, 1000);
+            }
 
             return [$item->id => (object) [
                 'item' => $item,
@@ -191,6 +200,98 @@ class StockLedger
                 'inward_value' => $inValue,
             ]];
         });
+    }
+
+    /**
+     * Cost in paise of issuing $quantity (thousandths) of an item on a date: the oldest
+     * remaining lots for FIFO, the average cost otherwise.
+     */
+    public function issueCost(StockItem $item, int $quantity, string $date): int
+    {
+        if ($item->costing_method !== 'fifo') {
+            $p = $this->position($date, collect([$item]))[$item->id];
+
+            return Decimal::mulDiv($quantity, $p->rate, 1000);
+        }
+        $fifo = $this->fifoLayers($item, $this->movements([$item->id], $date));
+        $cost = 0;
+        foreach ($fifo['layers'] as [$lotQty, $lotValue]) {
+            if ($quantity <= 0) {
+                break;
+            }
+            $take = min($quantity, $lotQty);
+            $cost += Decimal::mulDiv($lotValue, $take, $lotQty);
+            $quantity -= $take;
+        }
+
+        return $cost + Decimal::mulDiv($quantity, $fifo['last_rate'], 1000); // beyond stock in hand
+    }
+
+    /**
+     * FIFO lots left after the movements: [[quantity, value], ...] oldest first.
+     *
+     * Valued receipts (opening, purchases, receipt notes, valued journal inwards) add a lot at
+     * their cost. Sales returns and unvalued inwards come back at the cost of the last issue
+     * (the opening cost before any issue).
+     * Issues and purchase returns use up the oldest lots first. Godown transfers are ignored:
+     * they do not change the company's stock. Stock issued beyond what is in hand is a shortfall
+     * that the next receipt fills first.
+     *
+     * @return array{layers: array<int, array{0:int, 1:int}>, value:int, last_rate:int}
+     */
+    public function fifoLayers(StockItem $item, Collection $rows): array
+    {
+        $layers = [];
+        $shortfall = 0;
+        $lastRate = Money::toPaise($item->purchase_rate); // latest cost seen
+        $openingQty = Decimal::toScaled($item->opening_quantity, 3);
+        if ($openingQty > 0) {
+            $layers[] = [$openingQty, Money::toPaise($item->opening_value)];
+            $lastRate = Decimal::mulDiv(Money::toPaise($item->opening_value), 1000, $openingQty);
+        }
+        $issueRate = $lastRate; // cost of the latest issue
+
+        foreach ($rows as $m) {
+            if (in_array($m->kind, ['transfer_in', 'transfer_out'], true) || $m->quantity === 0) {
+                continue;
+            }
+            if ($m->quantity > 0) {
+                $qty = $m->quantity;
+                $value = $m->value > 0 ? $m->value : Decimal::mulDiv($qty, $issueRate, 1000);
+                if ($m->value > 0) {
+                    $lastRate = Decimal::mulDiv($m->value, 1000, $qty);
+                }
+                if ($shortfall > 0) {
+                    $fill = min($shortfall, $qty);
+                    $value -= Decimal::mulDiv($value, $fill, $qty);
+                    $qty -= $fill;
+                    $shortfall -= $fill;
+                }
+                if ($qty > 0) {
+                    $layers[] = [$qty, $value];
+                }
+
+                continue;
+            }
+
+            $need = -$m->quantity;
+            while ($need > 0 && $layers) {
+                [$lotQty, $lotValue] = $layers[0];
+                $take = min($need, $lotQty);
+                $lastRate = $issueRate = Decimal::mulDiv($lotValue, 1000, $lotQty);
+                if ($take === $lotQty) {
+                    array_shift($layers);
+                } else {
+                    $layers[0] = [$lotQty - $take, $lotValue - Decimal::mulDiv($lotValue, $take, $lotQty)];
+                }
+                $need -= $take;
+            }
+            $shortfall += $need;
+        }
+
+        $value = array_sum(array_column($layers, 1)) - Decimal::mulDiv($shortfall, $lastRate, 1000);
+
+        return ['layers' => $layers, 'value' => $value, 'last_rate' => $lastRate];
     }
 
     /**

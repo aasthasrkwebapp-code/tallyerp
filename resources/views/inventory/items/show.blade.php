@@ -18,6 +18,9 @@
     </div>
     <div class="d-flex flex-wrap gap-2">
         <a href="{{ route('stock-items.index') }}" class="btn btn-outline-secondary">All items</a>
+        @if ($item->bomComponents->isNotEmpty())
+            @can('inventory.create')<a href="{{ route('stock-items.manufacture', $item) }}" class="btn btn-outline-primary"><i class="bi bi-gear"></i> Manufacture</a>@endcan
+        @endif
         @can('inventory.edit')<a href="{{ route('stock-items.edit', $item) }}" class="btn btn-primary">Edit</a>@endcan
         @can('inventory.delete')
             <form method="POST" action="{{ route('stock-items.destroy', $item) }}" data-confirm="Delete stock item {{ $item->name }}?">
@@ -30,7 +33,7 @@
 
 <div class="row g-3 mb-3">
     <div class="col-6 col-lg-3"><div class="erp-card p-3 h-100"><div class="small text-secondary">In stock on {{ \Illuminate\Support\Carbon::parse($to)->format('d M Y') }}</div><div class="fs-5 fw-semibold {{ $position->quantity < 0 ? 'text-danger' : '' }}">{{ $q($position->quantity) }}</div></div></div>
-    <div class="col-6 col-lg-3"><div class="erp-card p-3 h-100"><div class="small text-secondary">Average cost</div><div class="fs-5 fw-semibold">{{ $m($position->rate) }}</div></div></div>
+    <div class="col-6 col-lg-3"><div class="erp-card p-3 h-100"><div class="small text-secondary">{{ $item->costing_method === 'fifo' ? 'FIFO cost' : 'Average cost' }}</div><div class="fs-5 fw-semibold">{{ $m($position->rate) }}</div></div></div>
     <div class="col-6 col-lg-3"><div class="erp-card p-3 h-100"><div class="small text-secondary">Stock value</div><div class="fs-5 fw-semibold">{{ $m($position->value) }}</div></div></div>
     <div class="col-6 col-lg-3"><div class="erp-card p-3 h-100"><div class="small text-secondary">Reorder level</div><div class="fs-5 fw-semibold">{{ $item->reorder_level !== null ? $q(\App\Support\Decimal::toScaled($item->reorder_level, 3)) : '—' }}</div></div></div>
 </div>
@@ -46,9 +49,27 @@
                 <dt class="col-5">Purchase rate</dt><dd class="col-7">{{ $item->purchase_rate !== null ? $m(\App\Support\Money::toPaise($item->purchase_rate)) : '—' }}</dd>
                 <dt class="col-5">Sales ledger</dt><dd class="col-7">{{ $item->salesAccount?->name ?? '—' }}</dd>
                 <dt class="col-5">Purchase ledger</dt><dd class="col-7">{{ $item->purchaseAccount?->name ?? '—' }}</dd>
+                <dt class="col-5">Costing</dt><dd class="col-7">{{ \App\Models\StockItem::COSTING[$item->costing_method] ?? 'Weighted average' }}</dd>
                 <dt class="col-5">Opening stock</dt><dd class="col-7">{{ $q(\App\Support\Decimal::toScaled($item->opening_quantity, 3)) }} · {{ $m(\App\Support\Money::toPaise($item->opening_value)) }}@if ($item->openingGodown) · {{ $item->openingGodown->name }}@endif</dd>
                 @if ($item->description)<dt class="col-5">Description</dt><dd class="col-7">{{ $item->description }}</dd>@endif
             </dl>
+        </div>
+        <div class="erp-card mb-3">
+            <div class="erp-card-header d-flex justify-content-between align-items-center">
+                <span>Bill of materials</span>
+                @can('inventory.edit')<a href="{{ route('stock-items.bom.edit', $item) }}" class="btn btn-sm btn-outline-secondary">{{ $item->bomComponents->isEmpty() ? 'Set up' : 'Edit' }}</a>@endcan
+            </div>
+            <table class="table table-sm mb-0">
+                <tbody>
+                @forelse ($item->bomComponents as $c)
+                    <tr><td><a href="{{ route('stock-items.show', $c->component) }}">{{ $c->component->name }}</a></td><td class="text-end">{{ \App\Services\Inventory\StockLedger::qty(\App\Support\Decimal::toScaled($c->quantity, 3), $c->component->unit) }}</td></tr>
+                @empty
+                    <tr><td class="text-secondary">Not made from other items.</td></tr>
+                @endforelse
+                </tbody>
+            </table>
+            @if ($item->bomComponents->isNotEmpty())<div class="small text-secondary px-2 py-1 border-top">Makes {{ \App\Services\Inventory\StockLedger::qty(\App\Support\Decimal::toScaled($item->bom_quantity, 3), $item->unit) }}</div>@endif
+            @if ($usedIn->isNotEmpty())<div class="small px-2 py-1 border-top">Used in: @foreach ($usedIn as $u)<a href="{{ route('stock-items.show', $u) }}">{{ $u->name }}</a>@if (! $loop->last), @endif @endforeach</div>@endif
         </div>
         <div class="erp-card">
             <div class="erp-card-header">By godown</div>

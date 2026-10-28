@@ -75,6 +75,7 @@ class StockItemRequest extends FormRequest
             'description' => ['nullable', 'string', 'max:2000'],
             'is_active' => ['nullable', 'boolean'],
             'tracking' => ['nullable', Rule::in(array_keys(StockItem::TRACKING))],
+            'costing_method' => ['nullable', Rule::in(array_keys(StockItem::COSTING))],
             'track_expiry' => ['nullable', 'boolean'],
             'opening_batch_no' => ['nullable', 'string', 'max:50'],
             'opening_mfg_date' => ['nullable', 'date_format:Y-m-d'],
@@ -160,6 +161,7 @@ class StockItemRequest extends FormRequest
         $data['is_active'] = $this->boolean('is_active');
         $data['opening_godown_id'] = $qty > 0 ? $data['opening_godown_id'] : null;
         $data['tracking'] = $data['tracking'] ?? 'none';
+        $data['costing_method'] = $data['costing_method'] ?? 'average';
         $data['track_expiry'] = $data['tracking'] === 'batch' && $this->boolean('track_expiry');
         $data = array_merge($data, $this->opening);
 

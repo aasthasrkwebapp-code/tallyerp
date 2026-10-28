@@ -11,6 +11,8 @@ class StockItem extends Model
 {
     use Auditable, BelongsToCompany;
 
+    public const COSTING = ['average' => 'Weighted average', 'fifo' => 'FIFO (first in, first out)'];
+
     public const TRACKING = [
         'none' => 'No batches or serial numbers',
         'batch' => 'Batch / lot numbers',
@@ -30,7 +32,7 @@ class StockItem extends Model
     protected $fillable = [
         'company_id', 'name', 'alias', 'code', 'stock_group_id', 'stock_category_id', 'unit_id', 'hsn_sac', 'gst_rate', 'cess_rate',
         'sales_account_id', 'purchase_account_id', 'sales_rate', 'purchase_rate', 'opening_quantity', 'opening_value',
-        'opening_godown_id', 'reorder_level', 'is_active', 'description', 'tracking', 'track_expiry',
+        'opening_godown_id', 'reorder_level', 'is_active', 'description', 'tracking', 'track_expiry', 'costing_method', 'bom_quantity',
         'opening_batch_no', 'opening_mfg_date', 'opening_expiry_date', 'opening_serials',
     ];
 
@@ -38,6 +40,7 @@ class StockItem extends Model
     {
         return [
             'gst_rate' => 'decimal:2',
+            'bom_quantity' => 'decimal:3',
             'cess_rate' => 'decimal:2',
             'sales_rate' => 'decimal:2',
             'purchase_rate' => 'decimal:2',
@@ -87,5 +90,11 @@ class StockItem extends Model
         return InvoiceItem::query()->where('stock_item_id', $this->id)->exists()
             || StockJournalLine::query()->where('stock_item_id', $this->id)->exists()
             || DeliveryNoteItem::query()->where('stock_item_id', $this->id)->exists();
+    }
+
+    /** Bill of materials: the components that make bom_quantity units of this item. */
+    public function bomComponents(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(BomComponent::class)->orderBy('line_no');
     }
 }

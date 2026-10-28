@@ -15,6 +15,7 @@ use App\Http\Controllers\SearchController;
 use App\Http\Controllers\FinancialYearController;
 use App\Http\Controllers\Gst\GstReportController;
 use App\Http\Controllers\Inventory\InventoryMasterController;
+use App\Http\Controllers\Inventory\BomController;
 use App\Http\Controllers\Inventory\StockItemController;
 use App\Http\Controllers\Inventory\StockJournalController;
 use App\Http\Controllers\Inventory\DeliveryNoteController;
@@ -174,6 +175,11 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
         Route::get('/items/{stockItem}/edit', [StockItemController::class, 'edit'])->name('stock-items.edit')->middleware('can:inventory.edit');
         Route::put('/items/{stockItem}', [StockItemController::class, 'update'])->name('stock-items.update')->middleware('can:inventory.edit');
         Route::delete('/items/{stockItem}', [StockItemController::class, 'destroy'])->name('stock-items.destroy')->middleware('can:inventory.delete');
+        Route::get('/items/{stockItem}/bom', [BomController::class, 'edit'])->name('stock-items.bom.edit')->middleware('can:inventory.edit');
+        Route::put('/items/{stockItem}/bom', [BomController::class, 'update'])->name('stock-items.bom.update')->middleware('can:inventory.edit');
+        Route::delete('/items/{stockItem}/bom', [BomController::class, 'destroy'])->name('stock-items.bom.destroy')->middleware('can:inventory.edit');
+        Route::get('/items/{stockItem}/manufacture', [BomController::class, 'create'])->name('stock-items.manufacture')->middleware('can:inventory.create');
+        Route::post('/items/{stockItem}/manufacture', [BomController::class, 'store'])->name('stock-items.manufacture.store')->middleware('can:inventory.create');
 
         Route::get('/journals', [StockJournalController::class, 'index'])->name('stock-journals.index')->middleware('can:inventory.view');
         Route::get('/journals/create', [StockJournalController::class, 'create'])->name('stock-journals.create')->middleware('can:inventory.create');

@@ -100,6 +100,15 @@
 
         @php($locked = $item->exists && $item->hasMovements())
         @php($dateVal = fn ($name) => old($name, $item->{$name}?->toDateString()))
+        <div class="col-12"><h2 class="h6 fw-bold mb-0 mt-2">Stock valuation</h2></div>
+        <div class="col-12 col-md-6">
+            <label for="costing_method" class="form-label">Costing method</label>
+            <select id="costing_method" name="costing_method" class="form-select @error('costing_method') is-invalid @enderror">
+                @foreach (\App\Models\StockItem::COSTING as $key => $label)<option value="{{ $key }}" @selected($v('costing_method', 'average') === $key)>{{ $label }}</option>@endforeach
+            </select>
+            <div class="form-text">Values closing stock and the cost of issues. Changing it also revalues earlier closing stock.</div>
+            @error('costing_method')<div class="invalid-feedback">{{ $message }}</div>@enderror
+        </div>
         <div class="col-12"><h2 class="h6 fw-bold mb-0 mt-2">Batches and serial numbers</h2></div>
         <div class="col-12 col-md-6">
             <label for="tracking" class="form-label">Track this item by</label>

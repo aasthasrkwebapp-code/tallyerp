@@ -73,7 +73,7 @@ class StockItemController extends Controller
         $to = $filters['to'] ?? $defaultTo;
         $godownId = isset($filters['godown']) ? (int) $filters['godown'] : null;
 
-        $stockItem->load('unit', 'group', 'category', 'salesAccount', 'purchaseAccount', 'openingGodown');
+        $stockItem->load('unit', 'group', 'category', 'salesAccount', 'purchaseAccount', 'openingGodown', 'bomComponents.component.unit');
         $godowns = Godown::query()->orderBy('name')->get();
 
         return view('inventory.items.show', [
@@ -83,6 +83,7 @@ class StockItemController extends Controller
             'ledger' => $this->ledger->itemLedger($stockItem, $from, $to, $godownId),
             'godowns' => $godowns,
             'godownId' => $godownId,
+            'usedIn' => StockItem::query()->whereIn('id', \App\Models\BomComponent::query()->where('component_id', $stockItem->id)->select('stock_item_id'))->orderBy('name')->get(),
             'from' => $from,
             'to' => $to,
         ]);
@@ -112,6 +113,9 @@ class StockItemController extends Controller
         }
         if (\App\Models\OrderItem::query()->where('stock_item_id', $stockItem->id)->exists()) {
             return back()->with('error', 'This item appears in sales or purchase orders and cannot be deleted. Mark it inactive instead.');
+        }
+        if ($parent = \App\Models\BomComponent::query()->where('component_id', $stockItem->id)->first()) {
+            return back()->with('error', 'This item is a component in the bill of materials of '.StockItem::query()->find($parent->stock_item_id)?->name.'. Remove it there first.');
         }
 
         $stockItem->delete();

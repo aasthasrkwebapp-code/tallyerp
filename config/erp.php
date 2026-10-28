@@ -102,6 +102,7 @@ return [
         'order_items' => null,
         'orders' => 'source_id',
         'parties' => null,
+        'bom_components' => null,
         'stock_journal_lines' => null,
         'stock_journals' => null,
         'stock_items' => null,
