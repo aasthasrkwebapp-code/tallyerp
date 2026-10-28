@@ -156,20 +156,28 @@ class AttendanceController extends Controller
         if (CsvExport::requested($request)) {
             $header = ['Code', 'Employee'];
             foreach ($report['types'] as $t) {
-                if ($t->carry_forward) {
+                if ($report['carried'][$t->id]) {
                     $header[] = "{$t->code} carried in";
                 }
-                array_push($header, "{$t->code} allowed", "{$t->code} taken", "{$t->code} balance");
+                array_push($header, "{$t->code} allowed", "{$t->code} taken");
+                if ($report['encashed']) {
+                    $header[] = "{$t->code} encashed";
+                }
+                $header[] = "{$t->code} balance";
             }
             $fmt = fn ($v) => $v === null ? '' : Decimal::trim(number_format($v, 1, '.', ''));
             $rows = $report['rows']->map(function ($r) use ($report, $fmt) {
                 $row = [$r->employee->code, $r->employee->name];
                 foreach ($report['types'] as $t) {
                     $c = $r->types[$t->id];
-                    if ($t->carry_forward) {
+                    if ($report['carried'][$t->id]) {
                         $row[] = $fmt($c['carried']);
                     }
-                    array_push($row, $fmt($c['allowed']), $fmt($c['taken']), $fmt($c['balance']));
+                    array_push($row, $fmt($c['allowed']), $fmt($c['taken']));
+                    if ($report['encashed']) {
+                        $row[] = $fmt($c['encashed']);
+                    }
+                    $row[] = $fmt($c['balance']);
                 }
 
                 return $row;
@@ -208,8 +216,8 @@ class AttendanceController extends Controller
 
     public function destroyLeaveType(LeaveType $leaveType)
     {
-        if (AttendanceDay::query()->where('leave_type_id', $leaveType->id)->exists()) {
-            return back()->with('error', 'This leave type is used in attendance and cannot be deleted. Mark it inactive instead.');
+        if (AttendanceDay::query()->where('leave_type_id', $leaveType->id)->exists() || \App\Models\LeaveEncashment::query()->where('leave_type_id', $leaveType->id)->exists()) {
+            return back()->with('error', 'This leave type is used in attendance or encashments and cannot be deleted. Mark it inactive instead.');
         }
         $leaveType->delete();
 

@@ -32,6 +32,7 @@ use App\Http\Controllers\MemberController;
 use App\Http\Controllers\Payroll\AttendanceController;
 use App\Http\Controllers\Payroll\EmployeeController;
 use App\Http\Controllers\Payroll\EmployeeLoanController;
+use App\Http\Controllers\Payroll\LeaveController;
 use App\Http\Controllers\Payroll\PayHeadController;
 use App\Http\Controllers\Payroll\PayrollFileController;
 use App\Http\Controllers\Payroll\PayrollRunController;
@@ -246,6 +247,13 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
         Route::post('/leave-types', [AttendanceController::class, 'storeLeaveType'])->name('leave-types.store')->middleware('can:payroll.create');
         Route::put('/leave-types/{leaveType}', [AttendanceController::class, 'updateLeaveType'])->name('leave-types.update')->middleware('can:payroll.edit');
         Route::delete('/leave-types/{leaveType}', [AttendanceController::class, 'destroyLeaveType'])->name('leave-types.destroy')->middleware('can:payroll.delete');
+
+        Route::get('/leave-openings', [LeaveController::class, 'openings'])->name('leave-openings')->middleware('can:payroll.view');
+        Route::put('/leave-openings', [LeaveController::class, 'saveOpenings'])->name('leave-openings.update')->middleware('can:payroll.edit');
+        Route::get('/leave-encashments', [LeaveController::class, 'index'])->name('leave-encashments.index')->middleware('can:payroll.view');
+        Route::get('/leave-encashments/create', [LeaveController::class, 'create'])->name('leave-encashments.create')->middleware('can:payroll.create');
+        Route::post('/leave-encashments', [LeaveController::class, 'store'])->name('leave-encashments.store')->middleware('can:payroll.create');
+        Route::post('/leave-encashments/{leaveEncashment}/cancel', [LeaveController::class, 'cancel'])->name('leave-encashments.cancel')->middleware('can:payroll.delete');
 
         Route::get('/loans', [EmployeeLoanController::class, 'index'])->name('employee-loans.index')->middleware('can:payroll.view');
         Route::get('/loans/create', [EmployeeLoanController::class, 'create'])->name('employee-loans.create')->middleware('can:payroll.create');

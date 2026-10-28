@@ -5,6 +5,8 @@ namespace App\Services\Payroll;
 use App\Models\AttendanceDay;
 use App\Models\AttendanceMonth;
 use App\Models\Employee;
+use App\Models\LeaveEncashment;
+use App\Models\LeaveOpening;
 use App\Models\LeaveType;
 use App\Services\Reports\AccountBalances;
 use App\Support\CurrentCompany;
@@ -181,13 +183,15 @@ class AttendanceService
 
     /**
      * Leave register for the financial year that contains $date: for each employee and leave type,
-     * the leave carried in from earlier years, the allowance, leave taken in the year and the balance.
+     * the leave carried in from earlier years, the allowance, leave taken and encashed in the year,
+     * and the balance.
      *
-     * A carry-forward type with a yearly allowance rolls each year's unused balance into the next,
-     * up to its limit, starting from the year of the books' beginning (or the employee's joining,
-     * if later). An overdrawn year carries nothing.
+     * The opening balance (as on the books' beginning) is carried into the first year. A
+     * carry-forward type with a yearly allowance then rolls each year's unused balance into the
+     * next, up to its limit; other types start every later year afresh. An overdrawn year
+     * carries nothing.
      *
-     * @return array{from: string, to: string, types: Collection, rows: Collection}
+     * @return array{from: string, to: string, types: Collection, rows: Collection, carried: array<int, bool>, encashed: bool}
      */
     public function leaveRegister(string $date): array
     {
@@ -196,24 +200,53 @@ class AttendanceService
         $types = LeaveType::query()->orderBy('is_paid', 'desc')->orderBy('name')->get();
         $taken = $this->halvesTaken($from, $to, $types->pluck('id')->all())
             ->groupBy('employee_id')->map(fn ($c) => $c->pluck('halves', 'leave_type_id'));
+        $encashed = $this->halvesEncashed($from, $to);
 
         $employees = Employee::query()->where('date_of_joining', '<=', $to)
             ->where(fn ($q) => $q->whereNull('date_of_leaving')->orWhere('date_of_leaving', '>=', $from))
             ->orderBy('code')->get();
-        $carried = $this->carriedIn($from, $types->filter(fn (LeaveType $t) => $t->carry_forward && $t->annual_days !== null), $employees);
+        $withOpening = LeaveOpening::query()->distinct()->pluck('leave_type_id')->all();
+        // Types that show leave carried in: carry-forward types and any with opening balances.
+        $showCarried = $types->mapWithKeys(fn (LeaveType $t) => [$t->id => $t->annual_days !== null && ($t->carry_forward || in_array($t->id, $withOpening, true))])->all();
+        $carried = $this->carriedIn($from, $types->filter(fn (LeaveType $t) => $showCarried[$t->id]), $employees);
 
         $rows = $employees->map(fn (Employee $e) => (object) [
             'employee' => $e,
-            'types' => $types->mapWithKeys(function (LeaveType $t) use ($taken, $carried, $e) {
+            'types' => $types->mapWithKeys(function (LeaveType $t) use ($taken, $carried, $encashed, $showCarried, $e) {
                 $used = ((int) ($taken[$e->id][$t->id] ?? 0)) / 2.0;
-                $in = isset($carried[$e->id][$t->id]) ? $carried[$e->id][$t->id] / 2.0 : null;
+                $cashed = ($encashed[$e->id][$t->id] ?? 0) / 2.0;
+                $in = $showCarried[$t->id] ? ($carried[$e->id][$t->id] ?? 0) / 2.0 : null;
                 $allowed = $t->annual_days !== null ? (float) $t->annual_days + ($in ?? 0) : null;
 
-                return [$t->id => ['carried' => $in, 'allowed' => $allowed, 'taken' => $used, 'balance' => $allowed !== null ? $allowed - $used : null]];
+                return [$t->id => ['carried' => $in, 'allowed' => $allowed, 'taken' => $used, 'encashed' => $cashed, 'balance' => $allowed !== null ? $allowed - $used - $cashed : null]];
             }),
         ]);
 
-        return ['from' => $from, 'to' => $to, 'types' => $types, 'rows' => $rows, 'carry' => $types->contains(fn ($t) => $t->carry_forward && $t->annual_days !== null)];
+        return ['from' => $from, 'to' => $to, 'types' => $types, 'rows' => $rows, 'carried' => $showCarried,
+            'carry' => in_array(true, $showCarried, true), 'encashed' => $encashed !== []];
+    }
+
+    /** Balance (days) of one employee's leave type on a date, with the year's figures. */
+    public function leaveBalance(Employee $employee, LeaveType $type, string $date): ?array
+    {
+        $row = $this->leaveRegister($date)['rows']->first(fn ($r) => $r->employee->id === $employee->id);
+
+        return $row ? $row->types[$type->id] : null;
+    }
+
+    /**
+     * Leave encashed between two dates, in half days, by employee and leave type.
+     *
+     * @return array<int, array<int, int>>
+     */
+    protected function halvesEncashed(string $from, string $to): array
+    {
+        $out = [];
+        foreach (LeaveEncashment::query()->where('status', 'active')->whereBetween('date', [$from, $to])->get(['employee_id', 'leave_type_id', 'days']) as $e) {
+            $out[$e->employee_id][$e->leave_type_id] = ($out[$e->employee_id][$e->leave_type_id] ?? 0) + (int) round((float) $e->days * 2);
+        }
+
+        return $out;
     }
 
     /** Leave taken between two dates, in half days, by employee and leave type. */
@@ -241,12 +274,19 @@ class AttendanceService
         for ($y = Carbon::parse($from)->subYear(); $y->toDateString() >= $first && count($years) < 50; $y->subYear()) {
             array_unshift($years, [$y->toDateString(), $y->copy()->addYear()->subDay()->toDateString()]);
         }
-        $taken = [];
+        $used = [];
         foreach ($years as [$start, $end]) {
             foreach ($this->halvesTaken($start, $end, $types->pluck('id')->all()) as $r) {
-                $taken[$start][$r->employee_id][$r->leave_type_id] = (int) $r->halves;
+                $used[$start][$r->employee_id][$r->leave_type_id] = (int) $r->halves;
+            }
+            foreach ($this->halvesEncashed($start, $end) as $employeeId => $byType) {
+                foreach ($byType as $typeId => $halves) {
+                    $used[$start][$employeeId][$typeId] = ($used[$start][$employeeId][$typeId] ?? 0) + $halves;
+                }
             }
         }
+        $openings = LeaveOpening::query()->whereIn('leave_type_id', $types->pluck('id'))->get()
+            ->mapWithKeys(fn ($o) => [$o->employee_id.'|'.$o->leave_type_id => (int) round((float) $o->days * 2)]);
 
         $out = [];
         foreach ($employees as $e) {
@@ -254,12 +294,13 @@ class AttendanceService
             foreach ($types as $t) {
                 $annual = (int) round((float) $t->annual_days * 2);
                 $max = $t->max_carry_forward !== null ? (int) round((float) $t->max_carry_forward * 2) : PHP_INT_MAX;
-                $carry = 0;
+                // The opening balance is carried into the books' first year.
+                $carry = $openings[$e->id.'|'.$t->id] ?? 0;
                 foreach ($years as [$start, $end]) {
                     if ($joined > $end) {
                         continue; // not on the rolls yet
                     }
-                    $carry = max(0, min($max, $annual + $carry - ($taken[$start][$e->id][$t->id] ?? 0)));
+                    $carry = $t->carry_forward ? max(0, min($max, $annual + $carry - ($used[$start][$e->id][$t->id] ?? 0))) : 0;
                 }
                 $out[$e->id][$t->id] = $carry;
             }

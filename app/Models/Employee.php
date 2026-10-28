@@ -55,4 +55,14 @@ class Employee extends Model
     {
         return 'Employee '.$this->code.' '.$this->name;
     }
+
+    public function leaveOpenings(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(LeaveOpening::class);
+    }
+
+    public function leaveEncashments(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(LeaveEncashment::class);
+    }
 }

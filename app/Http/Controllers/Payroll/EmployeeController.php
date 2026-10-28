@@ -93,8 +93,8 @@ class EmployeeController extends Controller
 
     public function destroy(Employee $employee)
     {
-        if (Payslip::query()->where('employee_id', $employee->id)->exists() || $employee->loans()->exists()) {
-            return back()->with('error', 'This employee has payslips or loans and cannot be deleted. Enter a leaving date or mark them inactive instead.');
+        if (Payslip::query()->where('employee_id', $employee->id)->exists() || $employee->loans()->exists() || $employee->leaveEncashments()->exists()) {
+            return back()->with('error', 'This employee has payslips, loans or leave encashments and cannot be deleted. Enter a leaving date or mark them inactive instead.');
         }
         $employee->delete();
 

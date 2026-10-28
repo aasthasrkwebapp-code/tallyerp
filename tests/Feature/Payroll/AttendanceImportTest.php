@@ -65,9 +65,9 @@ class AttendanceImportTest extends TestCase
         $service->save('2026-11', [$this->asha->id => ['2' => 'leave:'.$el->id]], []);
 
         $rows = $service->leaveRegister('2026-11-30')['rows'];
-        $this->assertSame(['carried' => 24.5, 'allowed' => 39.5, 'taken' => 1.0, 'balance' => 38.5], $rows->firstWhere('employee.id', $this->asha->id)->types[$el->id]);
-        $this->assertSame(['carried' => 0.0, 'allowed' => 15.0, 'taken' => 0.0, 'balance' => 15.0], $rows->firstWhere('employee.id', $this->ravi->id)->types[$el->id]);
-        $this->assertSame(['carried' => null, 'allowed' => 12.0, 'taken' => 0.0, 'balance' => 12.0], $rows->firstWhere('employee.id', $this->asha->id)->types[$this->leave('CL')]);
+        $this->assertSame(['carried' => 24.5, 'allowed' => 39.5, 'taken' => 1.0, 'encashed' => 0.0, 'balance' => 38.5], $rows->firstWhere('employee.id', $this->asha->id)->types[$el->id]);
+        $this->assertSame(['carried' => 0.0, 'allowed' => 15.0, 'taken' => 0.0, 'encashed' => 0.0, 'balance' => 15.0], $rows->firstWhere('employee.id', $this->ravi->id)->types[$el->id]);
+        $this->assertSame(['carried' => null, 'allowed' => 12.0, 'taken' => 0.0, 'encashed' => 0.0, 'balance' => 12.0], $rows->firstWhere('employee.id', $this->asha->id)->types[$this->leave('CL')]);
         // The year before shows its own carry-in.
         $this->assertSame(12.0, $service->leaveRegister('2025-12-31')['rows']->firstWhere('employee.id', $this->asha->id)->types[$el->id]['carried']);
 

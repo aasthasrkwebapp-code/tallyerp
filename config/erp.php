@@ -79,6 +79,8 @@ return [
 
     'deletion_tables' => [
         'opening_bills' => null,
+        'leave_encashments' => null,
+        'leave_openings' => null,
         'document_reminders' => null,
         'vehicle_documents' => null,
         'recurring_invoice_runs' => null,
@@ -154,6 +156,7 @@ return [
         'transport_expenses' => ['expense_account_id', 'paid_account_id'],
         'order_advances' => 'account_id',
         'recurring_invoices' => 'party_account_id',
+        'leave_encashments' => ['expense_account_id', 'paid_account_id'],
     ],
 
     /*
@@ -306,6 +309,7 @@ return [
         ['label' => 'Pay Heads', 'icon' => 'list-check', 'route' => 'pay-heads.index', 'can' => 'payroll.view'],
         ['label' => 'Attendance', 'icon' => 'calendar-check', 'route' => 'attendance.index', 'can' => 'payroll.view'],
         ['label' => 'Leave Register', 'icon' => 'calendar2-week', 'route' => 'leave-register', 'can' => 'payroll.view'],
+        ['label' => 'Leave Encashment', 'icon' => 'cash-stack', 'route' => 'leave-encashments.index', 'can' => 'payroll.view'],
         ['label' => 'Loans & Advances', 'icon' => 'cash-coin', 'route' => 'employee-loans.index', 'can' => 'payroll.view'],
         ['label' => 'Monthly Payroll', 'icon' => 'wallet2', 'route' => 'payroll-runs.index', 'can' => 'payroll.view'],
         ['heading' => 'Company'],

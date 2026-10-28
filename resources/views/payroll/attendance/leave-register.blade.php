@@ -13,6 +13,8 @@
     <div class="d-flex flex-wrap gap-2 no-print">
         <a href="{{ route('attendance.index') }}" class="btn btn-outline-secondary">Attendance</a>
         <a href="{{ route('leave-types.index') }}" class="btn btn-outline-secondary">Leave types</a>
+        <a href="{{ route('leave-openings') }}" class="btn btn-outline-secondary">Opening balances</a>
+        <a href="{{ route('leave-encashments.index') }}" class="btn btn-outline-secondary">Encashment</a>
         <a href="{{ request()->fullUrlWithQuery(['export' => 'csv']) }}" class="btn btn-outline-secondary"><i class="bi bi-filetype-csv"></i> CSV</a>
         <a href="{{ request()->fullUrlWithQuery(['export' => 'xlsx']) }}" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-excel"></i> Excel</a>
         <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
@@ -35,9 +37,9 @@
             <thead class="table-light">
                 <tr>
                     <th rowspan="2">Employee</th>
-                    @foreach ($types as $t)<th colspan="{{ $t->carry_forward ? 4 : 3 }}" class="text-center">{{ $t->name }} ({{ $t->code }}){{ $t->is_paid ? '' : ' · unpaid' }}</th>@endforeach
+                    @foreach ($types as $t)<th colspan="{{ 3 + ($carried[$t->id] ? 1 : 0) + ($encashed ? 1 : 0) }}" class="text-center">{{ $t->name }} ({{ $t->code }}){{ $t->is_paid ? '' : ' · unpaid' }}</th>@endforeach
                 </tr>
-                <tr>@foreach ($types as $t)@if ($t->carry_forward)<th class="text-end">Carried in</th>@endif<th class="text-end">Allowed</th><th class="text-end">Taken</th><th class="text-end">Balance</th>@endforeach</tr>
+                <tr>@foreach ($types as $t)@if ($carried[$t->id])<th class="text-end">Carried in</th>@endif<th class="text-end">Allowed</th><th class="text-end">Taken</th>@if ($encashed)<th class="text-end">Encashed</th>@endif<th class="text-end">Balance</th>@endforeach</tr>
             </thead>
             <tbody>
             @forelse ($rows as $r)
@@ -45,18 +47,19 @@
                     <td><a href="{{ route('employees.show', $r->employee) }}">{{ $r->employee->name }}</a> <span class="text-secondary small">{{ $r->employee->code }}</span></td>
                     @foreach ($types as $t)
                         @php($c = $r->types[$t->id])
-                        @if ($t->carry_forward)<td class="text-end text-secondary">{{ $fmt($c['carried']) }}</td>@endif
+                        @if ($carried[$t->id])<td class="text-end text-secondary">{{ $fmt($c['carried']) }}</td>@endif
                         <td class="text-end">{{ $fmt($c['allowed']) }}</td>
                         <td class="text-end">{{ $fmt($c['taken']) }}</td>
+                        @if ($encashed)<td class="text-end">{{ $fmt($c['encashed']) }}</td>@endif
                         <td class="text-end {{ $c['balance'] !== null && $c['balance'] < 0 ? 'text-danger fw-semibold' : '' }}">{{ $fmt($c['balance']) }}</td>
                     @endforeach
                 </tr>
             @empty
-                <tr><td colspan="{{ 1 + 3 * $types->count() + $types->where('carry_forward', true)->count() }}" class="text-center text-secondary py-3">No employees in this year.</td></tr>
+                <tr><td colspan="{{ 1 + (3 + ($encashed ? 1 : 0)) * $types->count() + count(array_filter($carried)) }}" class="text-center text-secondary py-3">No employees in this year.</td></tr>
             @endforelse
             </tbody>
         </table>
     </div>
 </div>
-<p class="small text-secondary mt-2">A negative balance (in red) means more leave was taken than allowed. The allowance is per financial year. For leave types that carry forward, the unused balance at each year end (up to the type's limit) is added to the next year's allowance; an overdrawn year carries nothing.</p>
+<p class="small text-secondary mt-2">A negative balance (in red) means more leave was taken than allowed. The allowance is per financial year. Opening balances entered for the books' first year are carried in. For leave types that carry forward, the unused balance at each year end (up to the type's limit) is added to the next year's allowance; an overdrawn year carries nothing. Encashed leave comes off the balance.</p>
 @endsection
