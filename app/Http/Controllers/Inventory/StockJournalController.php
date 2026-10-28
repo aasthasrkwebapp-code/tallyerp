@@ -87,7 +87,7 @@ class StockJournalController extends Controller
 
     public function show(StockJournal $stockJournal)
     {
-        $stockJournal->load('lines.item.unit', 'lines.godown', 'creator', 'transitTo', 'dispatch', 'settlements');
+        $stockJournal->load('lines.item.unit', 'lines.godown', 'creator', 'transitTo', 'dispatch', 'dispatchInvoice.voucher', 'settlements');
 
         return view('inventory.journals.show', [
             'journal' => $stockJournal,

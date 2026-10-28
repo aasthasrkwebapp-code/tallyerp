@@ -19,7 +19,7 @@ class StockJournal extends Model
 
     public const PURPOSES = ['adjustment' => 'Stock adjustment', 'transfer' => 'Godown transfer', 'production' => 'Manufacture / consumption'];
 
-    protected $fillable = ['company_id', 'number', 'date', 'purpose', 'transit_to_godown_id', 'dispatch_id', 'status', 'narration', 'cancellation_reason', 'created_by', 'cancelled_by', 'cancelled_at'];
+    protected $fillable = ['company_id', 'number', 'date', 'purpose', 'transit_to_godown_id', 'dispatch_id', 'dispatch_invoice_id', 'status', 'narration', 'cancellation_reason', 'created_by', 'cancelled_by', 'cancelled_at'];
 
     protected function casts(): array
     {
@@ -41,6 +41,12 @@ class StockJournal extends Model
     public function dispatch(): BelongsTo
     {
         return $this->belongsTo(StockJournal::class, 'dispatch_id');
+    }
+
+    /** The purchase bill in transit that a receipt or shortage settles. */
+    public function dispatchInvoice(): BelongsTo
+    {
+        return $this->belongsTo(Invoice::class, 'dispatch_invoice_id');
     }
 
     /** Receipts and shortages against this dispatch. */

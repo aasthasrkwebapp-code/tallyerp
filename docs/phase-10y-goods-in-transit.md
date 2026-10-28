@@ -59,5 +59,5 @@ Migration `2026_10_28_001900_add_goods_in_transit` adds:
 - Done: two-step transfers through a transit godown, with part receipts, shortages, cancel rules, a report and exports.
 - Partial: serial-numbered items must be received in full.
 - Missing:
-  - goods in transit on purchases (a supplier's goods dispatched but not yet arrived)
+  - goods in transit on purchases: done in 11w (`docs/phase-11w-purchase-in-transit.md`)
   - freight or transit costs added to the stock value

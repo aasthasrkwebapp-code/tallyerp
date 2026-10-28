@@ -135,6 +135,7 @@ class InvoiceController extends Controller
             'config' => $invoice->config(),
             'taxSummary' => $this->taxSummary($invoice),
             'returns' => Invoice::query()->where('original_invoice_id', $invoice->id)->with('voucher')->get(),
+            'transit' => $invoice->in_transit ? app(\App\Services\Inventory\GoodsInTransit::class)->invoiceLines($invoice) : null,
         ]);
     }
 
@@ -354,6 +355,7 @@ class InvoiceController extends Controller
             'narration' => ['nullable', 'string', 'max:2000'],
             'terms' => ['nullable', 'string', 'max:2000'],
             'reverse_charge' => ['nullable', 'boolean'],
+            'in_transit' => ['nullable', 'boolean'],
             'items' => ['required', 'array', 'max:200'],
             'items.*.account_id' => ['nullable', 'integer'],
             'items.*.stock_item_id' => ['nullable', 'integer'],
@@ -382,6 +384,7 @@ class InvoiceController extends Controller
             'original_invoice_id', 'place_of_supply', 'billing_address', 'shipping_address', 'narration', 'terms',
         ]);
         $data['reverse_charge'] = $request->boolean('reverse_charge');
+        $data['in_transit'] = $request->boolean('in_transit');
         $data['items'] = array_values($request->input('items', []));
 
         return $data;

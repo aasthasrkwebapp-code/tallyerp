@@ -90,6 +90,17 @@
                     </div>
                 </div>
             @endif
+            @if ($kind === 'purchase')
+                <div class="col-12 col-md-6 col-lg-3 d-flex align-items-end">
+                    <div class="form-check mb-1">
+                        <input type="hidden" name="in_transit" value="0">
+                        <input class="form-check-input @error('in_transit') is-invalid @enderror" type="checkbox" name="in_transit" value="1" id="in_transit" @checked(filter_var($input['in_transit'] ?? false, FILTER_VALIDATE_BOOLEAN))>
+                        <label class="form-check-label" for="in_transit">Goods in transit</label>
+                        <div class="small text-secondary">The goods have not arrived yet. They wait in transit and are received into the godowns below from the bill.</div>
+                        @error('in_transit')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                    </div>
+                </div>
+            @endif
             @if ($invoice->isReturn())
                 <div class="col-12 col-md-6 col-lg-4">
                     <label for="original_invoice_id" class="form-label">Against {{ $kind === 'credit_note' ? 'invoice' : 'bill' }}</label>

@@ -8,7 +8,7 @@
 @section('content')
 <div class="page-header">
     <div>
-        <h1>{{ $config['label'] }} {{ $invoice->displayNumber() }} @include('accounting.vouchers._status', ['status' => $status])</h1>
+        <h1>{{ $config['label'] }} {{ $invoice->displayNumber() }} @include('accounting.vouchers._status', ['status' => $status])@if ($transit && $status === 'posted' && $transit->sum('pending') > 0) <span class="badge text-bg-warning fs-6 align-middle">Goods in transit</span>@endif</h1>
         <p class="text-secondary mb-0">{{ $invoice->date->format('d M Y') }} · {{ $invoice->party_name }} · Entered by {{ $invoice->creator?->name ?? '—' }}</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
@@ -112,6 +112,10 @@
         </table>
     </div>
 </div>
+
+@if ($transit)
+    @include('billing.invoices._transit')
+@endif
 
 <div class="row g-3">
     <div class="col-12 col-lg-7">

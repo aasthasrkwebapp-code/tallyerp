@@ -15,6 +15,9 @@
     <a href="{{ route('stock-journals.index') }}" class="btn btn-outline-secondary">All stock journals</a>
 </div>
 
+@if ($journal->dispatchInvoice)
+    <div class="alert alert-info">This journal {{ $journal->purpose === 'transfer' ? 'receives goods' : 'writes off a shortage' }} bought in transit on purchase <a href="{{ route('invoices.show', $journal->dispatchInvoice) }}">{{ $journal->dispatchInvoice->displayNumber() }}</a> from {{ $journal->dispatchInvoice->party_name }}.</div>
+@endif
 @if ($journal->dispatch)
     <div class="alert alert-info">This journal {{ $journal->purpose === 'transfer' ? 'receives goods' : 'writes off a shortage' }} against dispatch <a href="{{ route('stock-journals.show', $journal->dispatch) }}">{{ $journal->dispatch->number }}</a> of goods in transit.</div>
 @endif

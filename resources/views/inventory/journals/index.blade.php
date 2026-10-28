@@ -40,7 +40,7 @@
                 <tr>
                     <td data-label="Date" class="text-nowrap">{{ $journal->date->format('d-m-Y') }}</td>
                     <td data-label="Number"><a href="{{ route('stock-journals.show', $journal) }}" class="fw-semibold">{{ $journal->number }}</a></td>
-                    <td data-label="Type">{{ \App\Models\StockJournal::PURPOSES[$journal->purpose] ?? $journal->purpose }}@if ($journal->isDispatch()) <span class="badge text-bg-info">In transit</span>@elseif ($journal->dispatch_id) <span class="badge text-bg-light border">Transit receipt</span>@endif</td>
+                    <td data-label="Type">{{ \App\Models\StockJournal::PURPOSES[$journal->purpose] ?? $journal->purpose }}@if ($journal->isDispatch()) <span class="badge text-bg-info">In transit</span>@elseif ($journal->dispatch_id || $journal->dispatch_invoice_id) <span class="badge text-bg-light border">Transit receipt</span>@endif</td>
                     <td data-label="Items">{{ $journal->lines->pluck('item.name')->unique()->take(3)->implode(', ') }}@if ($journal->lines->pluck('stock_item_id')->unique()->count() > 3) …@endif</td>
                     <td data-label="Status">
                         @if ($journal->isPosted())<span class="badge text-bg-success">Posted</span>@else<span class="badge text-bg-secondary">Cancelled</span>@endif

@@ -9,7 +9,7 @@
 <div class="page-header">
     <div>
         <h1>Goods in transit</h1>
-        <p class="text-secondary mb-0">Stock dispatched between godowns and not yet received or written off on {{ \Illuminate\Support\Carbon::parse($date)->format('d M Y') }}</p>
+        <p class="text-secondary mb-0">Stock dispatched between godowns, or bought on a purchase bill, and not yet received or written off on {{ \Illuminate\Support\Carbon::parse($date)->format('d M Y') }}</p>
     </div>
     <div class="d-flex flex-wrap gap-2 no-print">
         @can('inventory.create')<a href="{{ route('stock-journals.create', ['purpose' => 'transfer']) }}" class="btn btn-outline-secondary"><i class="bi bi-truck"></i> New transfer</a>@endcan
@@ -32,17 +32,17 @@
 <div class="erp-card">
     <div class="table-responsive">
         <table class="table table-sm align-middle mb-0 table-stack">
-            <thead class="table-light"><tr><th>Dispatch</th><th>From → to</th><th class="text-end">Days</th><th>Item</th><th class="text-end">Dispatched</th><th class="text-end">In transit</th><th class="text-end">Value</th></tr></thead>
+            <thead class="table-light"><tr><th>Document</th><th>From → to</th><th class="text-end">Days</th><th>Item</th><th class="text-end">Dispatched</th><th class="text-end">In transit</th><th class="text-end">Value</th></tr></thead>
             <tbody>
             @forelse ($rows as $r)
                 @foreach ($r->lines as $l)
                     <tr>
-                        <td data-label="Dispatch">@if ($loop->first)<a href="{{ route('stock-journals.show', $r->dispatch) }}" class="fw-semibold">{{ $r->dispatch->number }}</a> <span class="small text-secondary">{{ $r->dispatch->date->format('d M Y') }}</span>@endif</td>
-                        <td data-label="From → to">@if ($loop->first){{ $l->line->godown?->name }} → {{ $r->dispatch->transitTo?->name }}@endif</td>
-                        <td data-label="Days" class="text-end">@if ($loop->first){{ (int) $r->dispatch->date->diffInDays(\Illuminate\Support\Carbon::parse($date)) }}@endif</td>
-                        <td data-label="Item">{{ $l->line->item->name }}@include('inventory._tracking', ['line' => $l->line])</td>
-                        <td data-label="Dispatched" class="text-end">{{ $q($l->dispatched, $l->line->item->unit) }}</td>
-                        <td data-label="In transit" class="text-end fw-semibold">{{ $q($l->pending, $l->line->item->unit) }}</td>
+                        <td data-label="Document">@if ($loop->first)<div><a href="{{ $r->url }}" class="fw-semibold">{{ $r->number }}</a> <span class="small text-secondary">{{ $r->kind === 'Purchase' ? 'Purchase ·' : '' }} {{ $r->date->format('d M Y') }}</span></div>@endif</td>
+                        <td data-label="From → to">{{ $l->from }} → {{ $l->to }}</td>
+                        <td data-label="Days" class="text-end">@if ($loop->first){{ (int) $r->date->diffInDays(\Illuminate\Support\Carbon::parse($date)) }}@endif</td>
+                        <td data-label="Item">{{ $l->item->name }}@include('inventory._tracking', ['line' => $l->line])</td>
+                        <td data-label="Dispatched" class="text-end">{{ $q($l->dispatched, $l->item->unit) }}</td>
+                        <td data-label="In transit" class="text-end fw-semibold">{{ $q($l->pending, $l->item->unit) }}</td>
                         <td data-label="Value" class="amount">{{ $p($l->value) }}</td>
                     </tr>
                 @endforeach
@@ -56,5 +56,5 @@
         </table>
     </div>
 </div>
-<p class="small text-secondary mt-2">Goods in transit stay in closing stock, valued at the item's cost, in the transit godown until they are received. Open a dispatch to receive it or write off a shortage.</p>
+<p class="small text-secondary mt-2">Goods in transit stay in closing stock, in the transit godown, until they are received. Transfers are valued at the item's cost and purchase bills at the bill's rate. Open a dispatch or purchase bill to receive the goods or write off a shortage.</p>
 @endsection

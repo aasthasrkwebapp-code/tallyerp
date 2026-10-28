@@ -8,6 +8,7 @@ use App\Models\Company;
 use App\Models\Godown;
 use App\Models\Invoice;
 use App\Models\StockItem;
+use App\Models\StockJournal;
 use App\Models\User;
 use App\Models\Voucher;
 use App\Models\VoucherType;
@@ -57,6 +58,10 @@ class InvoiceService
             throw ValidationException::withMessages(['invoice' => 'A cancelled '.mb_strtolower($config['label']).' cannot be altered.']);
         }
 
+        if ($invoice && $this->hasTransitReceipts($invoice)) {
+            throw ValidationException::withMessages(['invoice' => 'Goods have been received or written off against this bill. Cancel those stock journals first.']);
+        }
+
         $wasPosted = $invoice?->status() === Voucher::POSTED;
         $this->advanceNote = null;
         $saved = DB::transaction(function () use ($invoice, $kind, $config, $data, $user, $intent, $reason) {
@@ -87,6 +92,7 @@ class InvoiceService
                 'place_of_supply' => $data['place_of_supply'] ?? $details?->state,
                 'tax_mode' => $taxMode,
                 'reverse_charge' => $reverseCharge,
+                'in_transit' => collect($items)->contains(fn ($i) => $i['transit_to_godown_id'] !== null),
                 'gross_total' => Money::fromPaise($totals['gross']),
                 'discount_total' => Money::fromPaise($totals['discount']),
                 'taxable_total' => Money::fromPaise($totals['taxable']),
@@ -111,6 +117,7 @@ class InvoiceService
                     'account_id' => $item['account']->id,
                     'stock_item_id' => $item['stock_item_id'],
                     'godown_id' => $item['godown_id'],
+                    'transit_to_godown_id' => $item['transit_to_godown_id'],
                     'order_item_id' => $item['order_item_id'],
                     'note_item_id' => $item['note_item_id'],
                     'description' => $item['description'],
@@ -190,6 +197,9 @@ class InvoiceService
             ->whereHas('voucher', fn ($q) => $q->where('status', Voucher::POSTED))->exists()) {
             throw ValidationException::withMessages(['invoice' => 'A posted credit / debit note refers to this invoice. Cancel the note first.']);
         }
+        if ($this->hasTransitReceipts($invoice)) {
+            throw ValidationException::withMessages(['invoice' => 'Goods have been received or written off against this bill. Cancel those stock journals first.']);
+        }
 
         $this->vouchers->cancel($invoice->voucher, $user, $reason);
 
@@ -213,6 +223,12 @@ class InvoiceService
         });
     }
 
+    /** Whether goods bought in transit on this bill have been received or written off. */
+    public function hasTransitReceipts(Invoice $invoice): bool
+    {
+        return $invoice->in_transit && StockJournal::query()->where('dispatch_invoice_id', $invoice->id)->where('status', 'posted')->exists();
+    }
+
     /** Saved invoice as save() input. */
     public function toInput(Invoice $invoice): array
     {
@@ -233,10 +249,11 @@ class InvoiceService
             'narration' => $invoice->narration,
             'terms' => $invoice->terms,
             'reverse_charge' => $invoice->reverse_charge,
+            'in_transit' => $invoice->in_transit,
             'items' => $invoice->items->map(fn ($i) => [
                 'account_id' => $i->account_id,
                 'stock_item_id' => $i->stock_item_id,
-                'godown_id' => $i->godown_id,
+                'godown_id' => $i->transit_to_godown_id ?? $i->godown_id,
                 'order_item_id' => $i->order_item_id,
                 'note_item_id' => $i->note_item_id,
                 'description' => $i->description,
@@ -460,6 +477,29 @@ class InvoiceService
             $errors += $batchErrors;
             foreach ($fields as $n => $f) {
                 $items[$n] = array_merge($items[$n], $f);
+            }
+        }
+
+        // Goods in transit: a purchase booked before the goods arrive. Its stock waits in the
+        // transit godown, bound for the godown chosen on each line, until it is received.
+        $inTransit = $kind === 'purchase' && filter_var($data['in_transit'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $transitId = Godown::query()->where('is_transit', true)->value('id');
+        foreach ($items as $n => $item) {
+            $items[$n]['transit_to_godown_id'] = null;
+            if ($item['stock_item_id'] && $item['godown_id'] === $transitId && $item['note_item_id'] === null) {
+                $errors["items.$n.godown_id"] = 'Item '.($n + 1).': choose a godown. For goods not yet arrived, tick Goods in transit.';
+            }
+        }
+        if ($inTransit && ! $errors) {
+            $stockLines = array_filter($items, fn ($i) => $i['stock_item_id'] && $i['note_item_id'] === null);
+            if ($stockLines === []) {
+                $errors['in_transit'] = 'Goods in transit needs at least one stock item that is not against a receipt note.';
+            } else {
+                $transitId = Godown::transit()->id;
+                foreach (array_keys($stockLines) as $n) {
+                    $items[$n]['transit_to_godown_id'] = $items[$n]['godown_id'];
+                    $items[$n]['godown_id'] = $transitId;
+                }
             }
         }
 

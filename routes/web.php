@@ -203,6 +203,7 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
         Route::get('/journals/{stockJournal}', [StockJournalController::class, 'show'])->name('stock-journals.show')->middleware('can:inventory.view');
         Route::post('/journals/{stockJournal}/cancel', [StockJournalController::class, 'cancel'])->name('stock-journals.cancel')->middleware('can:inventory.delete');
         Route::post('/journals/{stockJournal}/receive', [GoodsInTransitController::class, 'receive'])->name('stock-journals.receive')->middleware('can:inventory.create');
+        Route::post('/purchases/{invoice}/receive', [GoodsInTransitController::class, 'receiveInvoice'])->name('invoices.receive-transit')->middleware('can:inventory.create');
         Route::get('/transit', [GoodsInTransitController::class, 'index'])->name('stock-transit')->middleware('can:inventory.view');
 
         Route::get('/summary', [StockReportController::class, 'summary'])->name('stock-summary')->middleware('can:inventory.view');
