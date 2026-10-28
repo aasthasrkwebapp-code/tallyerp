@@ -28,6 +28,7 @@ use App\Http\Controllers\Payroll\PayHeadController;
 use App\Http\Controllers\Payroll\PayrollRunController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Reports\AccountingReportController;
+use App\Http\Controllers\Reports\BudgetController;
 use App\Http\Controllers\Reports\OutstandingReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SettingsController;
@@ -312,7 +313,20 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
         Route::get('/ledger', [AccountingReportController::class, 'ledger'])->name('ledger');
         Route::get('/groups/{group}', [AccountingReportController::class, 'groupSummary'])->name('group-summary');
         Route::get('/outstanding', [OutstandingReportController::class, 'index'])->name('outstanding');
+
         Route::get('/outstanding/{ledger}', [OutstandingReportController::class, 'party'])->name('outstanding.party');
+    });
+
+    // Budgets and budget variance
+    Route::prefix('budgets')->name('budgets.')->group(function () {
+        Route::get('/', [BudgetController::class, 'index'])->name('index')->middleware('can:reports.view');
+        Route::get('/create', [BudgetController::class, 'create'])->name('create')->middleware('can:masters.create');
+        Route::post('/', [BudgetController::class, 'store'])->name('store')->middleware('can:masters.create');
+        Route::get('/{budget}', [BudgetController::class, 'show'])->name('show')->middleware('can:reports.view');
+        Route::get('/{budget}/edit', [BudgetController::class, 'edit'])->name('edit')->middleware('can:masters.edit');
+        Route::put('/{budget}', [BudgetController::class, 'update'])->name('update')->middleware('can:masters.edit');
+        Route::post('/{budget}/copy', [BudgetController::class, 'copy'])->name('copy')->middleware('can:masters.create');
+        Route::delete('/{budget}', [BudgetController::class, 'destroy'])->name('destroy')->middleware('can:masters.delete');
     });
 
     // Data management: backups, restore and integrity checks

@@ -64,7 +64,8 @@ a { color: var(--erp-accent); }
 .stat-card .stat-label { font-size: .8rem; color: #6b7280; text-transform: uppercase; letter-spacing: .04em; }
 .stat-card .stat-value { font-size: 1.35rem; font-weight: 700; margin-top: .25rem; word-break: break-word; }
 .page-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: .75rem; margin-bottom: 1.25rem; }
-.page-header h1 { font-size: 1.35rem; font-weight: 700; margin: 0; }
+.page-header h1 { font-size: 1.35rem; font-weight: 700; margin: 0; overflow-wrap: anywhere; }
+.min-w-0 { min-width: 0; }
 .amount { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 .table thead th { font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; color: #6b7280; white-space: nowrap; }
 .table-report td, .table-report th { padding: .45rem .6rem; }
