@@ -11,6 +11,9 @@
         <h1>GSTR-1 <small class="text-secondary fs-6">Outward supplies</small></h1>
         <p class="text-secondary mb-0">{{ $totals['sales']['count'] }} invoices ({{ $M::format($totals['sales']['value'], true, true) }}) and {{ $totals['credit_notes']['count'] }} credit notes ({{ $M::format($totals['credit_notes']['value'], true, true) }}).</p>
     </div>
+    @can('reports.export')
+        <a href="{{ route('gst.gstr1-json', ['from' => $from, 'to' => $to]) }}" class="btn btn-outline-primary" title="JSON file for the GST portal's offline tool or upload"><i class="bi bi-filetype-json"></i> JSON for the GST portal</a>
+    @endcan
 </div>
 
 @include('gst._period')

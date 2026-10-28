@@ -320,6 +320,7 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     // GST returns (working papers)
     Route::middleware('can:gst.view')->prefix('gst')->name('gst.')->group(function () {
         Route::get('/gstr-1', [GstReportController::class, 'gstr1'])->name('gstr1');
+        Route::get('/gstr-1/json', [GstReportController::class, 'gstr1Json'])->name('gstr1-json')->middleware('can:reports.export');
         Route::get('/gstr-3b', [GstReportController::class, 'gstr3b'])->name('gstr3b');
         Route::get('/purchase-register', [GstReportController::class, 'purchaseRegister'])->name('purchase-register');
     });

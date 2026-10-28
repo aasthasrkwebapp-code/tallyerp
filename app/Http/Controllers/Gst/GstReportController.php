@@ -31,6 +31,20 @@ class GstReportController extends Controller
         return view('gst.gstr1', $data + compact('from', 'to'));
     }
 
+    /** GSTR-1 as the JSON file for the GST portal. */
+    public function gstr1Json(Request $request, \App\Services\Gst\Gstr1Json $json)
+    {
+        [$from, $to] = $this->period($request);
+        [$data, $errors] = $json->build($from, $to);
+        if ($errors) {
+            return redirect()->route('gst.gstr1', ['from' => $from, 'to' => $to])
+                ->with('error', 'The JSON file was not made: '.implode(' ', array_slice($errors, 0, 8)).(count($errors) > 8 ? ' (and '.(count($errors) - 8).' more)' : ''));
+        }
+
+        return response()->streamDownload(fn () => print(json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION)),
+            "GSTR1_{$data['gstin']}_{$data['fp']}.json", ['Content-Type' => 'application/json']);
+    }
+
     public function gstr3b(Request $request)
     {
         [$from, $to] = $this->period($request);

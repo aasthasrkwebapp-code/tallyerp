@@ -143,4 +143,54 @@ class GstReportsTest extends TestCase
         $employee = $this->addMember(\App\Models\Company::first(), 'employee');
         $this->actingAs($employee)->get(route('gst.gstr1'))->assertForbidden();
     }
+
+    public function test_gstr1_json_for_the_portal(): void
+    {
+        [$json, $errors] = app(\App\Services\Gst\Gstr1Json::class)->build('2026-09-01', '2026-09-30');
+        $this->assertSame([], $errors);
+        $this->assertSame(['27AAACD1234E1Z5', '092026'], [$json['gstin'], $json['fp']]);
+
+        $this->assertSame(['27ABCDE1234F1Z5', '24ABCDE1234F1Z5'], array_column($json['b2b'], 'ctin'));
+        $mumbai = $json['b2b'][0]['inv'][0];
+        $this->assertSame(['10-09-2026', 1180.0, '27', 'N', 'R'], [$mumbai['idt'], $mumbai['val'], $mumbai['pos'], $mumbai['rchrg'], $mumbai['inv_typ']]);
+        $this->assertSame([['num' => 1, 'itm_det' => ['rt' => 18.0, 'txval' => 1000.0, 'iamt' => 0.0, 'camt' => 90.0, 'samt' => 90.0, 'csamt' => 0.0]]], $mumbai['itms']);
+        $this->assertSame(['rt' => 12.0, 'txval' => 1500.0, 'iamt' => 180.0, 'camt' => 0.0, 'samt' => 0.0, 'csamt' => 0.0], $json['b2b'][1]['inv'][0]['itms'][0]['itm_det']);
+
+        $this->assertSame('29', $json['b2cl'][0]['pos']);
+        $this->assertSame(['rt' => 18.0, 'txval' => 150000.0, 'iamt' => 27000.0, 'csamt' => 0.0], $json['b2cl'][0]['inv'][0]['itms'][0]['itm_det']);
+        $this->assertSame([['sply_ty' => 'INTRA', 'pos' => '27', 'typ' => 'OE', 'rt' => 5.0, 'txval' => 2000.0, 'camt' => 50.0, 'samt' => 50.0, 'csamt' => 0.0]], $json['b2cs']);
+        $this->assertSame([['sply_ty' => 'INTRAB2C', 'expt_amt' => 0, 'nil_amt' => 300.0, 'ngsup_amt' => 0]], $json['nil']['inv']);
+
+        $this->assertSame('27ABCDE1234F1Z5', $json['cdnr'][0]['ctin']);
+        $this->assertSame(['C', 118.0], [$json['cdnr'][0]['nt'][0]['ntty'], $json['cdnr'][0]['nt'][0]['val']]);
+        $this->assertArrayNotHasKey('exp', $json);
+
+        $hsn = collect($json['hsn']['data'])->keyBy('hsn_sc');
+        $this->assertSame(['0401', '5208', '6109', '8471'], array_column($json['hsn']['data'], 'hsn_sc'));
+        $this->assertSame([150900.0, 'NOS', 3.0], [$hsn['8471']['txval'], $hsn['8471']['uqc'], $hsn['5208']['qty']]);
+
+        $docs = collect($json['doc_issue']['doc_det'])->keyBy('doc_num');
+        $this->assertSame([5, 1, 4], [$docs[1]['docs'][0]['totnum'], $docs[1]['docs'][0]['cancel'], $docs[1]['docs'][0]['net_issue']]);
+        $this->assertSame(1, $docs[5]['docs'][0]['totnum']);
+
+        // Only whole months or quarters, and only with the company GSTIN.
+        $this->assertNotSame([], app(\App\Services\Gst\Gstr1Json::class)->build('2026-09-05', '2026-09-30')[1]);
+        $this->assertSame([], app(\App\Services\Gst\Gstr1Json::class)->build('2026-07-01', '2026-09-30')[1]);
+        app(\App\Support\CurrentCompany::class)->get()->update(['gstin' => null]);
+        $this->assertStringContainsString('GSTIN', app(\App\Services\Gst\Gstr1Json::class)->build('2026-09-01', '2026-09-30')[1][0]);
+    }
+
+    public function test_gstr1_json_download(): void
+    {
+        $this->actingAs($this->owner);
+        $this->get(route('gst.gstr1', ['month' => '2026-09']))->assertOk()->assertSee('JSON for the GST portal');
+        $response = $this->get(route('gst.gstr1-json', ['from' => '2026-09-01', 'to' => '2026-09-30']))->assertOk();
+        $this->assertStringContainsString('GSTR1_27AAACD1234E1Z5_092026.json', $response->headers->get('content-disposition'));
+        $this->assertSame('092026', json_decode($response->streamedContent(), true)['fp']);
+
+        $this->get(route('gst.gstr1-json', ['from' => '2026-09-01', 'to' => '2026-09-15']))->assertRedirect()->assertSessionHas('error');
+
+        $viewer = $this->addMember(app(\App\Support\CurrentCompany::class)->get(), 'viewer');
+        $this->actingAs($viewer)->get(route('gst.gstr1-json', ['from' => '2026-09-01', 'to' => '2026-09-30']))->assertForbidden();
+    }
 }
