@@ -193,4 +193,46 @@ class GstReportsTest extends TestCase
         $viewer = $this->addMember(app(\App\Support\CurrentCompany::class)->get(), 'viewer');
         $this->actingAs($viewer)->get(route('gst.gstr1-json', ['from' => '2026-09-01', 'to' => '2026-09-30']))->assertForbidden();
     }
+
+    public function test_gstr3b_json_for_the_portal(): void
+    {
+        // An inter-state purchase at 0% for table 5, and an intra-state one returned in part.
+        $this->save('purchase', 'ahd', [['400', '0', '0401', 'purchase']], ['reference' => 'AM-10']);
+        $milk = $this->save('purchase', 'supplier', [['250', '0', '0401', 'purchase']], ['reference' => 'PS-2']);
+        $this->save('debit_note', 'supplier', [['50', '0', '0401', 'purchase']], ['original_invoice_id' => $milk->id]);
+
+        [$data, $errors] = app(\App\Services\Gst\Gstr3bJson::class)->build('2026-09-01', '2026-09-30');
+        $this->assertSame([], $errors);
+        $this->assertSame('27AAACD1234E1Z5', $data['gstin']);
+        $this->assertSame('092026', $data['ret_period']);
+        $sup = $data['sup_details'];
+        $this->assertSame(['txval' => 154400.0, 'iamt' => 27180.0, 'camt' => 131.0, 'samt' => 131.0, 'csamt' => 0.0], $sup['osup_det']);
+        $this->assertSame(['txval' => 0.0, 'iamt' => 0.0, 'csamt' => 0.0], $sup['osup_zero']);
+        $this->assertSame(['txval' => 300.0], $sup['osup_nil_exmp']);
+        $this->assertSame(['txval' => 0.0, 'iamt' => 0.0, 'camt' => 0.0, 'samt' => 0.0, 'csamt' => 0.0], $sup['isup_rev']);
+
+        // 3.2: only the Bengaluru consumer; Surat is registered and Pune is intra-state.
+        $this->assertSame([['pos' => '29', 'txval' => 150000.0, 'iamt' => 27000.0]], $data['inter_sup']['unreg_details']);
+        $this->assertSame([], $data['inter_sup']['comp_details']);
+
+        $itc = collect($data['itc_elg']['itc_avl'])->keyBy('ty');
+        $this->assertSame(['ty' => 'OTH', 'iamt' => 360.0, 'camt' => 450.0, 'samt' => 450.0, 'csamt' => 0.0], $itc['OTH']);
+        $this->assertSame(0.0, $itc['ISRC']['iamt']);
+        $this->assertSame(['IMPG', 'IMPS', 'ISRC', 'ISD', 'OTH'], $itc->keys()->all());
+        $this->assertSame(['ty' => 'OTH', 'iamt' => 0.0, 'camt' => 90.0, 'samt' => 90.0, 'csamt' => 0.0], $data['itc_elg']['itc_rev'][1]);
+        $this->assertSame(['iamt' => 360.0, 'camt' => 360.0, 'samt' => 360.0, 'csamt' => 0.0], $data['itc_elg']['itc_net']);
+        $this->assertSame(['ty' => 'GST', 'inter' => 400.0, 'intra' => 200.0], $data['inward_sup']['isup_details'][0]);
+
+        // Download, the button, and the checks.
+        $this->actingAs($this->owner)->get(route('gst.gstr3b', ['from' => '2026-09-01', 'to' => '2026-09-30']))->assertSee(route('gst.gstr3b-json', ['from' => '2026-09-01', 'to' => '2026-09-30']));
+        $response = $this->get(route('gst.gstr3b-json', ['from' => '2026-09-01', 'to' => '2026-09-30']))->assertOk();
+        $this->assertStringContainsString('GSTR3B_27AAACD1234E1Z5_092026.json', $response->headers->get('content-disposition'));
+        $this->assertStringContainsString('"txval":154400.0', $response->streamedContent());
+        $this->get(route('gst.gstr3b-json', ['from' => '2026-09-01', 'to' => '2026-09-20']))->assertRedirect()->assertSessionHas('error');
+        app(\App\Support\CurrentCompany::class)->get()->update(['gstin' => null]);
+        $this->get(route('gst.gstr3b-json', ['from' => '2026-09-01', 'to' => '2026-09-30']))->assertSessionHas('error', fn ($m) => str_contains($m, 'GSTIN'));
+
+        $viewer = $this->addMember(app(\App\Support\CurrentCompany::class)->get(), 'viewer');
+        $this->actingAs($viewer)->get(route('gst.gstr3b-json', ['from' => '2026-09-01', 'to' => '2026-09-30']))->assertForbidden();
+    }
 }

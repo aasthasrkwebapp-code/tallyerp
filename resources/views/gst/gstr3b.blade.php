@@ -10,6 +10,9 @@
         <h1>GSTR-3B <small class="text-secondary fs-6">Summary return</small></h1>
         <p class="text-secondary mb-0">Outward supplies from sales invoices less credit notes; input tax credit from purchase bills less debit notes.</p>
     </div>
+    @can('reports.export')
+        <a href="{{ route('gst.gstr3b-json', ['from' => $from, 'to' => $to]) }}" class="btn btn-outline-primary" title="JSON file for the GST portal's GSTR-3B offline utility or upload"><i class="bi bi-filetype-json"></i> JSON for the GST portal</a>
+    @endcan
 </div>
 
 @include('gst._period')

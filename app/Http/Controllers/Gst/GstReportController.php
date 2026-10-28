@@ -45,6 +45,18 @@ class GstReportController extends Controller
             "GSTR1_{$data['gstin']}_{$data['fp']}.json", ['Content-Type' => 'application/json']);
     }
 
+    public function gstr3bJson(Request $request, \App\Services\Gst\Gstr3bJson $json)
+    {
+        [$from, $to] = $this->period($request);
+        [$data, $errors] = $json->build($from, $to);
+        if ($errors) {
+            return redirect()->route('gst.gstr3b', ['from' => $from, 'to' => $to])->with('error', 'The JSON file was not made: '.implode(' ', $errors));
+        }
+
+        return response()->streamDownload(fn () => print(json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION)),
+            "GSTR3B_{$data['gstin']}_{$data['ret_period']}.json", ['Content-Type' => 'application/json']);
+    }
+
     public function gstr3b(Request $request)
     {
         [$from, $to] = $this->period($request);
