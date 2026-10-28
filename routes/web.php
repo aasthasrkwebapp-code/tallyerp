@@ -281,6 +281,8 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
         Route::get('/trips', [TripController::class, 'index'])->name('trips.index')->middleware('can:transport.view');
         Route::get('/trips/create', [TripController::class, 'create'])->name('trips.create')->middleware('can:transport.create');
         Route::post('/trips', [TripController::class, 'store'])->name('trips.store')->middleware('can:transport.create');
+        Route::get('/trips/bill', [TripController::class, 'billMany'])->name('trips.bill-many')->middleware('can:transport.edit');
+        Route::post('/trips/bill', [TripController::class, 'storeBillMany'])->name('trips.bill-many.store')->middleware('can:transport.edit');
         Route::get('/trips/{trip}', [TripController::class, 'show'])->name('trips.show')->middleware('can:transport.view');
         Route::get('/trips/{trip}/edit', [TripController::class, 'edit'])->name('trips.edit')->middleware('can:transport.edit');
         Route::put('/trips/{trip}', [TripController::class, 'update'])->name('trips.update')->middleware('can:transport.edit');

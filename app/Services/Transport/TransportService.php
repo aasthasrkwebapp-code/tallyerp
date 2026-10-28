@@ -203,43 +203,79 @@ class TransportService
     /** Raise the freight bill for a trip as a sales invoice to its customer. */
     public function bill(Trip $trip, array $data, User $user): Invoice
     {
-        $trip->loadMissing('invoice.voucher', 'vehicle');
-        if ($trip->status === 'cancelled') {
-            throw ValidationException::withMessages(['trip' => 'A cancelled trip cannot be billed.']);
+        return $this->billTrips([$trip->id], ['amounts' => [$trip->id => $data['amount'] ?? $trip->freight_amount]] + $data, $user);
+    }
+
+    /**
+     * One freight bill for several trips of the same customer: a sales invoice
+     * with a line per trip. Each trip points to the invoice, and its freight
+     * becomes the amount billed for it.
+     *
+     * @param  array{date?:string, gst_rate?:string, amounts?:array<int,string>, intent?:string}  $data
+     */
+    public function billTrips(array $tripIds, array $data, User $user): Invoice
+    {
+        $trips = Trip::query()->with('invoice.voucher', 'vehicle')->whereIn('id', $tripIds)->orderBy('start_date')->orderBy('id')->get();
+        if ($trips->isEmpty()) {
+            throw ValidationException::withMessages(['trips' => 'Select the trips to bill.']);
         }
-        if ($trip->invoice && $trip->invoice->status() !== Voucher::CANCELLED) {
-            throw ValidationException::withMessages(['trip' => 'This trip already has a freight bill.']);
+        $errors = [];
+        $amounts = [];
+        foreach ($trips as $trip) {
+            if ($trip->status === 'cancelled') {
+                $errors["trip_{$trip->id}"] = $trips->count() > 1 ? "Trip {$trip->number} is cancelled." : 'A cancelled trip cannot be billed.';
+            } elseif ($trip->invoice && $trip->invoice->status() !== Voucher::CANCELLED) {
+                $errors["trip_{$trip->id}"] = $trips->count() > 1 ? "Trip {$trip->number} already has a freight bill." : 'This trip already has a freight bill.';
+            } elseif (! $trip->party_account_id) {
+                $errors["trip_{$trip->id}"] = 'Set the customer on the trip before billing.';
+            }
+            $amounts[$trip->id] = trim((string) ($data['amounts'][$trip->id] ?? $trip->freight_amount));
+            if (Money::toPaise($amounts[$trip->id]) <= 0) {
+                $errors[$trips->count() > 1 ? "amounts.{$trip->id}" : 'amount'] = $trips->count() > 1 ? "Enter the freight for trip {$trip->number}." : 'Enter the freight amount.';
+            }
         }
-        if (! $trip->party_account_id) {
-            throw ValidationException::withMessages(['trip' => 'Set the customer on the trip before billing.']);
+        if ($trips->pluck('party_account_id')->filter()->unique()->count() > 1) {
+            $errors['trips'] = 'All the trips on one bill must be for the same customer.';
         }
-        $freight = trim((string) ($data['amount'] ?? $trip->freight_amount));
-        if (Money::toPaise($freight) <= 0) {
-            throw ValidationException::withMessages(['amount' => 'Enter the freight amount.']);
+        if ($errors) {
+            // A single trip keeps the "trip" key the trip screen shows.
+            throw ValidationException::withMessages($trips->count() === 1 ? collect($errors)->mapWithKeys(fn ($m, $k) => [str_starts_with($k, 'trip_') ? 'trip' : $k => $m])->all() : $errors);
         }
 
-        return DB::transaction(function () use ($trip, $data, $user, $freight) {
-            $description = "Freight {$trip->origin} to {$trip->destination}, vehicle {$trip->vehicle->number}"
-                .($trip->lr_number ? ", LR {$trip->lr_number}" : '').($trip->material ? ", {$trip->material}" : '');
+        return DB::transaction(function () use ($trips, $data, $user, $amounts) {
+            $items = $trips->map(function (Trip $trip) use ($amounts, $data) {
+                $description = "Freight {$trip->origin} to {$trip->destination}, vehicle {$trip->vehicle->number}"
+                    .($trip->lr_number ? ", LR {$trip->lr_number}" : '').($trip->material ? ", {$trip->material}" : '')
+                    .($trip->start_date ? ', '.$trip->start_date->format('d-m-Y') : '');
+
+                return [
+                    'account_id' => $this->freightLedger()->id, 'description' => mb_substr($description, 0, 500), 'hsn_sac' => '9965',
+                    'quantity' => '1', 'unit' => 'Trip', 'rate' => Money::normalize($amounts[$trip->id]), 'gst_rate' => (string) ($data['gst_rate'] ?? '0'),
+                ];
+            })->all();
+            $first = $trips->first();
+            $single = $trips->count() === 1;
             $invoice = $this->invoices->save(null, 'sales', [
-                'date' => $data['date'] ?? ($trip->end_date ?? $trip->start_date)->toDateString(),
-                'party_account_id' => $trip->party_account_id,
-                'reference' => $trip->lr_number ?: $trip->number,
-                'narration' => "Trip {$trip->number}",
-                'items' => [[
-                    'account_id' => $this->freightLedger()->id,
-                    'description' => mb_substr($description, 0, 500),
-                    'hsn_sac' => '9965',
-                    'quantity' => '1',
-                    'unit' => 'Trip',
-                    'rate' => Money::normalize($freight),
-                    'gst_rate' => (string) ($data['gst_rate'] ?? '0'),
-                ]],
+                'date' => $data['date'] ?? $trips->max(fn ($t) => ($t->end_date ?? $t->start_date)->toDateString()),
+                'party_account_id' => $first->party_account_id,
+                'reference' => $single ? ($first->lr_number ?: $first->number) : mb_substr($trips->count().' trips '.$first->number.'–'.$trips->last()->number, 0, 50),
+                'narration' => $single ? "Trip {$first->number}" : 'Trips '.$trips->pluck('number')->implode(', '),
+                'items' => $items,
             ], $user, $data['intent'] ?? 'post');
-            $trip->update(['invoice_id' => $invoice->id, 'freight_amount' => Money::normalize($freight)]);
+            foreach ($trips as $trip) {
+                $trip->update(['invoice_id' => $invoice->id, 'freight_amount' => Money::normalize($amounts[$trip->id])]);
+            }
 
             return $invoice;
         });
+    }
+
+    /** Completed trips of a customer not yet billed (or whose bill was cancelled). */
+    public function unbilledTrips(int $partyId)
+    {
+        return Trip::query()->with('vehicle', 'invoice.voucher')->where('party_account_id', $partyId)->where('status', 'completed')
+            ->where(fn ($w) => $w->whereNull('invoice_id')->orWhereHas('invoice', fn ($i) => $i->whereHas('voucher', fn ($v) => $v->where('status', Voucher::CANCELLED))))
+            ->orderBy('start_date')->orderBy('id')->get();
     }
 
     protected function uniqueLedgerName(string $name): string

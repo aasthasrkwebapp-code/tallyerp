@@ -38,15 +38,19 @@ class TransportReports
             ->get();
 
         $expenses = $this->postedExpenses()->whereIn('trip_id', $trips->pluck('id'))->get()->groupBy('trip_id');
+        $shared = $this->tripsPerInvoice($trips->pluck('invoice_id')->filter()->all());
 
-        return $trips->map(fn (Trip $trip) => $this->tripFigures($trip, $expenses->get($trip->id, collect())));
+        return $trips->map(fn (Trip $trip) => $this->tripFigures($trip, $expenses->get($trip->id, collect()), $shared));
     }
 
-    public function tripFigures(Trip $trip, ?Collection $expenses = null): object
+    /** @param  array<int,int>|null  $tripsPerInvoice  invoice id => number of trips it bills */
+    public function tripFigures(Trip $trip, ?Collection $expenses = null, ?array $tripsPerInvoice = null): object
     {
         $expenses ??= $this->postedExpenses()->where('trip_id', $trip->id)->get();
         $invoice = $trip->postedInvoice();
-        $freight = $invoice ? Money::toPaise($invoice->taxable_total) : Money::toPaise($trip->freight_amount);
+        $tripsPerInvoice ??= $invoice ? $this->tripsPerInvoice([$invoice->id]) : [];
+        // A bill for one trip counts its taxable value; a multi-trip bill counts the amount billed for this trip.
+        $freight = $invoice && ($tripsPerInvoice[$invoice->id] ?? 1) === 1 ? Money::toPaise($invoice->taxable_total) : Money::toPaise($trip->freight_amount);
         $byCategory = $expenses->groupBy('category')->map(fn ($c) => $c->sum(fn ($e) => Money::toPaise($e->amount)))->all();
         $total = array_sum($byCategory);
 
@@ -140,5 +144,12 @@ class TransportReports
     {
         return TransportExpense::query()->where('status', 'posted')
             ->whereHas('voucher', fn ($q) => $q->where('status', Voucher::POSTED));
+    }
+
+    /** @return array<int,int> */
+    protected function tripsPerInvoice(array $invoiceIds): array
+    {
+        return $invoiceIds === [] ? [] : Trip::query()->whereIn('invoice_id', array_unique($invoiceIds))->groupBy('invoice_id')
+            ->selectRaw('invoice_id, COUNT(*) as trips')->pluck('trips', 'invoice_id')->map(fn ($n) => (int) $n)->all();
     }
 }

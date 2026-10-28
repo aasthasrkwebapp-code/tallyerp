@@ -67,6 +67,10 @@
             <h2 class="h6 fw-bold">Freight bill</h2>
             @if ($invoice && ! $billable)
                 <p class="mb-0 small"><a href="{{ route('invoices.show', $invoice) }}">{{ $invoice->displayNumber() }}</a> · {{ $invoice->date->format('d-m-Y') }} · {{ $m($invoice->grand_total) }} @include('accounting.vouchers._status', ['status' => $invoice->status()])</p>
+                @php($others = \App\Models\Trip::query()->where('invoice_id', $invoice->id)->whereKeyNot($trip->id)->orderBy('number')->get(['id', 'number']))
+                @if ($others->isNotEmpty())
+                    <p class="mb-0 small text-secondary">One bill for {{ $others->count() + 1 }} trips; this trip's freight is {{ $m($trip->freight_amount) }}. Also on it: @foreach ($others as $o)<a href="{{ route('trips.show', $o) }}">{{ $o->number }}</a>@if (! $loop->last), @endif @endforeach</p>
+                @endif
             @elseif ($billable && auth()->user()->can('transport.edit') && auth()->user()->can('sales.create'))
                 @if (! $trip->party_account_id)
                     <p class="small text-secondary mb-0">Set the customer on the trip to raise a freight bill.</p>
@@ -81,7 +85,7 @@
                             </div>
                             <div class="col-6 d-flex align-items-end"><button class="btn btn-sm btn-primary w-100">Raise bill</button></div>
                         </div>
-                        <p class="small text-secondary mt-2 mb-0">Posts a sales invoice to the customer (SAC 9965, Freight Income). Use 0% when GST is paid by the customer under reverse charge.</p>
+                        <p class="small text-secondary mt-2 mb-0">Posts a sales invoice to the customer (SAC 9965, Freight Income). Use 0% when GST is paid by the customer under reverse charge. To put several trips on one bill, use <a href="{{ route('trips.bill-many', ['party' => $trip->party_account_id]) }}">Bill several trips</a>.</p>
                     </form>
                 @endif
             @else

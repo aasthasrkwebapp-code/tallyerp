@@ -11,9 +11,14 @@
         <h1>Trips</h1>
         <p class="text-secondary mb-0">Each trip carries its freight, expenses and freight bill.</p>
     </div>
-    @can('transport.create')
-        <a href="{{ route('trips.create') }}" class="btn btn-primary" data-shortcut="c"><i class="bi bi-plus-lg me-1"></i>New trip</a>
-    @endcan
+    <div class="d-flex flex-wrap gap-2">
+        @if (auth()->user()->can('transport.edit') && auth()->user()->can('sales.create'))
+            <a href="{{ route('trips.bill-many') }}" class="btn btn-outline-secondary"><i class="bi bi-receipt me-1"></i>Bill several trips</a>
+        @endif
+        @can('transport.create')
+            <a href="{{ route('trips.create') }}" class="btn btn-primary" data-shortcut="c"><i class="bi bi-plus-lg me-1"></i>New trip</a>
+        @endcan
+    </div>
 </div>
 
 <form method="GET" class="erp-card p-3 mb-3">

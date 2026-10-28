@@ -130,6 +130,41 @@ class TripController extends Controller
         return redirect()->route('trips.show', $trip)->with('success', "Freight bill {$invoice->displayNumber()} raised for trip {$trip->number}.");
     }
 
+    /** Pick a customer's unbilled trips for one freight bill. */
+    public function billMany(Request $request)
+    {
+        abort_unless($request->user()->can('sales.create'), 403, 'Raising freight bills needs permission to create sales invoices.');
+        $customers = app(InvoiceService::class)->partyQuery('sales')->where('account_type', 'party')
+            ->whereIn('id', Trip::query()->where('status', 'completed')->whereNotNull('party_account_id')->select('party_account_id'))->orderBy('name')->get();
+        $party = $customers->firstWhere('id', $request->integer('party')) ?? $customers->first();
+
+        return view('transport.trips.bill-many', [
+            'customers' => $customers, 'party' => $party,
+            'trips' => $party ? $this->transport->unbilledTrips($party->id) : collect(),
+            'gstRates' => ['0', '5', '12', '18'],
+        ]);
+    }
+
+    public function storeBillMany(Request $request)
+    {
+        abort_unless($request->user()->can('sales.create'), 403, 'Raising freight bills needs permission to create sales invoices.');
+        $data = $request->validate([
+            'party' => ['required', 'integer'],
+            'trips' => ['required', 'array', 'min:1', 'max:200'], 'trips.*' => ['integer'],
+            'amounts' => ['nullable', 'array'], 'amounts.*' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99', 'decimal:0,2'],
+            'date' => ['required', 'date'],
+            'gst_rate' => ['required', 'in:0,5,12,18'],
+        ], ['trips.required' => 'Tick at least one trip.']);
+        $ids = Trip::query()->whereIn('id', $data['trips'])->where('party_account_id', $data['party'])->pluck('id')->all();
+        if (count($ids) !== count(array_unique($data['trips']))) {
+            return back()->withInput()->withErrors(['trips' => 'All the trips on one bill must be for the same customer.']);
+        }
+        $amounts = array_intersect_key($data['amounts'] ?? [], array_flip($ids));
+        $invoice = $this->transport->billTrips($ids, ['amounts' => $amounts, 'date' => $data['date'], 'gst_rate' => $data['gst_rate']], $request->user());
+
+        return redirect()->route('invoices.show', $invoice)->with('success', "Freight bill {$invoice->displayNumber()} raised for ".count($ids).' trip(s).');
+    }
+
     protected function formData(Trip $trip): array
     {
         return [
