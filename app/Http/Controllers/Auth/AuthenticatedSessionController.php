@@ -26,6 +26,13 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
 
+        if ($user = $request->needsTwoFactor()) {
+            $request->session()->put(TwoFactorChallengeController::SESSION_KEY, ['id' => $user->id, 'remember' => $request->boolean('remember'), 'at' => now()->getTimestamp()]);
+
+            return redirect()->route('two-factor.login');
+        }
+
+        Auth::login(Auth::getLastAttempted(), $request->boolean('remember'));
         $request->session()->regenerate();
 
         return redirect()->intended(route('dashboard', absolute: false));

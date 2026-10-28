@@ -26,6 +26,8 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
     ];
 
     /** @var array<int, Role|null> role per company id, cached for the request */
@@ -36,7 +38,54 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'two_factor_secret' => 'encrypted',
+            'two_factor_recovery_codes' => 'encrypted:array',
+            'two_factor_confirmed_at' => 'datetime',
         ];
+    }
+
+    /** True once the user has confirmed an authenticator app. */
+    public function hasTwoFactor(): bool
+    {
+        return $this->two_factor_confirmed_at !== null && $this->two_factor_secret !== null;
+    }
+
+    /**
+     * Check an authenticator code, refusing one already used.
+     * Updates the last used time step on success.
+     */
+    public function verifyTwoFactorCode(string $code): bool
+    {
+        $step = \App\Support\Totp::verify((string) $this->two_factor_secret, $code, $this->two_factor_last_step);
+        if ($step === null) {
+            return false;
+        }
+        $this->forceFill(['two_factor_last_step' => $step])->save();
+
+        return true;
+    }
+
+    /** Use up a recovery code; each works once. Codes are kept hashed. */
+    public function useRecoveryCode(string $code): bool
+    {
+        $code = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $code));
+        $codes = $this->two_factor_recovery_codes ?? [];
+        foreach ($codes as $i => $hash) {
+            if ($code !== '' && \Illuminate\Support\Facades\Hash::check($code, $hash)) {
+                unset($codes[$i]);
+                $this->forceFill(['two_factor_recovery_codes' => array_values($codes)])->save();
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Remaining unused recovery codes. */
+    public function recoveryCodesLeft(): int
+    {
+        return count($this->two_factor_recovery_codes ?? []);
     }
 
     /**

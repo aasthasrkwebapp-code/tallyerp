@@ -39,6 +39,7 @@
                         'enable_gst' => ['Enable GST', 'Calculate CGST, SGST and IGST on invoices.'],
                         'allow_future_dated_vouchers' => ['Allow future-dated vouchers', 'Permit voucher dates after today.'],
                         'require_voucher_approval' => ['Require voucher approval (maker-checker)', 'Vouchers entered by non-approvers stay pending until approved.'],
+                        'require_two_factor' => ['Require two-factor sign-in', 'Every member must set up an authenticator app before opening this company.'],
                         'invoice_show_bank_details' => ['Show bank details on invoices', 'Print the default bank account on sales invoices.'],
                         'invoice_round_off' => ['Round invoice totals', 'Round invoice totals to the nearest rupee and post the difference to Round Off.'],
                     ] as $key => [$label, $help])

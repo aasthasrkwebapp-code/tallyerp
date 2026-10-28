@@ -10,6 +10,8 @@ migration rolls back cleanly (`.github/workflows/tests.yml` checks PHP 8.2/8.3 Ã
 - [ ] PHP 8.2 or 8.3 with extensions: pdo_mysql, mbstring, intl, gd, zip, xml, xmlreader,
       xmlwriter, fileinfo, openssl, ctype, iconv, zlib (needed by PhpSpreadsheet and dompdf).
 - [ ] MySQL 8.0, database with `utf8mb4` / `utf8mb4_unicode_ci`; a user limited to that database.
+- [ ] Keep `APP_KEY` fixed once users exist: two-factor secrets and recovery codes are encrypted with it. Changing it stops every authenticator app from working. If that happens, turn 2FA off for the affected users in the database and have them set it up again.
+- [ ] The server clock must be correct (use NTP). Two-factor codes allow only 30 seconds of drift either way.
 - [ ] Web root is `public/`. `storage/` and `bootstrap/cache/` writable by the web user.
 - [ ] HTTPS only (HSTS is sent automatically over HTTPS).
 - [ ] `upload_max_filesize` / `post_max_size` â‰¥ 200M if backups will be uploaded (imports need 10M).

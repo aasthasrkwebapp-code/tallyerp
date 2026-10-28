@@ -81,6 +81,7 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
     Route::post('/members', [MemberController::class, 'store'])->name('members.store')->middleware('can:users.create');
     Route::put('/members/{user}', [MemberController::class, 'update'])->name('members.update')->middleware('can:users.edit');
     Route::delete('/members/{user}', [MemberController::class, 'destroy'])->name('members.destroy')->middleware('can:users.delete');
+    Route::post('/members/{user}/reset-two-factor', [MemberController::class, 'resetTwoFactor'])->name('members.reset-two-factor')->middleware('can:users.edit');
 
     Route::get('/roles/create', [RoleController::class, 'create'])->name('roles.create')->middleware('can:users.create');
     Route::post('/roles', [RoleController::class, 'store'])->name('roles.store')->middleware('can:users.create');

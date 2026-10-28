@@ -80,6 +80,18 @@
     </div>
 
     <div class="col-12">
+        <section class="erp-card p-3 p-md-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <h2 class="h6 fw-bold mb-1">Two-factor sign-in
+                    @if ($user->hasTwoFactor())<span class="badge text-bg-success">On</span>@else<span class="badge text-bg-secondary">Off</span>@endif
+                </h2>
+                <p class="text-secondary small mb-0">Ask for a code from an authenticator app (Google Authenticator, Microsoft Authenticator, Authy) after your password.</p>
+            </div>
+            <a href="{{ route('two-factor.show') }}" class="btn btn-outline-primary"><i class="bi bi-shield-lock me-1"></i>{{ $user->hasTwoFactor() ? 'Manage' : 'Set up' }}</a>
+        </section>
+    </div>
+
+    <div class="col-12">
         <section class="erp-card p-3 p-md-4 border-danger-subtle">
             <h2 class="h6 fw-bold text-danger">Delete account</h2>
             <p class="text-secondary small mb-3">

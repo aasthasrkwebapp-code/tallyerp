@@ -40,6 +40,10 @@ class SettingsController extends Controller
             'remove_logo' => ['nullable', 'boolean'],
         ]);
 
+        if ($request->boolean('require_two_factor') && ! $request->user()->hasTwoFactor()) {
+            return back()->withInput()->with('error', 'Turn on two-factor sign-in for your own account first (Profile → Two-factor sign-in), so you are not locked out.');
+        }
+
         $settings = $company->settings ?? [];
         foreach (array_keys(Company::DEFAULT_SETTINGS) as $key) {
             if (is_bool(Company::DEFAULT_SETTINGS[$key])) {

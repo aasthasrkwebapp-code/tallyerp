@@ -38,6 +38,12 @@ class EnsureCompanySelected
             $request->session()->put(self::SESSION_KEY, $company->id);
         }
 
+        // A company can insist that its members sign in with a second factor.
+        if ($company->setting('require_two_factor') && ! $user->hasTwoFactor()) {
+            return redirect()->route('two-factor.show')
+                ->with('warning', "{$company->name} requires two-factor sign-in. Set it up to continue.");
+        }
+
         $this->current->set($company);
         view()->share('currentCompany', $company);
         view()->share('currentFinancialYear', $company->currentFinancialYear());

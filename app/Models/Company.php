@@ -21,6 +21,7 @@ class Company extends Model
         'enable_gst' => true,
         'allow_future_dated_vouchers' => false,
         'require_voucher_approval' => false,
+        'require_two_factor' => false,
         'invoice_terms' => null,
         'invoice_footer' => null,
         'invoice_show_bank_details' => true,

@@ -78,6 +78,31 @@ class MemberController extends Controller
         return back()->with('success', "{$user->name} no longer has access.");
     }
 
+    /**
+     * Turn off a member's two-factor sign-in (lost phone and no recovery
+     * codes). Only an owner or admin may do this, and only for someone whose
+     * every company they also own or administer, as the sign-in is shared.
+     */
+    public function resetTwoFactor(Request $request, User $user, CurrentCompany $current)
+    {
+        $company = $current->get();
+        $company->members()->whereKey($user->id)->firstOrFail();
+        $actor = $request->user();
+        $super = config('erp.super_roles');
+        abort_unless(in_array($actor->roleFor($company)?->name, $super, true), 403, 'Only an owner or admin can reset two-factor sign-in.');
+        abort_if($actor->id === $user->id, 403, 'Turn off your own two-factor sign-in from your profile.');
+        $outside = $user->companies()->get()->reject(fn ($c) => in_array($actor->roleFor($c)?->name, $super, true));
+        if ($outside->isNotEmpty()) {
+            return back()->with('error', "{$user->name} also uses other companies you do not manage, so only they (or an owner of those companies) can reset it.");
+        }
+        $request->validate(['password' => ['required', 'current_password']], ['password.current_password' => 'Your password is incorrect.']);
+
+        $user->forceFill(['two_factor_secret' => null, 'two_factor_recovery_codes' => null, 'two_factor_confirmed_at' => null, 'two_factor_last_step' => null])->save();
+        AuditLog::record('two_factor_reset', $user, null, null, "Two-factor sign-in reset for {$user->email} by {$actor->email}", $company->id);
+
+        return back()->with('success', "Two-factor sign-in for {$user->name} is off. They can set it up again from their profile.");
+    }
+
     /** A company must always keep at least one active owner. */
     protected function guardLastOwner($company, User $user, ?int $newRoleId, bool $active): void
     {

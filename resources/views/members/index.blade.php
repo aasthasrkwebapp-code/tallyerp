@@ -23,6 +23,7 @@
                             <td data-label="User">
                                 <div class="fw-semibold">{{ $member->name }}</div>
                                 <small class="text-secondary">{{ $member->email }}</small>
+                                @if ($member->hasTwoFactor())<span class="badge text-bg-success ms-1" title="Two-factor sign-in on"><i class="bi bi-shield-lock"></i> 2FA</span>@endif
                             </td>
                             @can('users.edit')
                                 <td data-label="Role" colspan="2">
@@ -47,6 +48,13 @@
                                 <td data-label="Active">{{ $member->pivot->is_active ? 'Yes' : 'No' }}</td>
                             @endcan
                             <td data-label="" class="text-end">
+                                @if ($member->hasTwoFactor() && $member->id !== auth()->id() && in_array(auth()->user()->roleFor($currentCompany)?->name, config('erp.super_roles'), true))
+                                    <form method="POST" action="{{ route('members.reset-two-factor', $member) }}" class="d-inline-flex gap-1 mb-1" data-confirm="Turn off two-factor sign-in for {{ $member->name }}? Do this only after checking who is asking.">
+                                        @csrf
+                                        <input type="password" name="password" class="form-control form-control-sm" style="width: 9rem" placeholder="Your password" aria-label="Your password" required autocomplete="current-password">
+                                        <button class="btn btn-sm btn-outline-warning" title="Reset two-factor sign-in"><i class="bi bi-shield-x"></i></button>
+                                    </form>
+                                @endif
                                 @can('users.delete')
                                     @if ($member->id !== auth()->id())
                                         <form method="POST" action="{{ route('members.destroy', $member) }}" data-confirm="Remove {{ $member->name }} from this company?">
