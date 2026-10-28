@@ -78,6 +78,38 @@ OFX;
 -}
 MT;
 
+    protected const CAMT = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+  <BkToCstmrStmt>
+    <GrpHdr><MsgId>MSG1</MsgId><CreDtTm>2026-10-01T09:00:00</CreDtTm></GrpHdr>
+    <Stmt>
+      <Id>STMT-SEP</Id>
+      <Bal><Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp><Amt Ccy="INR">10000.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>2026-09-01</Dt></Dt></Bal>
+      <Bal><Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp><Amt Ccy="INR">12941.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>2026-09-30</Dt></Dt></Bal>
+      <Ntry>
+        <NtryRef>E1</NtryRef><Amt Ccy="INR">5000.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-09-03</Dt></BookgDt><ValDt><Dt>2026-09-03</Dt></ValDt>
+        <NtryDtls><TxDtls><Refs><EndToEndId>111</EndToEndId></Refs><RltdPties><Dbtr><Nm>Interest &amp; Co</Nm></Dbtr></RltdPties><RmtInf><Ustrd>Cheque deposit</Ustrd></RmtInf></TxDtls></NtryDtls>
+      </Ntry>
+      <Ntry>
+        <NtryRef>E2</NtryRef><Amt Ccy="INR">2000.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts>BOOK</Sts>
+        <BookgDt><DtTm>2026-09-06T10:15:00</DtTm></BookgDt>
+        <NtryDtls><TxDtls><Refs><EndToEndId>222</EndToEndId></Refs><RltdPties><Cdtr><Nm>Rent</Nm></Cdtr></RltdPties></TxDtls></NtryDtls>
+      </Ntry>
+      <Ntry>
+        <AcctSvcrRef>CHG9</AcctSvcrRef><Amt Ccy="INR">59</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-09-30</Dt></BookgDt><AddtlNtryInf>SMS charges</AddtlNtryInf>
+        <NtryDtls><TxDtls><Refs><EndToEndId>NOTPROVIDED</EndToEndId></Refs></TxDtls></NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="INR">99.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts>PDNG</Sts><BookgDt><Dt>2026-09-30</Dt></BookgDt>
+      </Ntry>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>
+XML;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -123,6 +155,32 @@ MT;
         $this->assertStringContainsString('does not equal the closing balance', app(StatementParser::class)->parse($broken)['errors'][0]);
     }
 
+    public function test_camt053_lines_are_read_and_balances_checked(): void
+    {
+        $parsed = app(StatementParser::class)->parse(self::CAMT);
+        $this->assertSame('camt053', $parsed['format']);
+        $this->assertSame([], $parsed['errors']);
+        // The pending entry is left out.
+        $this->assertSame([
+            ['2026-09-03', 'Interest & Co · Cheque deposit', '111', 0, 500000, 'camt:STMT-SEP:E1'],
+            ['2026-09-06', 'Rent', '222', 200000, 0, 'camt:STMT-SEP:E2'],
+            ['2026-09-30', 'SMS charges', '', 5900, 0, 'camt:STMT-SEP:CHG9'],
+        ], $parsed['lines']);
+
+        $broken = str_replace('12941.00', '13000.00', self::CAMT);
+        $this->assertStringContainsString('does not equal the closing balance', app(StatementParser::class)->parse($broken)['errors'][0]);
+
+        // A prefixed namespace reads the same; entity declarations are refused.
+        $prefixed = preg_replace(['/<(\/?)(?!\?)/', '/xmlns=/'], ['<$1c:', 'xmlns:c='], self::CAMT);
+        $this->assertCount(3, app(StatementParser::class)->parse($prefixed)['lines']);
+        $evil = str_replace('<Document', '<!DOCTYPE d [<!ENTITY x SYSTEM "file:///etc/passwd">]><Document', self::CAMT);
+        $this->assertStringContainsString('not accepted', app(StatementParser::class)->parse($evil)['errors'][0]);
+
+        $result = app(BankReconciliation::class)->importFile($this->bank, self::CAMT, $this->owner);
+        $this->assertSame(['imported' => 3, 'skipped' => 0, 'format' => 'camt053'], $result);
+        $this->assertSame(3, app(BankReconciliation::class)->importFile($this->bank, self::CAMT, $this->owner)['skipped']);
+    }
+
     public function test_import_matches_and_skips_lines_already_imported(): void
     {
         $service = app(BankReconciliation::class);
@@ -144,11 +202,13 @@ MT;
     public function test_upload_screen(): void
     {
         $this->actingAs($this->owner);
-        $this->get(route('bank-reconciliation.index'))->assertOk()->assertSee('OFX / QFX or MT940');
+        $this->get(route('bank-reconciliation.index'))->assertOk()->assertSee('MT940 or CAMT.053');
         $file = UploadedFile::fake()->createWithContent('september.ofx', self::OFX_SGML);
         $this->post(route('bank-reconciliation.import', $this->bank), ['statement' => $file])
             ->assertSessionHas('success', '3 statement lines imported from the OFX / QFX file; 2 matched automatically.');
         $file = UploadedFile::fake()->createWithContent('september.sta', self::MT940);
+        $this->post(route('bank-reconciliation.import', $this->bank), ['statement' => $file])->assertSessionHas('success');
+        $file = UploadedFile::fake()->createWithContent('september.xml', self::CAMT);
         $this->post(route('bank-reconciliation.import', $this->bank), ['statement' => $file])->assertSessionHas('success');
         $file = UploadedFile::fake()->createWithContent('statement.pdf', '%PDF-1.4');
         $this->post(route('bank-reconciliation.import', $this->bank), ['statement' => $file])->assertSessionHasErrors('statement');

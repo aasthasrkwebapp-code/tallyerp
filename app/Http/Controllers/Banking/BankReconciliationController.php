@@ -75,8 +75,8 @@ class BankReconciliationController extends Controller
     {
         abort_unless($ledger->account_type === 'bank', 404);
         $request->validate(['statement' => ['required', 'file', 'max:4096', function ($attribute, $file, $fail) {
-            if (! in_array(strtolower($file->getClientOriginalExtension()), ['csv', 'txt', 'ofx', 'qfx', 'sta', 'mt940', '940'], true)) {
-                $fail('Upload the statement as a CSV, OFX / QFX or MT940 file.');
+            if (! in_array(strtolower($file->getClientOriginalExtension()), ['csv', 'txt', 'ofx', 'qfx', 'sta', 'mt940', '940', 'xml', 'camt', '053'], true)) {
+                $fail('Upload the statement as a CSV, OFX / QFX, MT940 or CAMT.053 file.');
             }
         }]]);
 

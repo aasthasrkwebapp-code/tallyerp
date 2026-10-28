@@ -8,15 +8,15 @@ use Illuminate\Support\Str;
 
 /**
  * Reads bank statement files into plain lines: CSV (columns found by header
- * name), OFX / QFX (version 1 SGML or version 2 XML) and SWIFT MT940.
+ * name), OFX / QFX (version 1 SGML or version 2 XML), SWIFT MT940 and ISO 20022 CAMT.053 XML.
  *
  * Each line is [date, description, reference, withdrawal paise, deposit paise, external id].
- * The external id (OFX FITID, MT940 bank reference) lets a file be imported again
+ * The external id (OFX FITID, MT940 bank reference, CAMT entry reference) lets a file be imported again
  * without doubling its lines.
  */
 class StatementParser
 {
-    public const FORMATS = ['csv' => 'CSV', 'ofx' => 'OFX / QFX', 'mt940' => 'MT940'];
+    public const FORMATS = ['csv' => 'CSV', 'ofx' => 'OFX / QFX', 'mt940' => 'MT940', 'camt053' => 'CAMT.053'];
 
     /** @return array{format: string, lines: array<int, array>, errors: array<int, string>} */
     public function parse(string $content): array
@@ -26,6 +26,7 @@ class StatementParser
         [$lines, $errors] = match ($format) {
             'ofx' => $this->ofx($content),
             'mt940' => $this->mt940($content),
+            'camt053' => $this->camt053($content),
             default => $this->csv($content),
         };
 
@@ -34,6 +35,9 @@ class StatementParser
 
     public function detect(string $content): string
     {
+        if (preg_match('/<(\w+:)?BkToCstmrStmt[\s>]/', substr($content, 0, 4000))) {
+            return 'camt053';
+        }
         if (preg_match('/OFXHEADER|<OFX>/i', substr($content, 0, 4000))) {
             return 'ofx';
         }
@@ -237,6 +241,98 @@ class StatementParser
         }
 
         return [$lines, $errors];
+    }
+
+    // ------------------------------------------------------------- CAMT.053
+
+    protected function camt053(string $content): array
+    {
+        // Namespaces are dropped so paths read the same for every camt.053 version.
+        $xml = preg_replace(['/\sxmlns(:\w+)?="[^"]*"/', '/<(\/?)\w+:/'], ['', '<$1'], $content);
+        if (preg_match('/<!DOCTYPE|<!ENTITY/i', $xml)) {
+            return [[], ['The CAMT.053 file contains a document type declaration, which is not accepted.']];
+        }
+        $previous = libxml_use_internal_errors(true);
+        $doc = simplexml_load_string($xml, \SimpleXMLElement::class, LIBXML_NONET);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+        if ($doc === false) {
+            return [[], ['The CAMT.053 file is not valid XML.']];
+        }
+
+        $lines = [];
+        $errors = [];
+        $n = 0;
+        foreach ($doc->xpath('//BkToCstmrStmt/Stmt') ?: [] as $stmt) {
+            $stmtId = trim((string) $stmt->Id);
+            $balances = [];
+            foreach ($stmt->Bal as $bal) {
+                $code = trim((string) ($bal->Tp->CdOrPrtry->Cd ?? ''));
+                $paise = $this->camtAmount((string) $bal->Amt);
+                if ($paise !== null) {
+                    $balances[$code] = trim((string) $bal->CdtDbtInd) === 'DBIT' ? -$paise : $paise;
+                }
+            }
+            $sum = 0;
+            foreach ($stmt->Ntry as $entry) {
+                $n++;
+                $label = "Entry {$n}";
+                $status = trim((string) ($entry->Sts->Cd ?? $entry->Sts));
+                if ($status !== '' && strtoupper($status) !== 'BOOK') {
+                    continue; // pending or information only
+                }
+                $rawDate = trim((string) ($entry->BookgDt->Dt ?? '')) ?: substr(trim((string) ($entry->BookgDt->DtTm ?? '')), 0, 10) ?: trim((string) ($entry->ValDt->Dt ?? ''));
+                $date = preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $rawDate, $d) && checkdate((int) $d[2], (int) $d[3], (int) $d[1]) ? $rawDate : null;
+                if (! $date) {
+                    $errors[] = "{$label}: unreadable booking date \"{$rawDate}\".";
+
+                    continue;
+                }
+                $amount = $this->camtAmount((string) $entry->Amt);
+                if ($amount === null) {
+                    $errors[] = "{$label}: unreadable amount.";
+
+                    continue;
+                }
+                $credit = trim((string) $entry->CdtDbtInd) === 'CRDT';
+                if (strtolower(trim((string) $entry->RvslInd)) === 'true') {
+                    $credit = ! $credit; // a reversal moves money the other way
+                }
+                $sum += $credit ? $amount : -$amount;
+                $tx = $entry->NtryDtls->TxDtls ?? null;
+                $text = array_filter(array_map('trim', [
+                    (string) ($tx?->RltdPties->{$credit ? 'Dbtr' : 'Cdtr'}->Nm ?? $tx?->RltdPties->{$credit ? 'Dbtr' : 'Cdtr'}->Pty->Nm ?? ''),
+                    implode(' ', array_map('strval', $tx ? $tx->xpath('RmtInf/Ustrd') ?: [] : [])),
+                    (string) $entry->AddtlNtryInf,
+                ]));
+                $reference = trim((string) ($tx?->Refs->EndToEndId ?? '')) ?: trim((string) ($tx?->Refs->InstrId ?? '')) ?: trim((string) ($tx?->Refs->ChqNb ?? ''));
+                if (strtoupper($reference) === 'NOTPROVIDED') {
+                    $reference = '';
+                }
+                $id = trim((string) $entry->NtryRef) ?: trim((string) $entry->AcctSvcrRef) ?: trim((string) ($tx?->Refs->AcctSvcrRef ?? ''));
+                $lines[] = [$date, mb_substr(implode(' · ', array_unique($text)), 0, 500), mb_substr($reference, 0, 60), $credit ? 0 : $amount, $credit ? $amount : 0,
+                    'camt:'.$stmtId.':'.($id !== '' ? $id : $date.':'.$n)];
+            }
+            if (isset($balances['OPBD'], $balances['CLBD']) && $balances['OPBD'] + $sum !== $balances['CLBD']) {
+                $errors[] = "Statement {$stmtId}: the opening balance plus the booked entries (".Money::format(Money::fromPaise($balances['OPBD'] + $sum)).') does not equal the closing balance ('.Money::format(Money::fromPaise($balances['CLBD'])).'). The file may be incomplete.';
+            }
+        }
+        if (! $lines && ! $errors) {
+            $errors[] = 'No booked entries (Ntry) were found in the CAMT.053 file.';
+        }
+
+        return [$lines, $errors];
+    }
+
+    protected function camtAmount(string $value): ?int
+    {
+        $value = trim($value);
+        if (! preg_match('/^\d+(\.\d{1,5})?$/', $value)) {
+            return null;
+        }
+
+        // Two decimals are exact; longer ones (allowed by the schema) are rounded to paise.
+        return Money::toPaise(preg_match('/^\d+(\.\d{1,2})?$/', $value) ? $value : number_format((float) $value, 2, '.', ''));
     }
 
     /** "C261031INR12345,67" => signed paise. */
