@@ -11,14 +11,14 @@ return new class extends Migration
     {
         Schema::table('bank_statement_lines', function (Blueprint $table) {
             $table->string('external_id', 150)->nullable()->after('deposit');
-            $table->index(['account_id', 'external_id']);
+            $table->index('external_id');
         });
     }
 
     public function down(): void
     {
         Schema::table('bank_statement_lines', function (Blueprint $table) {
-            $table->dropIndex(['account_id', 'external_id']);
+            $table->dropIndex(['external_id']);
             $table->dropColumn('external_id');
         });
     }

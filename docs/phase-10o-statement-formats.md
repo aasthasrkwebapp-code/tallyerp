@@ -25,7 +25,7 @@ After import, auto-matching runs as before.
 
 ## Data
 
-Migration `2026_10_28_001200_add_external_id_to_bank_statement_lines` adds `bank_statement_lines.external_id`, with an index on (account, external id).
+Migration `2026_10_28_001200_add_external_id_to_bank_statement_lines` adds `bank_statement_lines.external_id`, with an index.
 
 ## Permissions
 
