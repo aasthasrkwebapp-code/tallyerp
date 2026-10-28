@@ -4,13 +4,14 @@
 
 @php($m = fn ($p) => \App\Support\Money::format($p, paiseInput: true))
 @php($total = array_sum(array_map(fn ($n) => $n->cost, $needs)))
-@php($recovered = array_sum(array_map(fn ($o) => $o->value, $outputs)))
+@php($recovered = array_sum(array_map(fn ($o) => $o->line->isCoProduct() ? 0 : $o->value, $outputs)))
+@php($shared = array_sum(array_map(fn ($o) => $o->line->isCoProduct() ? $o->value : 0, $outputs)))
 
 @section('content')
 <div class="page-header">
     <div>
         <h1>Manufacture {{ $item->name }}</h1>
-        <p class="text-secondary mb-0">Uses up the components of the bill of materials and adds the finished goods, valued at the components' cost less any by-products and scrap.</p>
+        <p class="text-secondary mb-0">Uses up the components of the bill of materials and adds the finished goods, valued at the components' cost less any by-products and scrap, and less the share taken by any co-products.</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
         <a href="{{ route('stock-items.bom.edit', $item) }}" class="btn btn-outline-secondary">Bill of materials</a>
@@ -56,8 +57,9 @@
                 <tfoot>
                     <tr class="row-total"><td colspan="3">Cost of components</td><td class="amount">{{ $m($total) }}</td></tr>
                     @if ($outputs)
-                        <tr><td colspan="3">Less by-products and scrap</td><td class="amount">{{ $m(-$recovered) }}</td></tr>
-                        <tr class="row-total"><td colspan="3">Cost of {{ $item->name }} before other costs</td><td class="amount">{{ $m($total - $recovered) }}</td></tr>
+                        @if ($recovered)<tr><td colspan="3">Less by-products and scrap</td><td class="amount">{{ $m(-$recovered) }}</td></tr>@endif
+                        @if ($shared)<tr><td colspan="3">Less co-products' share</td><td class="amount">{{ $m(-$shared) }}</td></tr>@endif
+                        <tr class="row-total"><td colspan="3">Cost of {{ $item->name }} before other costs</td><td class="amount">{{ $m($mainCost) }}</td></tr>
                     @endif
                 </tfoot>
             @endif
@@ -100,7 +102,7 @@
         </div>
         @if ($outputs)
             <div class="col-12">
-                <div class="fw-semibold small mb-1">By-products and scrap obtained</div>
+                <div class="fw-semibold small mb-1">{{ collect($outputs)->contains(fn ($o) => $o->line->isCoProduct()) ? 'Co-products, by-products and scrap' : 'By-products and scrap' }} obtained</div>
                 @error('outputs')<div class="text-danger small mb-1">{{ $message }}</div>@enderror
                 <div class="table-responsive">
                     <table class="table table-sm align-middle mb-0 table-stack">
@@ -108,7 +110,7 @@
                         <tbody>
                         @foreach ($outputs as $o)
                             <tr>
-                                <td data-label="Item">{{ $o->item->name }} <span class="badge text-bg-light">{{ \App\Models\BomComponent::KINDS[$o->line->kind] }}</span></td>
+                                <td data-label="Item"><div>{{ $o->item->name }} <span class="badge text-bg-light">{{ \App\Models\BomComponent::KINDS[$o->line->kind] }}</span>@if ($o->line->isCoProduct()) <span class="small text-secondary">{{ \App\Support\Decimal::trim($o->line->cost_share) }}% of cost</span>@endif</div></td>
                                 <td data-label="As per BOM" class="text-end">{{ \App\Services\Inventory\StockLedger::qty($o->quantity, $o->item->unit) }}</td>
                                 <td data-label="Obtained" class="text-end">
                                     <input name="outputs[{{ $o->line->id }}]" value="{{ old('outputs.'.$o->line->id) }}" placeholder="{{ \App\Support\Decimal::trim(\App\Support\Decimal::fromScaled($o->quantity, 3)) }}" style="max-width: 9rem; margin-left: auto" class="form-control form-control-sm text-end @error('outputs.'.$o->line->id) is-invalid @enderror" inputmode="decimal" aria-label="{{ $o->item->name }} obtained">
@@ -121,7 +123,7 @@
                         </tbody>
                     </table>
                 </div>
-                <div class="small text-secondary mt-1">Leave blank to take the quantity as per the bill of materials, or enter what actually came out (0 for none).</div>
+                <div class="small text-secondary mt-1">Leave blank to take the quantity as per the bill of materials, or enter what actually came out (0 for none). A co-product's value is its share of the cost including other costs, so it is final only when posted; a co-product not obtained leaves its share to {{ $item->name }}.</div>
             </div>
         @endif
         <div class="col-12">

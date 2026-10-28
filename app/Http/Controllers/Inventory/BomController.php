@@ -55,13 +55,18 @@ class BomController extends Controller
         $date = $request->input('date', now()->toDateString());
         $date = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $date) ? $date : now()->toDateString();
         $qtyMilli = preg_match('/^\d{1,7}(\.\d{1,3})?$/', $qty) ? Decimal::toScaled($qty, 3) : 0;
+        $needs = $qtyMilli > 0 ? $this->boms->requirements($stockItem, $qtyMilli, $date) : [];
+        $outputs = $qtyMilli > 0 ? $this->boms->outputs($stockItem, $qtyMilli, $date) : [];
+        // Co-products' share of the cost before other costs, as a guide.
+        $net = array_sum(array_column($needs, 'cost')) - array_sum(array_map(fn ($o) => $o->line->isCoProduct() ? 0 : $o->value, $outputs));
 
         return view('inventory.items.manufacture', [
             'item' => $stockItem,
             'quantity' => $qty,
             'date' => $date,
-            'needs' => $qtyMilli > 0 ? $this->boms->requirements($stockItem, $qtyMilli, $date) : [],
-            'outputs' => $qtyMilli > 0 ? $this->boms->outputs($stockItem, $qtyMilli, $date) : [],
+            'needs' => $needs,
+            'outputs' => $outputs,
+            'mainCost' => $this->boms->shareCost($outputs, max($net, 0)),
             'godowns' => Godown::query()->usable()->orderBy('name')->get(),
             'defaultGodown' => Godown::defaultId(),
         ]);

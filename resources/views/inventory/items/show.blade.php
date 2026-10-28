@@ -62,14 +62,14 @@
             <table class="table table-sm mb-0">
                 <tbody>
                 @forelse ($item->bomComponents as $c)
-                    <tr><td><a href="{{ route('stock-items.show', $c->component) }}">{{ $c->component->name }}</a>@if ($c->isOutput()) <span class="badge text-bg-light">{{ \App\Models\BomComponent::KINDS[$c->kind] }}</span>@endif</td><td class="text-end">{{ \App\Services\Inventory\StockLedger::qty(\App\Support\Decimal::toScaled($c->quantity, 3), $c->component->unit) }}</td></tr>
+                    <tr><td><a href="{{ route('stock-items.show', $c->component) }}">{{ $c->component->name }}</a>@if ($c->isOutput()) <span class="badge text-bg-light">{{ \App\Models\BomComponent::KINDS[$c->kind] }}</span>@endif @if ($c->isCoProduct())<span class="small text-secondary">{{ \App\Support\Decimal::trim($c->cost_share) }}% of cost</span>@endif</td><td class="text-end">{{ \App\Services\Inventory\StockLedger::qty(\App\Support\Decimal::toScaled($c->quantity, 3), $c->component->unit) }}</td></tr>
                 @empty
                     <tr><td class="text-secondary">Not made from other items.</td></tr>
                 @endforelse
                 </tbody>
             </table>
             @if ($item->bomComponents->isNotEmpty())<div class="small text-secondary px-2 py-1 border-top">Makes {{ \App\Services\Inventory\StockLedger::qty(\App\Support\Decimal::toScaled($item->bom_quantity, 3), $item->unit) }}</div>@endif
-            @if ($comesFrom->isNotEmpty())<div class="small px-2 py-1 border-top">By-product or scrap of: @foreach ($comesFrom as $u)<a href="{{ route('stock-items.show', $u) }}">{{ $u->name }}</a>@if (! $loop->last), @endif @endforeach</div>@endif
+            @if ($comesFrom->isNotEmpty())<div class="small px-2 py-1 border-top">Co-product, by-product or scrap of: @foreach ($comesFrom as $u)<a href="{{ route('stock-items.show', $u) }}">{{ $u->name }}</a>@if (! $loop->last), @endif @endforeach</div>@endif
             @if ($usedIn->isNotEmpty())<div class="small px-2 py-1 border-top">Used in: @foreach ($usedIn as $u)<a href="{{ route('stock-items.show', $u) }}">{{ $u->name }}</a>@if (! $loop->last), @endif @endforeach</div>@endif
         </div>
         <div class="erp-card">

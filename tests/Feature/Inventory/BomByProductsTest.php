@@ -122,7 +122,7 @@ class BomByProductsTest extends TestCase
         ]])->assertRedirect(route('stock-items.show', $this->sugar));
         $this->get(route('stock-items.bom.edit', $this->sugar))->assertOk()->assertSee('By-product')->assertSee('5.00');
         $this->get(route('stock-items.show', $this->sugar))->assertOk()->assertSee('By-product');
-        $this->get(route('stock-items.show', $this->molasses))->assertOk()->assertSee('By-product or scrap of:');
+        $this->get(route('stock-items.show', $this->molasses))->assertOk()->assertSee('Co-product, by-product or scrap of:');
         $this->get(route('stock-items.show', $this->cane))->assertOk()->assertSee('Used in:');
         $this->get(route('stock-items.manufacture', [$this->sugar, 'quantity' => '100', 'date' => '2026-05-01']))->assertOk()
             ->assertSee('By-products and scrap obtained')->assertSee('Less by-products and scrap')->assertSee('2,800.00'); // 3,000 − 200

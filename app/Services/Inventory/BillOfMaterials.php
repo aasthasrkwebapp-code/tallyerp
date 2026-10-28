@@ -26,13 +26,17 @@ use Illuminate\Validation\ValidationException;
  * brought into stock at their rate (the BOM rate, or else the item's cost on the
  * date) and that value is taken off the main item's cost, so the journal's
  * value in equals the components' cost plus other costs.
+ *
+ * Co-products also come out with the main item, but share the cost instead: each
+ * takes its percentage of the cost left after by-products and scrap, and the main
+ * item takes the rest. A co-product not obtained leaves its share to the main item.
  */
 class BillOfMaterials
 {
     public function __construct(protected StockJournalService $journals, protected StockLedger $ledger) {}
 
     /**
-     * @param  array{bom_quantity: string, components: array<int, array{component_id?: ?int, kind?: ?string, quantity?: ?string, rate?: ?string}>}  $data
+     * @param  array{bom_quantity: string, components: array<int, array{component_id?: ?int, kind?: ?string, quantity?: ?string, rate?: ?string, cost_share?: ?string}>}  $data
      */
     public function save(StockItem $item, array $data): StockItem
     {
@@ -51,6 +55,7 @@ class BillOfMaterials
             $qty = str_replace(',', '', trim((string) ($line['quantity'] ?? '')));
             $kind = array_key_exists($line['kind'] ?? '', BomComponent::KINDS) ? $line['kind'] : 'component';
             $rate = str_replace(',', '', trim((string) ($line['rate'] ?? '')));
+            $share = str_replace(['%', ' '], '', trim((string) ($line['cost_share'] ?? '')));
             if (! $id && $qty === '') {
                 continue;
             }
@@ -81,16 +86,27 @@ class BillOfMaterials
 
                 continue;
             }
-            if ($kind !== 'component' && $rate !== '' && ! preg_match('/^\d{1,13}(\.\d{1,2})?$/', $rate)) {
+            if (in_array($kind, ['by_product', 'scrap'], true) && $rate !== '' && ! preg_match('/^\d{1,13}(\.\d{1,2})?$/', $rate)) {
                 $errors["components.$i.rate"] = "{$label}: enter the value per {$component->unit->symbol}, or leave it blank to use the item's cost.";
 
                 continue;
             }
+            if ($kind === 'co_product' && (! preg_match('/^\d{1,2}(\.\d{1,2})?$/', $share) || Decimal::toScaled($share, 2) <= 0)) {
+                $errors["components.$i.cost_share"] = "{$label}: enter the co-product's share of the cost, a percentage above 0 and below 100.";
+
+                continue;
+            }
             $seen[$id] = true;
-            $rows[] = ['component_id' => $id, 'kind' => $kind, 'quantity' => $qty, 'rate' => $kind !== 'component' && $rate !== '' ? Money::normalize($rate) : null];
+            $rows[] = ['component_id' => $id, 'kind' => $kind, 'quantity' => $qty,
+                'rate' => in_array($kind, ['by_product', 'scrap'], true) && $rate !== '' ? Money::normalize($rate) : null,
+                'cost_share' => $kind === 'co_product' ? Decimal::trim($share) : null];
         }
         if (! collect($rows)->contains('kind', 'component') && ! $errors) {
             $errors['components'] = 'Add at least one component.';
+        }
+        $shares = array_sum(array_map(fn ($r) => $r['cost_share'] !== null ? Decimal::toScaled($r['cost_share'], 2) : 0, $rows));
+        if ($shares >= 10000 && ! $errors) {
+            $errors['components'] = 'The co-products\' shares add up to '.Decimal::trim(Decimal::fromScaled($shares, 2)).'%. Leave some of the cost for '.$item->name.' itself.';
         }
         if ($errors) {
             throw ValidationException::withMessages($errors);
@@ -98,7 +114,8 @@ class BillOfMaterials
 
         return DB::transaction(function () use ($item, $output, $rows) {
             $describe = fn () => $item->bomComponents()->with('component')->get()
-                ->map(fn ($c) => ($c->isOutput() ? BomComponent::KINDS[$c->kind].' ' : '').$c->component->name.' '.Decimal::trim($c->quantity))->implode(', ');
+                ->map(fn ($c) => ($c->isOutput() ? BomComponent::KINDS[$c->kind].' ' : '').$c->component->name.' '.Decimal::trim($c->quantity)
+                    .($c->isCoProduct() ? ' ('.Decimal::trim($c->cost_share).'% of cost)' : ''))->implode(', ');
             $before = $describe();
             $item->update(['bom_quantity' => $output]);
             $item->bomComponents()->delete();
@@ -172,11 +189,36 @@ class BillOfMaterials
             $qty = $given !== '' && preg_match('/^\d{1,7}(\.\d{1,3})?$/', $given)
                 ? Decimal::toScaled($given, 3)
                 : intdiv(2 * Decimal::toScaled((string) $line->quantity, 3) * $quantity + $output * $step, 2 * $output * $step) * $step; // nearest
-            $rate = $line->rate !== null ? Money::toPaise($line->rate) : (int) ($positions[$product->id]->rate ?? 0);
+            // A co-product's value comes from its share of the cost; see shareCost().
+            $rate = $line->isCoProduct() ? 0 : ($line->rate !== null ? Money::toPaise($line->rate) : (int) ($positions[$product->id]->rate ?? 0));
             $out[] = (object) ['line' => $line, 'item' => $product, 'quantity' => $qty, 'rate' => $rate, 'value' => Decimal::mulDiv($qty, $rate, 1000)];
         }
 
         return $out;
+    }
+
+    /**
+     * Share a cost (paise, after by-products and scrap) between the main item and the
+     * co-products obtained: each co-product's rate and value are set from its percentage, and
+     * what is left is returned as the main item's cost. Values come from the rounded rate so
+     * the journal's lines add up to the cost.
+     *
+     * @param  array<int, object>  $outputs  from outputs()
+     */
+    public function shareCost(array $outputs, int $cost): int
+    {
+        $left = $cost;
+        foreach ($outputs as $o) {
+            if (! $o->line->isCoProduct() || $o->quantity <= 0) {
+                continue;
+            }
+            $o->share = Decimal::mulDiv($cost, Decimal::toScaled((string) $o->line->cost_share, 2), 10000);
+            $o->rate = Decimal::mulDiv($o->share, 1000, $o->quantity);
+            $o->value = Decimal::mulDiv($o->quantity, $o->rate, 1000);
+            $left -= $o->value;
+        }
+
+        return $left;
     }
 
     /**
@@ -234,6 +276,8 @@ class BillOfMaterials
             throw ValidationException::withMessages(['outputs' => 'The by-products and scrap are valued at '.Money::format($recovered, paiseInput: true)
                 .', more than the cost of making the item. Lower their rates.']);
         }
+        $coProducts = array_values(array_filter($outputs, fn ($o) => $o->line->isCoProduct()));
+        $cost = $this->shareCost($outputs, $cost);
         $rate = Decimal::mulDiv($cost, 1000, $qtyMilli);
 
         $lines = array_map(fn ($n) => [
@@ -248,7 +292,8 @@ class BillOfMaterials
         $narration = trim((string) ($data['narration'] ?? ''));
         $narration = 'Manufactured '.StockLedger::qty($qtyMilli, $item->unit).' '.$item->name.' from its bill of materials'
             .($other !== '' && (float) $other > 0 ? ' (other costs '.Money::format($other).')' : '')
-            .($outputs ? '; by-products and scrap '.implode(', ', array_map(fn ($o) => StockLedger::qty($o->quantity, $o->item->unit).' '.$o->item->name, $outputs)).' valued at '.Money::format($recovered, paiseInput: true).' and taken off its cost' : '')
+            .($coProducts ? '; co-products '.implode(', ', array_map(fn ($o) => StockLedger::qty($o->quantity, $o->item->unit).' '.$o->item->name.' ('.Decimal::trim($o->line->cost_share).'% of cost)', $coProducts)) : '')
+            .(($byProducts = array_filter($outputs, fn ($o) => ! $o->line->isCoProduct())) ? '; by-products and scrap '.implode(', ', array_map(fn ($o) => StockLedger::qty($o->quantity, $o->item->unit).' '.$o->item->name, $byProducts)).' valued at '.Money::format($recovered, paiseInput: true).' and taken off its cost' : '')
             .($narration !== '' ? '. '.$narration : '');
 
         return $this->journals->create(['date' => $date, 'purpose' => 'production', 'narration' => $narration, 'lines' => $lines], $user);

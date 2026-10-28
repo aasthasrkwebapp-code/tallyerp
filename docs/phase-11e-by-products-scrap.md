@@ -37,4 +37,4 @@
 ## Done / partial / missing
 
 - Done: by-products and scrap with rates, actual quantities, cost reduction, screens, tests.
-- Missing: co-products sharing the cost by percentage; by-products tracked by batch or serial.
+- Missing: by-products tracked by batch or serial. Co-products sharing the cost by percentage were added in 11x (`docs/phase-11x-co-products.md`).
