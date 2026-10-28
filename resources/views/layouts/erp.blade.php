@@ -42,7 +42,7 @@
                     <form method="GET" action="{{ route('search') }}" class="d-none d-md-block erp-search" role="search">
                         <div class="input-group input-group-sm">
                             <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-                            <input type="search" name="q" id="global-search" class="form-control" placeholder="Search (/)" aria-label="Search ledgers, items, documents" value="{{ request()->routeIs('search') ? request('q') : '' }}" maxlength="100" autocomplete="off">
+                            <input type="search" name="q" id="global-search" class="form-control" placeholder="Search (/)" aria-label="Search ledgers, items, documents" value="{{ request()->routeIs('search') ? request('q') : '' }}" maxlength="100" autocomplete="off" data-search-suggest="{{ route('search') }}">
                         </div>
                     </form>
                     <a href="{{ route('search') }}" class="btn btn-light d-md-none" aria-label="Search" data-search-link><i class="bi bi-search"></i></a>

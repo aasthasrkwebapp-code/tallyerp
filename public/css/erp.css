@@ -103,6 +103,8 @@ a { color: var(--erp-accent); }
     a { color: inherit; text-decoration: none; }
 }
 .erp-search { width: 260px; }
+.erp-suggest { top: 100%; left: 0; right: 0; max-height: 70vh; overflow-y: auto; margin-top: 2px; z-index: 1060; }
+.erp-suggest .dropdown-item { white-space: normal; }
 @media (min-width: 1200px) { .erp-search { width: 340px; } }
 .search-result:hover { background: #f8fafc; }
 

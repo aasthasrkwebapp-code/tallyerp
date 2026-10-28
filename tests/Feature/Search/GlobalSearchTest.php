@@ -89,6 +89,13 @@ class GlobalSearchTest extends TestCase
     {
         $this->actingAs($this->owner)->getJson(route('search', ['q' => 'zenith']))->assertOk()
             ->assertJsonPath('q', 'zenith')->assertJsonFragment(['title' => 'Zenith Retail']);
-        $this->actingAs($this->owner)->get(route('dashboard'))->assertOk()->assertSee('id="global-search"', false);
+        $this->actingAs($this->owner)->get(route('dashboard'))->assertOk()->assertSee('id="global-search"', false)
+            ->assertSee('data-search-suggest="'.route('search').'"', false);
+
+        // The dropdown reads each group's label, icon and rows (title, meta, url).
+        $json = $this->getJson(route('search', ['q' => 'zenith']))->json('groups.0');
+        $this->assertSame(['label', 'icon', 'rows', 'more', 'truncated'], array_keys($json));
+        $this->assertSame(['title', 'meta', 'url'], array_keys($json['rows'][0]));
+        $this->get(route('search'))->assertSee('data-search-suggest', false);
     }
 }

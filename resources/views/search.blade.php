@@ -12,7 +12,7 @@
 
 <form method="GET" action="{{ route('search') }}" class="mb-3" role="search" style="max-width: 640px">
     <div class="input-group">
-        <input type="search" name="q" value="{{ $term }}" class="form-control @error('q') is-invalid @enderror" placeholder="Name, number, reference, item code, serial…" aria-label="Search" maxlength="100" autofocus>
+        <input type="search" name="q" value="{{ $term }}" class="form-control @error('q') is-invalid @enderror" placeholder="Name, number, reference, item code, serial…" aria-label="Search" maxlength="100" autocomplete="off" autofocus data-search-suggest="{{ route('search') }}">
         <button class="btn btn-primary"><i class="bi bi-search me-1"></i>Search</button>
         @error('q')<div class="invalid-feedback">{{ $message }}</div>@enderror
     </div>
