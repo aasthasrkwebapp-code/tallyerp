@@ -1,0 +1,126 @@
+/* Business ERP - application styles (Bootstrap 5 based) */
+:root {
+    --erp-sidebar-bg: #14213d;
+    --erp-sidebar-fg: #c9d3e6;
+    --erp-sidebar-active: #22335a;
+    --erp-accent: #0f766e;
+    --erp-bg: #f4f6fa;
+    --erp-sidebar-width: 250px;
+    --erp-sidebar-collapsed: 72px;
+}
+
+html, body { overflow-x: hidden; }
+body { background: var(--erp-bg); color: #1f2937; }
+
+.btn-primary { --bs-btn-bg: var(--erp-accent); --bs-btn-border-color: var(--erp-accent); --bs-btn-hover-bg: #0b5d57; --bs-btn-hover-border-color: #0b5d57; --bs-btn-active-bg: #094c47; }
+.btn-outline-primary { --bs-btn-color: var(--erp-accent); --bs-btn-border-color: var(--erp-accent); --bs-btn-hover-bg: var(--erp-accent); --bs-btn-hover-border-color: var(--erp-accent); }
+a { color: var(--erp-accent); }
+
+/* Visible focus for keyboard users */
+:focus-visible { outline: 3px solid #f59e0b !important; outline-offset: 2px; }
+
+/* Touch-friendly controls on small screens */
+@media (max-width: 767.98px) {
+    .btn, .form-control, .form-select { min-height: 44px; }
+    .btn-sm { min-height: 38px; }
+}
+
+/* ---------- Shell ---------- */
+.erp-shell { display: flex; min-height: 100vh; }
+
+.erp-sidebar {
+    background: var(--erp-sidebar-bg);
+    color: var(--erp-sidebar-fg);
+    width: var(--erp-sidebar-width);
+}
+.erp-sidebar .erp-brand { color: #fff; font-weight: 700; font-size: 1.15rem; padding: 1rem 1.25rem; display: flex; align-items: center; gap: .6rem; white-space: nowrap; }
+.erp-sidebar .nav-heading { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: #8091b3; padding: 1rem 1.25rem .35rem; white-space: nowrap; }
+.erp-sidebar .nav-link { color: var(--erp-sidebar-fg); border-radius: .5rem; margin: 1px .6rem; padding: .55rem .75rem; display: flex; align-items: center; gap: .7rem; white-space: nowrap; }
+.erp-sidebar .nav-link .bi { font-size: 1.05rem; flex-shrink: 0; }
+.erp-sidebar .nav-link:hover, .erp-sidebar .nav-link:focus { background: var(--erp-sidebar-active); color: #fff; }
+.erp-sidebar .nav-link.active { background: var(--erp-accent); color: #fff; }
+
+@media (min-width: 992px) {
+    .erp-sidebar.offcanvas-lg { position: sticky; top: 0; height: 100vh; overflow-y: auto; flex-shrink: 0; transition: width .2s ease; background-color: var(--erp-sidebar-bg) !important; }
+    body.sidebar-collapsed .erp-sidebar { width: var(--erp-sidebar-collapsed); }
+    body.sidebar-collapsed .erp-sidebar .nav-label,
+    body.sidebar-collapsed .erp-sidebar .nav-heading,
+    body.sidebar-collapsed .erp-sidebar .brand-text { display: none; }
+    body.sidebar-collapsed .erp-sidebar .nav-link { justify-content: center; }
+}
+@media (max-width: 991.98px) {
+    .erp-sidebar.offcanvas-lg { --bs-offcanvas-width: 280px; --bs-offcanvas-bg: var(--erp-sidebar-bg); }
+}
+
+.erp-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.erp-topbar { background: #fff; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 1020; }
+.erp-content { padding: 1rem; flex: 1; }
+@media (min-width: 768px) { .erp-content { padding: 1.5rem; } }
+
+/* ---------- Components ---------- */
+.erp-card { background: #fff; border: 1px solid #e6e9f0; border-radius: .75rem; }
+.erp-card > .card-header, .erp-card .erp-card-header { background: transparent; border-bottom: 1px solid #eef0f4; padding: .85rem 1rem; font-weight: 600; }
+.stat-card { padding: 1rem 1.1rem; height: 100%; }
+.stat-card .stat-label { font-size: .8rem; color: #6b7280; text-transform: uppercase; letter-spacing: .04em; }
+.stat-card .stat-value { font-size: 1.35rem; font-weight: 700; margin-top: .25rem; word-break: break-word; }
+.page-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: .75rem; margin-bottom: 1.25rem; }
+.page-header h1 { font-size: 1.35rem; font-weight: 700; margin: 0; overflow-wrap: anywhere; }
+.min-w-0 { min-width: 0; }
+.amount { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.table thead th { font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; color: #6b7280; white-space: nowrap; }
+.table-report td, .table-report th { padding: .45rem .6rem; }
+.row-group td { font-weight: 600; background: #f8fafc; }
+.row-total td { font-weight: 700; border-top: 2px solid #1f2937; }
+.indent-1 { padding-left: 1.5rem !important; }
+.indent-2 { padding-left: 2.75rem !important; }
+.indent-3 { padding-left: 4rem !important; }
+
+/* Tables that become stacked cards on phones: add class "table-stack"
+   and data-label="Column" on each <td>. */
+@media (max-width: 767.98px) {
+    .table-stack thead { display: none; }
+    .table-stack, .table-stack tbody, .table-stack tr, .table-stack td { display: block; width: 100%; }
+    .table-stack tr { border: 1px solid #e5e7eb; border-radius: .6rem; margin-bottom: .75rem; padding: .4rem .2rem; background: #fff; }
+    .table-stack td { border: 0; padding: .3rem .75rem; text-align: right !important; display: flex; justify-content: space-between; gap: 1rem; }
+    .table-stack td::before { content: attr(data-label); font-weight: 600; color: #6b7280; text-align: left; flex-shrink: 0; }
+    .table-stack td[data-label=""]::before, .table-stack td:not([data-label])::before { content: none; }
+    .table-stack tfoot { display: block; }
+    .table-stack tfoot tr { display: block; }
+}
+
+/* Voucher entry grid */
+.voucher-lines .form-control, .voucher-lines .form-select { min-width: 0; }
+@media (max-width: 767.98px) {
+    .voucher-line { border: 1px solid #e5e7eb; border-radius: .6rem; padding: .75rem; margin-bottom: .75rem; background: #fff; }
+}
+
+/* Print */
+@media print {
+    .erp-sidebar, .erp-topbar, .no-print, .btn { display: none !important; }
+    .erp-content { padding: 0; }
+    body { background: #fff; }
+    .erp-card { border: 0; }
+    a { color: inherit; text-decoration: none; }
+}
+.erp-search { width: 260px; }
+.erp-suggest { top: 100%; left: 0; right: 0; max-height: 70vh; overflow-y: auto; margin-top: 2px; z-index: 1060; }
+.erp-suggest .dropdown-item { white-space: normal; }
+@media (min-width: 1200px) { .erp-search { width: 340px; } }
+.search-result:hover { background: #f8fafc; }
+
+/* Wide comparison tables: keep the particulars column in view while scrolling sideways. */
+.table-sticky-first > :not(caption) > tr > :first-child { position: sticky; left: 0; z-index: 1; background-color: #fff; box-shadow: 1px 0 0 #e5e7eb; }
+.table-sticky-first > thead > tr > :first-child { background-color: #f8f9fa; }
+.table-sticky-first .row-group > td:first-child { background-color: #f8fafc; }
+@media (max-width: 575.98px) { .table-sticky-first > :not(caption) > tr > :first-child { white-space: normal; min-width: 9rem; max-width: 11rem; } }
+
+/* Attendance register */
+.attendance-grid select.att { width: 2.6rem; border: 0; background: transparent; font-size: .8rem; padding: .25rem 0; text-align: center; text-align-last: center; appearance: none; -webkit-appearance: none; cursor: pointer; }
+.attendance-grid select.att:disabled { cursor: default; color: inherit; }
+.attendance-grid select.att[data-v="absent"], .attendance-grid select.att[data-v="half_day"] { background-color: #fde2e2; color: #9b1c1c; font-weight: 600; }
+.attendance-grid select.att[data-v^="leave"], .attendance-grid select.att[data-v^="half_leave"] { background-color: #dbeafe; color: #1e40af; font-weight: 600; }
+.attendance-grid select.att[data-v="week_off"], .attendance-grid select.att[data-v="holiday"] { background-color: #eef0f3; color: #4b5563; }
+.attendance-grid select.att.is-invalid { outline: 2px solid #dc3545; }
+.attendance-grid td.att-off { background-color: #f8f9fa; }
+.attendance-grid input.ot { width: 4.5rem; display: inline-block; }
+@media (min-width: 576px) { .attendance-grid > tbody > tr > td:first-child { white-space: nowrap; } }

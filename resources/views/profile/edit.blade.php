@@ -1,29 +1,148 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Profile') }}
-        </h2>
-    </x-slot>
+@extends('layouts.erp')
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
-            <div class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
-                <div class="max-w-xl">
-                    @include('profile.partials.update-profile-information-form')
-                </div>
-            </div>
+@section('title', 'Profile')
 
-            <div class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
-                <div class="max-w-xl">
-                    @include('profile.partials.update-password-form')
-                </div>
-            </div>
+@section('content')
+<div class="page-header"><h1>Your profile</h1></div>
 
-            <div class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
-                <div class="max-w-xl">
-                    @include('profile.partials.delete-user-form')
+<div class="row g-3">
+    <div class="col-12 col-xl-6">
+        <section class="erp-card p-3 p-md-4 h-100">
+            <h2 class="h6 fw-bold">Profile information</h2>
+            <p class="text-secondary small">Update your name and email address.</p>
+
+            <form id="send-verification" method="post" action="{{ route('verification.send') }}">@csrf</form>
+
+            <form method="post" action="{{ route('profile.update') }}">
+                @csrf
+                @method('patch')
+                <div class="mb-3">
+                    <label for="name" class="form-label">Name</label>
+                    <input id="name" name="name" type="text" class="form-control @error('name') is-invalid @enderror"
+                           value="{{ old('name', $user->name) }}" required autocomplete="name">
+                    @error('name')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
-            </div>
-        </div>
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <input id="email" name="email" type="email" class="form-control @error('email') is-invalid @enderror"
+                           value="{{ old('email', $user->email) }}" required autocomplete="username">
+                    @error('email')<div class="invalid-feedback">{{ $message }}</div>@enderror
+
+                    @if ($user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail && ! $user->hasVerifiedEmail())
+                        <div class="small mt-2">
+                            Your email address is unverified.
+                            <button form="send-verification" class="btn btn-link btn-sm p-0 align-baseline">Re-send the verification email.</button>
+                        </div>
+                        @if (session('status') === 'verification-link-sent')
+                            <div class="small text-success mt-1">A new verification link has been sent.</div>
+                        @endif
+                    @endif
+                </div>
+                <button class="btn btn-primary">Save</button>
+                @if (session('status') === 'profile-updated')
+                    <span class="text-success small ms-2">Saved.</span>
+                @endif
+            </form>
+        </section>
     </div>
-</x-app-layout>
+
+    <div class="col-12 col-xl-6">
+        <section class="erp-card p-3 p-md-4 h-100">
+            <h2 class="h6 fw-bold">Update password</h2>
+            <p class="text-secondary small">Use a long, random password to stay secure.</p>
+            <form method="post" action="{{ route('password.update') }}">
+                @csrf
+                @method('put')
+                <div class="mb-3">
+                    <label for="update_password_current_password" class="form-label">Current password</label>
+                    <input id="update_password_current_password" name="current_password" type="password" autocomplete="current-password"
+                           class="form-control @if ($errors->updatePassword->has('current_password')) is-invalid @endif">
+                    <div class="invalid-feedback">{{ $errors->updatePassword->first('current_password') }}</div>
+                </div>
+                <div class="mb-3">
+                    <label for="update_password_password" class="form-label">New password</label>
+                    <input id="update_password_password" name="password" type="password" autocomplete="new-password"
+                           class="form-control @if ($errors->updatePassword->has('password')) is-invalid @endif">
+                    <div class="invalid-feedback">{{ $errors->updatePassword->first('password') }}</div>
+                </div>
+                <div class="mb-3">
+                    <label for="update_password_password_confirmation" class="form-label">Confirm password</label>
+                    <input id="update_password_password_confirmation" name="password_confirmation" type="password" autocomplete="new-password"
+                           class="form-control @if ($errors->updatePassword->has('password_confirmation')) is-invalid @endif">
+                    <div class="invalid-feedback">{{ $errors->updatePassword->first('password_confirmation') }}</div>
+                </div>
+                <button class="btn btn-primary">Update password</button>
+                @if (session('status') === 'password-updated')
+                    <span class="text-success small ms-2">Saved.</span>
+                @endif
+            </form>
+        </section>
+    </div>
+
+    <div class="col-12">
+        <section class="erp-card p-3 p-md-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <h2 class="h6 fw-bold mb-1">Two-factor sign-in
+                    @if ($user->hasTwoFactor())<span class="badge text-bg-success">On</span>@else<span class="badge text-bg-secondary">Off</span>@endif
+                </h2>
+                <p class="text-secondary small mb-0">Ask for a code from an authenticator app (Google Authenticator, Microsoft Authenticator, Authy) after your password.</p>
+            </div>
+            <a href="{{ route('two-factor.show') }}" class="btn btn-outline-primary"><i class="bi bi-shield-lock me-1"></i>{{ $user->hasTwoFactor() ? 'Manage' : 'Set up' }}</a>
+        </section>
+    </div>
+
+    <div class="col-12">
+        @php($mine = array_flip(\App\Support\Shortcuts::keysFor($user)))
+        <section class="erp-card p-3 p-md-4" id="shortcuts">
+            <h2 class="h6 fw-bold">Keyboard shortcuts
+                @if ($user->shortcuts === null)<span class="badge text-bg-secondary">Defaults</span>@else<span class="badge text-bg-primary">Your own</span>@endif
+            </h2>
+            <p class="text-secondary small">Press <kbd>Alt</kbd> and a key (<kbd>Option</kbd> on a Mac) to open a page from anywhere. Give each page a letter or digit, or leave it blank. {{ collect(\App\Support\Shortcuts::RESERVED)->keys()->map(fn ($k) => strtoupper($k))->implode(', ') }} are kept for buttons on the page itself, such as Save.</p>
+            @if ($errors->shortcuts->any())
+                <div class="alert alert-danger small py-2">@foreach ($errors->shortcuts->all() as $message)<div>{{ $message }}</div>@endforeach</div>
+            @endif
+            <form method="post" action="{{ route('profile.shortcuts') }}">
+                @csrf @method('put')
+                <div class="row g-2">
+                    @foreach (\App\Support\Shortcuts::PAGES as $page => [$label])
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            <div class="input-group input-group-sm">
+                                <label class="input-group-text flex-grow-1" for="key_{{ $page }}">{{ $label }}</label>
+                                <span class="input-group-text">Alt +</span>
+                                <input id="key_{{ $page }}" name="keys[{{ $page }}]" value="{{ strtoupper(old("keys.$page", $mine[$page] ?? '')) }}" maxlength="1" class="form-control text-center text-uppercase @if ($errors->shortcuts->has("keys.$page")) is-invalid @endif" style="max-width: 3.5rem" autocomplete="off">
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+                <div class="d-flex flex-wrap gap-2 align-items-center mt-3">
+                    <button class="btn btn-primary">Save shortcuts</button>
+                    <button class="btn btn-outline-secondary" name="reset" value="1">Back to defaults</button>
+                    @if (session('status') === 'shortcuts-updated')<span class="text-success small">Saved.</span>@endif
+                </div>
+            </form>
+        </section>
+    </div>
+
+    <div class="col-12">
+        <section class="erp-card p-3 p-md-4 border-danger-subtle">
+            <h2 class="h6 fw-bold text-danger">Delete account</h2>
+            <p class="text-secondary small mb-3">
+                Deleting your account removes your login permanently. Accounts that still own a company cannot be
+                deleted, which protects the company's accounting records. Enter your password to confirm.
+            </p>
+            <form method="post" action="{{ route('profile.destroy') }}" class="row g-2 align-items-start"
+                  data-confirm="Permanently delete your account?">
+                @csrf
+                @method('delete')
+                <div class="col-12 col-sm-6 col-lg-4">
+                    <label for="delete_password" class="visually-hidden">Password</label>
+                    <input id="delete_password" name="password" type="password" placeholder="Password"
+                           class="form-control @if ($errors->userDeletion->has('password')) is-invalid @endif">
+                    <div class="invalid-feedback">{{ $errors->userDeletion->first('password') }}</div>
+                </div>
+                <div class="col-auto"><button class="btn btn-danger">Delete account</button></div>
+            </form>
+        </section>
+    </div>
+</div>
+@endsection

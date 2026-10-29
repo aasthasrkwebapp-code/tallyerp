@@ -1,0 +1,276 @@
+@extends('layouts.erp')
+
+@php($user = auth()->user())
+@php($q = fn ($milli, $p) => \App\Services\Inventory\StockLedger::qty($milli).($p->item->unit ? ' '.$p->item->unit : ''))
+@php($m = fn ($p) => \App\Support\Money::format($p, paiseInput: true))
+@php($pendingTotal = $progress->sum('pending_value'))
+@php($quote = $order->isQuotation())
+@php($noun = mb_strtolower($config['label']))
+
+@section('title', $config['label'].' '.$order->displayNumber())
+
+@section('content')
+<div class="page-header">
+    <div>
+        <h1>{{ $config['label'] }} {{ $order->number }}@if ($order->revision) <span class="badge text-bg-info align-middle">Rev {{ $order->revision }}</span>@endif @include('billing.orders._status', ['label' => $label])</h1>
+        <p class="text-secondary mb-0">{{ $order->date->format('d M Y') }} · {{ $order->party_name }} · Entered by {{ $order->creator?->name ?? '—' }}</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        @if ($quote && $order->isOpen() && $user->can(\App\Models\Order::kindConfig($config['converts_to'])['module'].'.create'))
+            <form method="POST" action="{{ route('orders.convert', $order) }}" data-confirm="Convert quotation {{ $order->number }} to a sales order?">@csrf<button class="btn btn-primary"><i class="bi bi-arrow-right-circle me-1"></i>Convert to {{ mb_strtolower(\App\Models\Order::kindConfig($config['converts_to'])['label']) }}</button></form>
+        @endif
+        @if (! $quote && $order->isOpen() && $pendingTotal + $progress->sum('pending') > 0 && $user->can($config['module'].'.create'))
+            <a href="{{ route('invoices.create', ['kind' => $config['invoice_kind'], 'order' => $order->id]) }}" class="btn btn-primary"><i class="bi bi-receipt me-1"></i>{{ $config['invoice_kind'] === 'sales' ? 'Make sales invoice' : 'Make purchase bill' }}</a>
+        @endif
+        @php($noteKind = $config['invoice_kind'] === 'sales' ? 'delivery_note' : 'receipt_note')
+        @if (! $quote && $order->isOpen() && $progress->contains(fn ($p) => $p->pending > 0 && $p->item->stock_item_id) && $user->can($config['module'].'.create'))
+            <a href="{{ route('notes.create', ['kind' => $noteKind, 'order' => $order->id]) }}" class="btn btn-outline-primary"><i class="bi bi-box-seam me-1"></i>{{ $config['invoice_kind'] === 'sales' ? 'Make delivery note' : 'Make goods receipt note' }}</a>
+        @endif
+        <a href="{{ route('orders.print', $order) }}" class="btn btn-outline-secondary" target="_blank" rel="noopener"><i class="bi bi-printer me-1"></i>Print</a>
+        <a href="{{ route('orders.pdf', $order) }}" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+        @if ($order->isOpen() && ! $locked && $user->can($config['module'].'.edit'))
+            <a href="{{ route('orders.edit', $order) }}" class="btn btn-outline-primary"><i class="bi bi-pencil me-1"></i>Alter</a>
+        @endif
+        @if ($order->isOpen() && $user->can($config['module'].'.edit'))
+            <button class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#close-panel" aria-expanded="false">Close {{ $noun }}</button>
+        @endif
+        @if ($order->status === 'closed' && $conversions->isEmpty() && $user->can($config['module'].'.edit'))
+            <form method="POST" action="{{ route('orders.reopen', $order) }}">@csrf<button class="btn btn-outline-secondary">Reopen</button></form>
+        @endif
+        @if ($order->isOpen() && $invoices->where(fn ($i) => $i->status() === 'posted')->isEmpty() && $user->can($config['module'].'.delete'))
+            <button class="btn btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#cancel-panel" aria-expanded="false">Cancel {{ $noun }}</button>
+        @endif
+    </div>
+</div>
+
+@error('order')<div class="alert alert-danger">{{ $message }}</div>@enderror
+
+@if ($order->isOpen())
+    <div class="collapse" id="close-panel">
+        <form method="POST" action="{{ route('orders.close', $order) }}" class="erp-card p-3 mb-3" style="max-width: 560px">
+            @csrf
+            <p class="small mb-2">@if ($quote)Closing marks the quotation as not accepted. You can reopen it later.@else Closing stops further invoicing; the pending quantity is dropped from the pending orders report. You can reopen it later.@endif</p>
+            <label for="close-reason" class="form-label">Reason</label>
+            <input id="close-reason" name="reason" class="form-control mb-2" required maxlength="255" placeholder="E.g. customer cancelled the balance">
+            <button class="btn btn-secondary">Close {{ $noun }}</button>
+        </form>
+    </div>
+    <div class="collapse" id="cancel-panel">
+        <form method="POST" action="{{ route('orders.cancel', $order) }}" class="erp-card p-3 mb-3" style="max-width: 560px" data-confirm="Cancel {{ $noun }} {{ $order->number }}?">
+            @csrf
+            <label for="cancel-reason" class="form-label">Reason for cancelling</label>
+            <input id="cancel-reason" name="reason" class="form-control mb-2" required maxlength="255">
+            <button class="btn btn-danger">Cancel {{ $noun }}</button>
+        </form>
+    </div>
+@else
+    <div class="alert alert-{{ $order->status === 'cancelled' ? 'danger' : 'secondary' }} small">{{ ucfirst($order->status) }} {{ $order->status_at?->format('d M Y H:i') }}@if ($order->statusUser) by {{ $order->statusUser->name }}@endif: {{ $order->status_reason }}</div>
+@endif
+@if ($order->source)
+    <div class="alert alert-light border small">Made from quotation <a href="{{ route('orders.show', $order->source) }}">{{ $order->source->number }}</a> of {{ $order->source->date->format('d M Y') }}.</div>
+@endif
+@foreach ($conversions as $c)
+    <div class="alert alert-success small">Converted to {{ mb_strtolower($c->config()['label']) }} <a href="{{ route('orders.show', $c) }}">{{ $c->number }}</a> on {{ $c->created_at->format('d M Y') }}.</div>
+@endforeach
+@if ($order->isOpen() && $locked)
+    <div class="alert alert-info small">Invoices have been made against this order, so its lines are fixed. Close it if the rest will not be supplied.</div>
+@endif
+
+<div class="row g-3 mb-3">
+    <div class="col-12 col-lg-4">
+        <div class="erp-card p-3 h-100 small">
+            <div class="text-secondary">{{ $config['party_group'] === 'sundry_debtors' ? 'Customer' : 'Supplier' }}</div>
+            <div class="fw-semibold">{{ $order->party_name }}</div>
+            <div style="white-space: pre-line">{{ $order->party?->partyDetails?->fullAddress() }}</div>
+            @if ($order->party?->partyDetails?->gstin)<div>GSTIN: <span class="font-monospace">{{ $order->party->partyDetails->gstin }}</span></div>@endif
+        </div>
+    </div>
+    <div class="col-12 col-lg-8">
+        <div class="erp-card p-3 h-100">
+            <div class="row g-2 small">
+                <div class="col-6 col-md-4"><div class="text-secondary">{{ $config['date_label'] ?? 'Delivery by' }}</div>{{ $order->delivery_date?->format('d M Y') ?? '—' }}
+                    @if (! $quote && $order->isOpen() && $order->delivery_date && $order->delivery_date->isPast() && $label !== 'Delivered')<span class="badge text-bg-danger">Overdue</span>@endif</div>
+                <div class="col-6 col-md-4"><div class="text-secondary">Reference</div>{{ $order->reference ?? '—' }} {{ $order->reference_date?->format('d-m-Y') }}</div>
+                <div class="col-6 col-md-4"><div class="text-secondary">Tax</div>{{ ['intra' => 'CGST + SGST', 'inter' => 'IGST', 'none' => 'No GST'][$order->tax_mode] }}@if ($order->place_of_supply) · {{ $order->place_of_supply }}@endif</div>
+                @unless ($quote)<div class="col-6 col-md-4"><div class="text-secondary">Pending value</div>{{ $m($pendingTotal) }}</div>@endunless
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="erp-card mb-3">
+    <div class="table-responsive">
+        <table class="table align-middle mb-0 table-stack">
+            <thead class="table-light"><tr><th>#</th><th>Description</th><th class="text-end">{{ $quote ? 'Quantity' : 'Ordered' }}</th>@unless ($quote)<th class="text-end">Delivered</th><th class="text-end">Pending</th>@endunless<th class="text-end">Rate</th><th class="text-end">GST %</th><th class="text-end">Amount</th></tr></thead>
+            <tbody>
+            @foreach ($progress as $p)
+                <tr>
+                    <td data-label="#">{{ $p->item->line_no }}</td>
+                    <td data-label="Description">{{ $p->item->description }}@if ($p->item->hsn_sac)<div class="small text-secondary">HSN {{ $p->item->hsn_sac }}</div>@endif</td>
+                    <td data-label="{{ $quote ? 'Quantity' : 'Ordered' }}" class="text-end">{{ $q($p->ordered, $p) }}</td>
+                    @unless ($quote)
+                    <td data-label="Delivered" class="text-end">{{ $q($p->delivered, $p) }}</td>
+                    <td data-label="Pending" class="text-end fw-semibold">{{ $q($p->pending, $p) }}</td>
+                    @endunless
+                    <td data-label="Rate" class="amount">{{ \App\Support\Money::format($p->item->rate) }}@if ((float) $p->item->discount_percent)<div class="small text-secondary">less {{ \App\Support\Decimal::trim($p->item->discount_percent) }}%</div>@endif</td>
+                    <td data-label="GST %" class="text-end">{{ \App\Support\Decimal::trim($p->item->gst_rate) }}</td>
+                    <td data-label="Amount" class="amount">{{ \App\Support\Money::format($p->item->total_amount) }}</td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-12 col-lg-7">
+        @unless ($quote)
+        <div class="erp-card mb-3">
+            <div class="erp-card-header">{{ $config['invoice_kind'] === 'sales' ? 'Sales invoices' : 'Purchase bills' }} against this order</div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 table-stack small">
+                    <thead class="table-light"><tr><th>Number</th><th>Date</th><th>Status</th><th class="text-end">Total</th></tr></thead>
+                    <tbody>
+                    @forelse ($invoices as $inv)
+                        <tr>
+                            <td data-label="Number"><a href="{{ route('invoices.show', $inv) }}">{{ $inv->displayNumber() }}</a></td>
+                            <td data-label="Date">{{ $inv->date->format('d-m-Y') }}</td>
+                            <td data-label="Status">@include('accounting.vouchers._status', ['status' => $inv->status()])</td>
+                            <td data-label="Total" class="amount">{{ \App\Support\Money::format($inv->grand_total) }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="4" class="text-secondary text-center py-3">None yet.</td></tr>
+                    @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        @endunless
+        @unless ($quote)
+            @php($order->setRelation('advances', $advances))
+            @php($advPending = $advanceService->pending($order))
+            @php($invPending = $advanceService->invoicesWithPending($order)->filter(fn ($r) => $r->pending > 0))
+            @php($sales = $config['invoice_kind'] === 'sales')
+            <div class="erp-card mb-3" id="advances">
+                <div class="erp-card-header">Advances {{ $sales ? 'received' : 'paid' }}</div>
+                @error('adjust')<div class="alert alert-danger small m-3 mb-0">{{ $message }}</div>@enderror
+                @error('advance')<div class="alert alert-danger small m-3 mb-0">{{ $message }}</div>@enderror
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0 table-stack small">
+                        <thead class="table-light"><tr><th>Reference</th><th>Date</th><th>Voucher</th><th class="text-end">Amount</th><th class="text-end">Not adjusted</th><th></th></tr></thead>
+                        <tbody>
+                        @forelse ($advances as $a)
+                            <tr class="{{ $a->isPosted() ? '' : 'text-decoration-line-through text-secondary' }}">
+                                <td data-label="Reference" class="text-nowrap">{{ $a->bill_ref ?? 'Not bill-wise' }}</td>
+                                <td data-label="Date" class="text-nowrap">{{ $a->date->format('d-m-Y') }}</td>
+                                <td data-label="Voucher">@if ($a->voucher)<a href="{{ route('vouchers.show', $a->voucher) }}">{{ $a->voucher->voucher_number }}</a>@endif <span class="text-secondary">{{ $a->account?->name }}</span></td>
+                                <td data-label="Amount" class="amount">{{ \App\Support\Money::format($a->amount) }}</td>
+                                <td data-label="Not adjusted" class="amount">@if ($a->isPosted()){{ ($advPending[$a->id] ?? null) === null ? '—' : $m($advPending[$a->id]) }}@else Cancelled @endif</td>
+                                <td data-label="" class="text-end">
+                                    @if ($a->isPosted() && $a->adjustments->where('status', 'posted')->isEmpty() && $user->can($config['module'].'.delete'))
+                                        <form method="POST" action="{{ route('order-advances.cancel', $a) }}" class="d-inline-flex gap-1" data-confirm="Cancel advance {{ $a->bill_ref }} and its voucher?">@csrf
+                                            <input name="reason" class="form-control form-control-sm" placeholder="Reason" required maxlength="255" aria-label="Reason">
+                                            <button class="btn btn-sm btn-outline-danger">Cancel</button>
+                                        </form>
+                                    @endif
+                                </td>
+                            </tr>
+                            @foreach ($a->adjustments as $adj)
+                                <tr class="{{ $adj->status === 'posted' ? '' : 'text-decoration-line-through text-secondary' }}">
+                                    <td data-label="" colspan="2" class="ps-4">↳ Adjusted against {{ $adj->invoice?->displayNumber() }}</td>
+                                    <td data-label="Journal">@if ($adj->voucher)<a href="{{ route('vouchers.show', $adj->voucher) }}">{{ $adj->voucher->voucher_number }}</a>@endif {{ $adj->date->format('d-m-Y') }}</td>
+                                    <td data-label="Adjusted" class="amount">{{ \App\Support\Money::format($adj->amount) }}</td>
+                                    <td></td>
+                                    <td data-label="" class="text-end">
+                                        @if ($adj->status === 'posted' && $user->can($config['module'].'.delete'))
+                                            <form method="POST" action="{{ route('advance-adjustments.cancel', $adj) }}" class="d-inline-flex gap-1" data-confirm="Cancel this adjustment?">@csrf
+                                                <input name="reason" class="form-control form-control-sm" placeholder="Reason" required maxlength="255" aria-label="Reason">
+                                                <button class="btn btn-sm btn-outline-secondary">Undo</button>
+                                            </form>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        @empty
+                            <tr><td colspan="6" class="text-secondary text-center py-3">No advances.</td></tr>
+                        @endforelse
+                        </tbody>
+                    </table>
+                </div>
+                @can($config['module'].'.create')
+                    @foreach ($advances->filter(fn ($a) => $a->isPosted() && ($advPending[$a->id] ?? 0) > 0) as $a)
+                        @foreach ($invPending as $inv)
+                            <form method="POST" action="{{ route('order-advances.adjust', $a) }}" class="row g-2 align-items-end border-top mx-0 px-2 py-2 small">
+                                @csrf
+                                <input type="hidden" name="invoice_id" value="{{ $inv->invoice->id }}">
+                                <div class="col-12 col-md-5">Adjust <strong>{{ $a->bill_ref }}</strong> ({{ $m($advPending[$a->id]) }} open) against <strong>{{ $inv->invoice->displayNumber() }}</strong> ({{ $m($inv->pending) }} due)</div>
+                                <div class="col-6 col-md-2"><input type="date" name="date" value="{{ $inv->invoice->date->toDateString() }}" class="form-control form-control-sm" required aria-label="Date"></div>
+                                <div class="col-6 col-md-3"><input name="amount" value="{{ \App\Support\Money::fromPaise(min($advPending[$a->id], $inv->pending)) }}" class="form-control form-control-sm text-end" inputmode="decimal" required aria-label="Amount"></div>
+                                <div class="col-12 col-md-2"><button class="btn btn-sm btn-primary w-100">Adjust</button></div>
+                            </form>
+                        @endforeach
+                    @endforeach
+                    @if ($order->isOpen())
+                        <form method="POST" action="{{ route('orders.advances.store', $order) }}" class="row g-2 align-items-end border-top mx-0 px-2 py-3">
+                            @csrf
+                            <div class="col-12 small fw-semibold">Record an advance {{ $sales ? 'received from the customer' : 'paid to the supplier' }}</div>
+                            <div class="col-6 col-md-3"><label class="form-label small" for="adv-date">Date</label><input id="adv-date" type="date" name="date" value="{{ old('date', now()->toDateString()) }}" class="form-control form-control-sm @error('date') is-invalid @enderror" required>@error('date')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
+                            <div class="col-6 col-md-3"><label class="form-label small" for="adv-amount">Amount</label><input id="adv-amount" name="amount" value="{{ old('amount') }}" class="form-control form-control-sm text-end @error('amount') is-invalid @enderror" inputmode="decimal" required>@error('amount')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
+                            <div class="col-8 col-md-4"><label class="form-label small" for="adv-account">{{ $sales ? 'Received in' : 'Paid from' }}</label>
+                                <select id="adv-account" name="account_id" class="form-select form-select-sm @error('account_id') is-invalid @enderror" required>
+                                    @foreach ($advanceService->cashBankQuery()->orderBy('name')->get() as $acc)<option value="{{ $acc->id }}" @selected((int) old('account_id') === $acc->id)>{{ $acc->name }}</option>@endforeach
+                                </select>@error('account_id')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
+                            <div class="col-4 col-md-2"><button class="btn btn-sm btn-outline-primary w-100">Record</button></div>
+                        </form>
+                    @endif
+                @endcan
+                @unless ($order->party?->maintain_bill_wise)
+                    <p class="small text-secondary px-3 pb-2 mb-0">{{ $order->party_name }} is not kept bill-wise, so an advance simply reduces the party's balance; there is nothing to adjust.</p>
+                @endunless
+            </div>
+        @endunless
+        @if ($notes->isNotEmpty())
+            <div class="erp-card p-3 mb-3 small"><span class="text-secondary">{{ $config['invoice_kind'] === 'sales' ? 'Delivery notes' : 'Goods receipt notes' }}:</span>
+                @foreach ($notes as $n)<a href="{{ route('notes.show', $n) }}" class="me-2">{{ $n->number }}{{ $n->isPosted() ? '' : ' (cancelled)' }}</a>@endforeach
+            </div>
+        @endif
+        @if ($revisions->isNotEmpty())
+            <div class="erp-card mb-3">
+                <div class="erp-card-header">Revisions</div>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0 table-stack small">
+                        <thead class="table-light"><tr><th>Version</th><th>Replaced on</th><th>By</th><th>Reason</th><th class="text-end">Total then</th></tr></thead>
+                        <tbody>
+                        <tr><td data-label="Version" class="fw-semibold">Rev {{ $order->revision }} (current)</td><td data-label="Replaced on">—</td><td data-label="By"></td><td data-label="Reason"></td><td data-label="Total" class="amount">{{ \App\Support\Money::format($order->grand_total) }}</td></tr>
+                        @foreach ($revisions as $r)
+                            <tr>
+                                <td data-label="Version"><a href="{{ route('orders.revision', [$order, $r->revision]) }}">{{ $r->revision ? 'Rev '.$r->revision : 'Original' }}</a></td>
+                                <td data-label="Replaced on">{{ $r->created_at->format('d M Y H:i') }}</td>
+                                <td data-label="By">{{ $r->reviser?->name ?? '—' }}</td>
+                                <td data-label="Reason">{{ $r->note ?? '—' }}</td>
+                                <td data-label="Total" class="amount">{{ \App\Support\Money::format($r->grand_total) }}</td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
+        @if ($order->narration)<div class="erp-card p-3 mb-3 small"><div class="text-secondary">Narration</div>{{ $order->narration }}</div>@endif
+        @if ($order->terms)<div class="erp-card p-3 mb-3 small"><div class="text-secondary">Terms</div><span style="white-space: pre-line">{{ $order->terms }}</span></div>@endif
+    </div>
+    <div class="col-12 col-lg-5">
+        <div class="erp-card p-3">
+            <table class="table table-sm mb-0">
+                <tr><td>Gross</td><td class="amount">{{ \App\Support\Money::format($order->gross_total) }}</td></tr>
+                @if ((float) $order->discount_total)<tr><td>Discount</td><td class="amount">-{{ \App\Support\Money::format($order->discount_total) }}</td></tr>@endif
+                <tr><td>Taxable value</td><td class="amount">{{ \App\Support\Money::format($order->taxable_total) }}</td></tr>
+                @if ((float) $order->cgst_total)<tr><td>CGST</td><td class="amount">{{ \App\Support\Money::format($order->cgst_total) }}</td></tr>@endif
+                @if ((float) $order->sgst_total)<tr><td>SGST / UTGST</td><td class="amount">{{ \App\Support\Money::format($order->sgst_total) }}</td></tr>@endif
+                @if ((float) $order->igst_total)<tr><td>IGST</td><td class="amount">{{ \App\Support\Money::format($order->igst_total) }}</td></tr>@endif
+                <tr class="fw-bold fs-5"><td>Total</td><td class="amount">{{ \App\Support\Money::format($order->grand_total, true) }}</td></tr>
+            </table>
+        </div>
+    </div>
+</div>
+@endsection

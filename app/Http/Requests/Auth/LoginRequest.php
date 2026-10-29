@@ -42,8 +42,10 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        if (! Auth::validate($this->only('email', 'password'))) {
             RateLimiter::hit($this->throttleKey());
+            // validate() does not fire this itself; the audit trail logs it.
+            event(new \Illuminate\Auth\Events\Failed('web', Auth::getLastAttempted(), $this->only('email', 'password')));
 
             throw ValidationException::withMessages([
                 'email' => trans('auth.failed'),
@@ -51,6 +53,17 @@ class LoginRequest extends FormRequest
         }
 
         RateLimiter::clear($this->throttleKey());
+    }
+
+    /**
+     * The user whose password was just checked. With two-factor sign-in on,
+     * they are not signed in yet: the challenge step finishes the sign-in.
+     */
+    public function needsTwoFactor(): ?\App\Models\User
+    {
+        $user = Auth::getLastAttempted();
+
+        return $user instanceof \App\Models\User && $user->hasTwoFactor() ? $user : null;
     }
 
     /**
