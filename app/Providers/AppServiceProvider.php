@@ -35,6 +35,9 @@ class AppServiceProvider extends ServiceProvider
             return $user->hasPermission($ability, app(CurrentCompany::class)->get());
         });
 
+        // The signed-in user's Alt + key shortcuts, for the layout's keyboard handler and help.
+        \Illuminate\Support\Facades\View::composer('layouts.erp', fn ($view) => $view->with('erpShortcuts', \App\Support\Shortcuts::for(auth()->user())));
+
         Event::listen(Login::class, fn (Login $e) => AuditLog::record('login', null, null, null, 'Signed in: '.$e->user->email));
         Event::listen(Logout::class, fn (Logout $e) => $e->user && AuditLog::record('logout', null, null, null, 'Signed out: '.$e->user->email));
         Event::listen(Failed::class, fn (Failed $e) => AuditLog::record('login_failed', null, null, null, 'Failed sign-in for: '.($e->credentials['email'] ?? 'unknown')));

@@ -104,20 +104,22 @@
                 <table class="table table-sm mb-0">
                     <tbody>
                     <tr><td><kbd>/</kbd> or <kbd>Ctrl</kbd> + <kbd>K</kbd></td><td>Search</td></tr>
-                    <tr><td><kbd>Alt</kbd> + <kbd>D</kbd></td><td>Dashboard</td></tr>
-                    <tr><td><kbd>Alt</kbd> + <kbd>V</kbd></td><td>New voucher</td></tr>
-                    <tr><td><kbd>Alt</kbd> + <kbd>L</kbd></td><td>Ledgers</td></tr>
-                    <tr><td><kbd>Alt</kbd> + <kbd>T</kbd></td><td>Trial balance</td></tr>
-                    <tr><td><kbd>Alt</kbd> + <kbd>B</kbd></td><td>Day book</td></tr>
-                    <tr><td><kbd>Alt</kbd> + <kbd>S</kbd></td><td>Save the current form</td></tr>
+                    @foreach ($erpShortcuts as $key => $s)
+                        <tr><td><kbd>Alt</kbd> + <kbd>{{ strtoupper($key) }}</kbd></td><td>{{ $s['label'] }}</td></tr>
+                    @endforeach
+                    @foreach (\App\Support\Shortcuts::RESERVED as $key => $label)
+                        <tr class="text-secondary"><td><kbd>Alt</kbd> + <kbd>{{ strtoupper($key) }}</kbd></td><td>{{ $label }}</td></tr>
+                    @endforeach
                     </tbody>
                 </table>
             </div>
+            <div class="modal-footer py-2"><a href="{{ route('profile.edit') }}#shortcuts" class="small">Change your shortcuts</a></div>
         </div>
     </div>
 </div>
 
 <script src="{{ asset('vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+<script id="erp-shortcuts" type="application/json">@json(collect($erpShortcuts)->map(fn ($s) => $s['url']))</script>
 <script src="{{ asset('js/erp.js') }}"></script>
 @stack('scripts')
 </body>

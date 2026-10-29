@@ -92,6 +92,38 @@
     </div>
 
     <div class="col-12">
+        @php($mine = array_flip(\App\Support\Shortcuts::keysFor($user)))
+        <section class="erp-card p-3 p-md-4" id="shortcuts">
+            <h2 class="h6 fw-bold">Keyboard shortcuts
+                @if ($user->shortcuts === null)<span class="badge text-bg-secondary">Defaults</span>@else<span class="badge text-bg-primary">Your own</span>@endif
+            </h2>
+            <p class="text-secondary small">Press <kbd>Alt</kbd> and a key (<kbd>Option</kbd> on a Mac) to open a page from anywhere. Give each page a letter or digit, or leave it blank. {{ collect(\App\Support\Shortcuts::RESERVED)->keys()->map(fn ($k) => strtoupper($k))->implode(', ') }} are kept for buttons on the page itself, such as Save.</p>
+            @if ($errors->shortcuts->any())
+                <div class="alert alert-danger small py-2">@foreach ($errors->shortcuts->all() as $message)<div>{{ $message }}</div>@endforeach</div>
+            @endif
+            <form method="post" action="{{ route('profile.shortcuts') }}">
+                @csrf @method('put')
+                <div class="row g-2">
+                    @foreach (\App\Support\Shortcuts::PAGES as $page => [$label])
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            <div class="input-group input-group-sm">
+                                <label class="input-group-text flex-grow-1" for="key_{{ $page }}">{{ $label }}</label>
+                                <span class="input-group-text">Alt +</span>
+                                <input id="key_{{ $page }}" name="keys[{{ $page }}]" value="{{ strtoupper(old("keys.$page", $mine[$page] ?? '')) }}" maxlength="1" class="form-control text-center text-uppercase @if ($errors->shortcuts->has("keys.$page")) is-invalid @endif" style="max-width: 3.5rem" autocomplete="off">
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+                <div class="d-flex flex-wrap gap-2 align-items-center mt-3">
+                    <button class="btn btn-primary">Save shortcuts</button>
+                    <button class="btn btn-outline-secondary" name="reset" value="1">Back to defaults</button>
+                    @if (session('status') === 'shortcuts-updated')<span class="text-success small">Saved.</span>@endif
+                </div>
+            </form>
+        </section>
+    </div>
+
+    <div class="col-12">
         <section class="erp-card p-3 p-md-4 border-danger-subtle">
             <h2 class="h6 fw-bold text-danger">Delete account</h2>
             <p class="text-secondary small mb-3">

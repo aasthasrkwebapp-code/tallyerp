@@ -117,10 +117,16 @@
         box.addEventListener('focus', function () { if (list.children.length && box.value.trim().length >= 2) { list.classList.add('show'); box.setAttribute('aria-expanded', 'true'); } });
     });
 
-    // Keyboard shortcuts (Alt + key), shown in the help modal.
+    // Keyboard shortcuts (Alt + key), shown in the help modal. A button on the page
+    // (data-shortcut) comes first; then the user's own shortcuts to pages.
+    var pages = {};
+    try { pages = JSON.parse((document.getElementById('erp-shortcuts') || {}).textContent || '{}') || {}; } catch (err) { pages = {}; }
     document.addEventListener('keydown', function (e) {
-        if (!e.altKey || e.ctrlKey || e.metaKey) return;
-        var link = document.querySelector('[data-shortcut="' + e.key.toLowerCase() + '"]');
-        if (link) { e.preventDefault(); link.click(); }
+        if (!e.altKey || e.ctrlKey || e.metaKey || !e.key) return;
+        // The physical key, so Option + key on a Mac (which types a symbol) works too.
+        var key = /^(Key|Digit)[A-Z0-9]$/.test(e.code || '') ? e.code.slice(-1).toLowerCase() : e.key.toLowerCase();
+        var link = document.querySelector('[data-shortcut="' + key + '"]');
+        if (link) { e.preventDefault(); link.click(); return; }
+        if (pages[key]) { e.preventDefault(); window.location.href = pages[key]; }
     });
 })();
