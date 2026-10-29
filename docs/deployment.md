@@ -25,6 +25,7 @@ migration rolls back cleanly (`.github/workflows/tests.yml` checks PHP 8.2/8.3 Ã
 - [ ] Off-site copies: set `ERP_BACKUP_OFFSITE_DISK` to a disk defined in `config/filesystems.php` (for S3: `s3`, with `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`, `AWS_BUCKET`, and `composer require league/flysystem-aws-s3-v3`). Optional `ERP_BACKUP_OFFSITE_PREFIX` (default `erp-backups`).
 - [ ] Keep `APP_KEY` safe and unchanged: it protects the stored backup passphrases. Losing it means encrypted backups need their passphrase typed in on upload.
 - [ ] `LOG_LEVEL=warning` or as needed; logs in `storage/logs`.
+- [ ] Behind a load balancer or reverse proxy, set `TRUSTED_PROXIES` to its address (or `*` if only the proxy can reach the app) so the client's real IP is used by company IP restrictions and the audit trail.
 
 ## Install / upgrade
 

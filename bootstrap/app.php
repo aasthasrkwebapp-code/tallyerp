@@ -16,6 +16,12 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->web(append: [\App\Http\Middleware\SecurityHeaders::class]);
 
+        // Behind a load balancer or reverse proxy, trust it so request IPs (used by
+        // company IP restrictions and the audit trail) are the client's own.
+        if ($proxies = env('TRUSTED_PROXIES')) {
+            $middleware->trustProxies(at: $proxies === '*' ? '*' : array_map('trim', explode(',', $proxies)));
+        }
+
         // The active company must be resolved before route-model binding so the
         // tenant scope applies to bound models (cross-company ids give 404).
         $middleware->prependToPriorityList(

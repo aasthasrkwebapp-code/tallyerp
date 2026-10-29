@@ -88,6 +88,7 @@ Route::middleware(['auth', 'verified', 'company'])->group(function () {
         Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
         Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
         Route::put('/settings/preferences', [SettingsController::class, 'updatePreferences'])->name('settings.preferences');
+        Route::put('/settings/security', [SettingsController::class, 'updateSecurity'])->name('settings.security');
     });
 
     Route::get('/financial-years', [FinancialYearController::class, 'index'])->name('financial-years.index')->middleware('can:periods.view');

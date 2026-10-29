@@ -2,7 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\AuditLog;
 use App\Models\Company;
+use App\Support\IpAllowList;
 use App\Support\CurrentCompany;
 use Closure;
 use Illuminate\Http\Request;
@@ -36,6 +38,23 @@ class EnsureCompanySelected
             }
 
             $request->session()->put(self::SESSION_KEY, $company->id);
+        }
+
+        // A company can limit the addresses its members open it from. Owners may be let in from
+        // anywhere, so a changed office address can't lock everyone out.
+        $allowed = $company->setting('allowed_ips', []);
+        if ($allowed && ! IpAllowList::allows($request->ip(), $allowed)
+            && ! ($company->setting('ip_owner_exempt', true) && $user->roleFor($company)?->name === 'owner')) {
+            $key = "ip_refused.{$company->id}.".$request->ip();
+            if (! $request->session()->has($key)) {
+                $request->session()->put($key, true);
+                AuditLog::record('access_denied', $company, null, null, "Refused {$user->name} from {$request->ip()}: not an allowed address", $company->id);
+            }
+
+            return response()->view('errors.ip-blocked', [
+                'company' => $company, 'ip' => $request->ip(),
+                'others' => $user->companies()->wherePivot('is_active', true)->where('companies.id', '!=', $company->id)->orderBy('companies.name')->get(),
+            ], 403);
         }
 
         // A company can insist that its members sign in with a second factor.

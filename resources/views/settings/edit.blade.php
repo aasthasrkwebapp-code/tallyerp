@@ -10,13 +10,15 @@
     </div>
 </div>
 
+@php($tab = session('tab', 'profile'))
 <ul class="nav nav-tabs mb-3" role="tablist">
-    <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-profile" type="button" role="tab">Profile</button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link @if ($tab === 'profile') active @endif" data-bs-toggle="tab" data-bs-target="#tab-profile" type="button" role="tab">Profile</button></li>
     <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-preferences" type="button" role="tab">Preferences &amp; documents</button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link @if ($tab === 'security') active @endif" data-bs-toggle="tab" data-bs-target="#tab-security" type="button" role="tab">Security</button></li>
 </ul>
 
 <div class="tab-content">
-    <div class="tab-pane fade show active" id="tab-profile" role="tabpanel">
+    <div class="tab-pane fade @if ($tab === 'profile') show active @endif" id="tab-profile" role="tabpanel">
         <form method="POST" action="{{ route('settings.update') }}" class="erp-card p-3 p-md-4">
             @csrf
             @method('PUT')
@@ -77,6 +79,30 @@
                 </div>
             </div>
             <button class="btn btn-primary">Save preferences</button>
+        </form>
+    </div>
+
+    <div class="tab-pane fade @if ($tab === 'security') show active @endif" id="tab-security" role="tabpanel">
+        @php($ips = $company->setting('allowed_ips', []))
+        <form method="POST" action="{{ route('settings.security') }}" class="erp-card p-3 p-md-4" style="max-width: 760px">
+            @csrf @method('PUT')
+            <h2 class="h6 fw-bold">Allowed IP addresses</h2>
+            <p class="small text-secondary mb-2">Members can open {{ $company->name }} only from these addresses. Leave it empty to allow any address. Enter single addresses (203.0.113.7) or ranges (203.0.113.0/24), IPv4 or IPv6, one per line.</p>
+            <p class="small mb-2">
+                @if ($ips)<i class="bi bi-shield-lock text-success"></i> Limited to {{ count($ips) }} {{ \Illuminate\Support\Str::plural('address or range', count($ips)) }}.@else<i class="bi bi-shield text-secondary"></i> Open from any address.@endif
+                Your address now: <strong>{{ request()->ip() }}</strong>
+            </p>
+            <label for="allowed_ips" class="form-label visually-hidden">Allowed addresses</label>
+            <textarea id="allowed_ips" name="allowed_ips" rows="5" class="form-control font-monospace @error('allowed_ips') is-invalid @enderror" placeholder="203.0.113.0/24">{{ old('allowed_ips', implode("\n", $ips)) }}</textarea>
+            @error('allowed_ips')<div class="invalid-feedback">{{ $message }}</div>@enderror
+            <div class="form-check form-switch mt-3">
+                <input type="hidden" name="ip_owner_exempt" value="0">
+                <input class="form-check-input" type="checkbox" role="switch" id="ip_owner_exempt" name="ip_owner_exempt" value="1" @checked(old('ip_owner_exempt', $company->setting('ip_owner_exempt', true)))>
+                <label class="form-check-label" for="ip_owner_exempt">Let owners in from any address</label>
+                <div class="form-text mt-0">Keeps the company reachable if the office address changes. Turn it off to hold owners to the list too.</div>
+            </div>
+            <button class="btn btn-primary mt-3">Save security</button>
+            <p class="small text-secondary mt-3 mb-0">A refused member sees a page naming their address, and the refusal is recorded in the audit trail. Behind a load balancer or proxy, set <code>TRUSTED_PROXIES</code> so the real address is seen (see the deployment notes).</p>
         </form>
     </div>
 </div>
