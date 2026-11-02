@@ -1,0 +1,11 @@
+@php($v = fn ($name) => old($name, $tyre?->{$name} instanceof \DateTimeInterface ? $tyre->{$name}->toDateString() : $tyre?->{$name}))
+<div class="row g-2">
+    <div class="col-12"><label for="serial_no" class="form-label small">Serial number</label><input id="serial_no" name="serial_no" value="{{ $v('serial_no') }}" class="form-control form-control-sm @error('serial_no') is-invalid @enderror" maxlength="40" required>@error('serial_no')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
+    <div class="col-6"><label for="brand" class="form-label small">Brand</label><input id="brand" name="brand" value="{{ $v('brand') }}" class="form-control form-control-sm" maxlength="60"></div>
+    <div class="col-6"><label for="size" class="form-label small">Size</label><input id="size" name="size" value="{{ $v('size') }}" class="form-control form-control-sm" maxlength="40" placeholder="295/80 R22.5"></div>
+    <div class="col-6"><label for="purchased_on" class="form-label small">Bought on</label><input id="purchased_on" type="date" name="purchased_on" value="{{ $v('purchased_on') }}" class="form-control form-control-sm @error('purchased_on') is-invalid @enderror">@error('purchased_on')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
+    <div class="col-6"><label for="cost" class="form-label small">Cost</label><input id="cost" name="cost" value="{{ $v('cost') }}" class="form-control form-control-sm text-end @error('cost') is-invalid @enderror" inputmode="decimal">@error('cost')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
+    <div class="col-6"><label for="supplier" class="form-label small">Supplier</label><input id="supplier" name="supplier" value="{{ $v('supplier') }}" class="form-control form-control-sm" maxlength="100"></div>
+    <div class="col-6"><label for="expected_km" class="form-label small">Expected life (km)</label><input id="expected_km" name="expected_km" value="{{ $v('expected_km') }}" class="form-control form-control-sm text-end @error('expected_km') is-invalid @enderror" inputmode="numeric">@error('expected_km')<div class="invalid-feedback">{{ $message }}</div>@enderror</div>
+    <div class="col-12"><label for="notes" class="form-label small">Notes</label><textarea id="notes" name="notes" rows="2" class="form-control form-control-sm">{{ $v('notes') }}</textarea></div>
+</div>

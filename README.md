@@ -1,59 +1,87 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# TallyERP — Business ERP & Accounting
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A responsive, web-based accounting and business management application inspired by the
+functional areas of TallyPrime (accounting, sales, purchases, inventory, GST, banking,
+payroll, reporting, audit). It is an original application with its own interface,
+code and database schema.
 
-## About Laravel
+## Stack
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+| Component | Version |
+|-----------|---------|
+| PHP | 8.2 or 8.3 (tested on **PHP 8.3.6**) |
+| Laravel | 12.x |
+| Database | MySQL 8.0 (production, suite verified) · SQLite in-memory (default for tests) |
+| PDF / Excel | barryvdh/laravel-dompdf 3.1 · phpoffice/phpspreadsheet 5.x |
+| UI | Blade, Bootstrap 5.3 (CDN), Bootstrap Icons, vanilla JavaScript |
+| Tests | PHPUnit 11 |
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+No front-end build step is needed: styles live in `public/css/erp.css` and scripts in `public/js/erp.js`.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Installation
 
-## Learning Laravel
+```bash
+git clone https://github.com/aasthasrkwebapp-code/tallyerp.git
+cd tallyerp
+composer install
+cp .env.example .env
+php artisan key:generate
+```
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+Edit `.env` for MySQL:
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```dotenv
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=tallyerp
+DB_USERNAME=root
+DB_PASSWORD=secret
 
-## Laravel Sponsors
+# Set to false on a local machine without a mail server
+ERP_REQUIRE_EMAIL_VERIFICATION=false
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+Then:
 
-### Premium Partners
+```bash
+php artisan migrate --seed      # creates tables, permissions, system roles (and demo data when APP_ENV=local)
+php artisan storage:link        # serves uploaded company logos
+php artisan serve
+```
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+Demo login (local only): **demo@example.com / password**.
 
-## Contributing
+## Running tests
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+php artisan test
+```
 
-## Code of Conduct
+Tests use an in-memory SQLite database (see `phpunit.xml`) and never touch your MySQL data.
+To run them on MySQL, point `DB_CONNECTION=mysql` and the `DB_*` variables at an empty test
+database. CI runs both on PHP 8.2 and 8.3.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Deployment
 
-## Security Vulnerabilities
+See [`docs/deployment.md`](docs/deployment.md) for the production checklist (server, `.env`,
+scheduler, backups).
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Module status
 
-## License
+See [`docs/STATUS.md`](docs/STATUS.md) for the completed / partial / missing list per module,
+and the `docs/` folder for each module's manual testing checklist.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Architecture notes
+
+* **Multi-company (tenant isolation).** Users belong to companies through `company_user`
+  with a role per company. The `company` middleware resolves the active company and every
+  company-owned model uses the `BelongsToCompany` trait, which adds a global scope, so
+  records from another company return 404.
+* **Permissions.** Keys like `vouchers.post` are defined in `config/erp.php`, seeded into
+  `permissions`, and granted to roles. Routes use `can:<key>` middleware. Owner and admin
+  hold every permission. Companies can define custom roles.
+* **Audit trail.** Models using the `Auditable` trait write `audit_logs` rows with old and
+  new values, user, IP and browser. Logins, logouts and failed logins are logged too.
+* **Money.** Amounts are stored as `DECIMAL(18,2)` and calculated in integer paise
+  (`App\Support\Money`); floating point is never used for totals.

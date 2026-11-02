@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Support\Shortcuts;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -19,6 +20,24 @@ class ProfileController extends Controller
         return view('profile.edit', [
             'user' => $request->user(),
         ]);
+    }
+
+    /** Save the user's own Alt + key shortcuts, or go back to the defaults. */
+    public function shortcuts(Request $request): RedirectResponse
+    {
+        $request->validate(['keys' => ['nullable', 'array'], 'keys.*' => ['nullable', 'string', 'max:5']]);
+        if ($request->boolean('reset')) {
+            $request->user()->forceFill(['shortcuts' => null])->save();
+
+            return Redirect::route('profile.edit')->with('status', 'shortcuts-updated')->withFragment('shortcuts');
+        }
+        [$keys, $errors] = Shortcuts::parse((array) $request->input('keys', []));
+        if ($errors) {
+            return Redirect::route('profile.edit')->withInput()->withErrors(collect($errors)->mapWithKeys(fn ($m, $page) => ["keys.$page" => $m])->all(), 'shortcuts')->withFragment('shortcuts');
+        }
+        $request->user()->forceFill(['shortcuts' => $keys])->save();
+
+        return Redirect::route('profile.edit')->with('status', 'shortcuts-updated')->withFragment('shortcuts');
     }
 
     /**
@@ -47,6 +66,13 @@ class ProfileController extends Controller
         ]);
 
         $user = $request->user();
+
+        if ($user->ownedCompanies()->exists()) {
+            return Redirect::route('profile.edit')->withErrors(
+                ['password' => 'You still own one or more companies. Delete them or transfer ownership first.'],
+                'userDeletion'
+            );
+        }
 
         Auth::logout();
 
