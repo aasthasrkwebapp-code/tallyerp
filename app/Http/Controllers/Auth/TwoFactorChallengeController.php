@@ -21,11 +21,32 @@ class TwoFactorChallengeController extends Controller
 
     public function create(Request $request)
     {
-        if (! $this->pendingUser($request)) {
+        $user = $this->pendingUser($request);
+        if (! $user) {
             return redirect()->route('login')->withErrors(['email' => 'Please sign in again.']);
         }
+        // E-mail codes: send one when the challenge first opens (or the last one has expired).
+        if ($user->usesEmailCodes() && ! $user->two_factor_email_expires_at?->isFuture() && ! $user->emailCodeWait()) {
+            $user->sendEmailCode();
+        }
 
-        return view('auth.two-factor-challenge');
+        return view('auth.two-factor-challenge', ['user' => $user]);
+    }
+
+    /** Send a fresh e-mail code, at most once a minute. */
+    public function resend(Request $request)
+    {
+        $user = $this->pendingUser($request);
+        if (! $user) {
+            return redirect()->route('login')->withErrors(['email' => 'Please sign in again.']);
+        }
+        abort_unless($user->usesEmailCodes(), 404);
+        if ($wait = $user->emailCodeWait()) {
+            return back()->withErrors(['code' => "A code was just sent. You can ask for another in {$wait} seconds."]);
+        }
+        $user->sendEmailCode();
+
+        return back()->with('status', 'A new code is on its way. Only the newest code works.');
     }
 
     public function store(Request $request)

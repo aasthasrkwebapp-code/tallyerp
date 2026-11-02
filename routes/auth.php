@@ -29,6 +29,9 @@ Route::middleware('guest')->group(function () {
 
     Route::post('two-factor-challenge', [TwoFactorChallengeController::class, 'store']);
 
+    Route::post('two-factor-challenge/resend', [TwoFactorChallengeController::class, 'resend'])
+        ->name('two-factor.resend')->middleware('throttle:6,1');
+
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');
 
@@ -70,6 +73,8 @@ Route::middleware('auth')->prefix('profile/two-factor')->name('two-factor.')->gr
     Route::get('/', [TwoFactorController::class, 'show'])->name('show')->middleware('password.confirm');
     Route::post('/', [TwoFactorController::class, 'start'])->name('start')->middleware('password.confirm');
     Route::post('/confirm', [TwoFactorController::class, 'confirm'])->name('confirm');
+    Route::post('/email', [TwoFactorController::class, 'startEmail'])->name('email')->middleware('password.confirm');
+    Route::post('/email/confirm', [TwoFactorController::class, 'confirmEmail'])->name('email.confirm');
     Route::post('/recovery-codes', [TwoFactorController::class, 'regenerate'])->name('recovery-codes')->middleware('password.confirm');
     Route::delete('/', [TwoFactorController::class, 'destroy'])->name('destroy');
 });

@@ -50,7 +50,7 @@ class TwoFactorTest extends TestCase
         $user = User::factory()->create();
         $this->actingAs($user)->withSession(['auth.password_confirmed_at' => time()]);
 
-        $this->get(route('two-factor.show'))->assertOk()->assertSee('Set up two-factor sign-in');
+        $this->get(route('two-factor.show'))->assertOk()->assertSee('Set up with an app')->assertSee('Use codes sent to my e-mail');
         $this->post(route('two-factor.start'))->assertRedirect(route('two-factor.show'));
         $secret = session(TwoFactorController::PENDING_KEY);
         $this->get(route('two-factor.show'))->assertOk()->assertSee('<svg', false)->assertSee(Totp::formatSecret($secret));

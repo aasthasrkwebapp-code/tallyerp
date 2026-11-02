@@ -97,7 +97,7 @@ class MemberController extends Controller
         }
         $request->validate(['password' => ['required', 'current_password']], ['password.current_password' => 'Your password is incorrect.']);
 
-        $user->forceFill(['two_factor_secret' => null, 'two_factor_recovery_codes' => null, 'two_factor_confirmed_at' => null, 'two_factor_last_step' => null])->save();
+        $user->forceFill($user->twoFactorOff())->save();
         AuditLog::record('two_factor_reset', $user, null, null, "Two-factor sign-in reset for {$user->email} by {$actor->email}", $company->id);
 
         return back()->with('success', "Two-factor sign-in for {$user->name} is off. They can set it up again from their profile.");
