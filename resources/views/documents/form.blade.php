@@ -12,7 +12,7 @@
         ])->all()
         : [$blank]);
     $itemData = $items->mapWithKeys(fn ($a) => [$a->id => ['hsn' => $a->hsn_sac, 'rate' => $a->gst_rate === null ? null : (float) $a->gst_rate]]);
-    $stockData = $stockItems->mapWithKeys(fn ($i) => [$i->id => ['hsn' => $i->hsn_sac, 'rate' => $i->gst_rate === null ? null : (float) $i->gst_rate, 'price' => (float) $i->opening_rate]]);
+    $stockData = $stockItems->mapWithKeys(fn ($i) => [$i->id => ['hsn' => $i->hsn_sac, 'rate' => $i->gst_rate === null ? null : (float) $i->gst_rate, 'price' => (float) (\App\Models\BusinessDocument::TYPES[$type][1] === 'sales' && $i->selling_price !== null ? $i->selling_price : $i->opening_rate)]]);
 @endphp
 
 @section('title', ($document->exists ? 'Edit ' : 'New ').$label)
@@ -77,6 +77,8 @@
                         <input id="doc-ref" name="reference" class="form-control" maxlength="255" value="{{ old('reference', $document->reference) }}">
                     </div>
                 </div>
+
+                @include('partials.barcode-scan')
 
                 <div class="table-responsive">
                     <table class="table align-middle mb-2" id="lines">

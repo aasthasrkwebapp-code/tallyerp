@@ -82,6 +82,8 @@ Route::middleware(['auth'])->group(function () {
             Route::get('gstr-3b', 'gstr3b')->name('gstr3b');
         });
 
+    Route::get('companies/{company}/stock-items/labels', [StockItemController::class, 'labels'])
+        ->name('companies.stock-items.labels');
     Route::resource('companies.stock-items', StockItemController::class)
         ->except('show')
         ->scoped();

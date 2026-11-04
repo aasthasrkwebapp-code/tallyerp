@@ -76,9 +76,23 @@
                             value="{{ old('opening_quantity', (float) $item->opening_quantity) }}" class="form-control">
                     </div>
                     <div class="col-6 col-md-3">
-                        <label class="form-label" for="f-opening-rate">Opening rate</label>
+                        <label class="form-label" for="f-opening-rate">Opening rate (cost)</label>
                         <input id="f-opening-rate" type="number" step="0.01" min="0" name="opening_rate"
                             value="{{ old('opening_rate', (float) $item->opening_rate) }}" class="form-control">
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label" for="f-selling-price">Selling price</label>
+                        <input id="f-selling-price" type="number" step="0.01" min="0" name="selling_price"
+                            value="{{ old('selling_price', $item->selling_price !== null ? (float) $item->selling_price : '') }}" class="form-control">
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="f-barcode">Barcode</label>
+                        <div class="input-group">
+                            <input id="f-barcode" name="barcode" value="{{ old('barcode', $item->barcode) }}" class="form-control" maxlength="48" placeholder="Scan or type">
+                            <button type="button" class="btn btn-outline-secondary"
+                                onclick="document.getElementById('f-barcode').value = @js(\App\Http\Controllers\StockItemController::suggestBarcode($company))">Generate</button>
+                        </div>
+                        <div class="form-text">Scan the product's barcode, or generate one and print labels.</div>
                     </div>
                 </div>
             </div>

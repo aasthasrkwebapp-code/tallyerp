@@ -69,6 +69,35 @@ class StockItemController extends Controller
             ->with('success', 'Stock item deleted successfully.');
     }
 
+    /**
+     * Printable barcode labels: ?items[id]=copies
+     */
+    public function labels(Request $request, Company $company)
+    {
+        $this->authorizeCompany($company);
+
+        $request->validate(['items' => ['nullable', 'array'], 'items.*' => ['nullable', 'integer', 'min:0', 'max:500']]);
+        $copies = collect($request->input('items', []))->map(fn ($n) => (int) $n)->filter();
+
+        $items = $company->stockItems()->whereNotNull('barcode')->orderBy('name')->get();
+        $labels = $items->filter(fn ($i) => $copies->has($i->id))
+            ->flatMap(fn ($i) => array_fill(0, $copies[$i->id], $i));
+
+        return view('stock-items.labels', compact('company', 'items', 'labels', 'copies'));
+    }
+
+    /**
+     * Suggest a free 13-digit barcode for an item without one.
+     */
+    public static function suggestBarcode(Company $company): string
+    {
+        do {
+            $code = '2'.str_pad((string) random_int(0, 999999999999), 12, '0', STR_PAD_LEFT);
+        } while ($company->stockItems()->where('barcode', $code)->exists());
+
+        return $code;
+    }
+
     protected function form(Company $company, StockItem $item)
     {
         return view('stock-items.form', [
@@ -92,6 +121,8 @@ class StockItemController extends Controller
             'gst_rate' => ['nullable', Rule::in(GstInvoiceController::RATES)],
             'opening_quantity' => ['nullable', 'numeric', 'min:0', 'max:9999999999.999'],
             'opening_rate' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
+            'selling_price' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
+            'barcode' => ['nullable', 'string', 'max:48', 'regex:/^[\x20-\x7E]+$/', Rule::unique('stock_items', 'barcode')->where('company_id', $company->id)->ignore($item?->id)],
         ]);
 
         $data['opening_quantity'] = $data['opening_quantity'] ?? 0;

@@ -20,6 +20,8 @@ class StockItem extends Model
         'gst_rate',
         'opening_quantity',
         'opening_rate',
+        'barcode',
+        'selling_price',
     ];
 
     protected function casts(): array
@@ -28,6 +30,7 @@ class StockItem extends Model
             'gst_rate' => 'decimal:2',
             'opening_quantity' => 'decimal:3',
             'opening_rate' => 'decimal:2',
+            'selling_price' => 'decimal:2',
         ];
     }
 

@@ -12,6 +12,7 @@
         <div class="d-flex flex-wrap gap-2">
             <a href="{{ route('companies.stock-items.create', $company) }}" class="btn btn-primary">+ Create Item</a>
             <a href="{{ route('companies.inventory.setup', $company) }}" class="btn btn-outline-primary">Units &amp; Groups</a>
+            <a href="{{ route('companies.stock-items.labels', $company) }}" class="btn btn-outline-primary">Barcode Labels</a>
             <a href="{{ route('companies.inventory.summary', $company) }}" class="btn btn-outline-primary">Stock Summary</a>
             <a href="{{ route('companies.show', $company) }}" class="btn btn-outline-secondary">Back to Company</a>
         </div>
@@ -40,7 +41,10 @@
                 <tbody>
                     @forelse ($items as $item)
                         <tr>
-                            <td class="fw-semibold">{{ $item->name }}</td>
+                            <td>
+                                <div class="fw-semibold">{{ $item->name }}</div>
+                                @if ($item->barcode)<small class="text-secondary font-monospace">{{ $item->barcode }}</small>@endif
+                            </td>
                             <td>{{ $item->group?->name ?? '—' }}</td>
                             <td>{{ $item->hsn_sac ?: '—' }}</td>
                             <td class="text-end">{{ $item->gst_rate === null ? '—' : (float) $item->gst_rate.'%' }}</td>

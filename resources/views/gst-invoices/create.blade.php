@@ -12,7 +12,7 @@
     $rows = old('lines', [['account_id' => '', 'description' => '', 'hsn_sac' => '', 'taxable' => '', 'rate' => '18']]);
     $itemData = $items->mapWithKeys(fn ($a) => [$a->id => ['hsn' => $a->hsn_sac, 'rate' => $a->gst_rate === null ? null : (float) $a->gst_rate]]);
     $partyData = $parties->mapWithKeys(fn ($a) => [$a->id => $a->state_code]);
-    $stockData = $stockItems->mapWithKeys(fn ($i) => [$i->id => ['hsn' => $i->hsn_sac, 'rate' => $i->gst_rate === null ? null : (float) $i->gst_rate, 'price' => (float) $i->opening_rate]]);
+    $stockData = $stockItems->mapWithKeys(fn ($i) => [$i->id => ['hsn' => $i->hsn_sac, 'rate' => $i->gst_rate === null ? null : (float) $i->gst_rate, 'price' => (float) (in_array($type, ['sales', 'credit_note'], true) && $i->selling_price !== null ? $i->selling_price : $i->opening_rate)]]);
 @endphp
 <div class="container-fluid py-3">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
@@ -99,6 +99,8 @@
                         <input id="f-reference" name="reference" class="form-control" maxlength="255" value="{{ old('reference') }}">
                     </div>
                 </div>
+
+                @include('partials.barcode-scan')
 
                 <div class="table-responsive">
                     <table class="table align-middle mb-2" id="lines">
