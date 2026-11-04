@@ -90,7 +90,14 @@
                                     <option value="{{ $currency->code }}" @selected(old('currency_code', $account->currency_code) === $currency->code)>{{ $currency->code }}{{ $currency->name ? ' - '.$currency->name : '' }}</option>
                                 @endforeach
                             </select>
-                            <div class="form-text">Opening balance stays in {{ $company->currency }}.</div>
+                        </div>
+
+                        <div class="col-6 col-md-3">
+                            <label class="form-label" for="f-opening-foreign-amount">Opening in foreign currency</label>
+                            <input id="f-opening-foreign-amount" type="number" step="0.01" min="0" name="opening_foreign_amount"
+                                value="{{ old('opening_foreign_amount', $account->opening_foreign_amount !== null ? (float) $account->opening_foreign_amount : '') }}"
+                                class="form-control">
+                            <div class="form-text">Same Dr/Cr as the opening balance above, which is its {{ $company->currency }} value.</div>
                         </div>
                     @endif
 

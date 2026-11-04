@@ -150,6 +150,45 @@ class MultiCurrencyTest extends TestCase
         $this->assertSame(84400.0, $pl->viewData('netProfit'));
     }
 
+    public function test_foreign_opening_balance_is_revalued(): void
+    {
+        $group = $this->company->accountGroups()->where('code', 'SUNDRY_DEBTORS')->value('id');
+
+        // Owed $500 at the start of the year, booked at ₹41,000 (rate 82).
+        $this->actingAs($this->company->user)
+            ->post(route('companies.accounts.store', $this->company), [
+                'name' => 'Old US Client', 'account_group_id' => $group, 'currency_code' => 'USD',
+                'opening_balance' => 41000, 'opening_balance_type' => 'dr', 'opening_foreign_amount' => 500, 'is_active' => '1',
+            ])
+            ->assertSessionHasNoErrors();
+        $client = $this->company->accounts()->where('name', 'Old US Client')->firstOrFail();
+        $this->assertSame(500.0, $client->signedOpeningForeign());
+
+        $row = $this->actingAs($this->company->user)
+            ->get(route('companies.forex.revaluation', [$this->company, 'to' => '2026-09-30', 'rates' => ['USD' => 85]]))
+            ->viewData('rows')->firstWhere('account.name', 'Old US Client');
+
+        $this->assertSame([500.0, 41000.0, 82.0, 42500.0, 1500.0], [$row->foreign, $row->rupees, $row->book_rate, $row->revalued, $row->difference]);
+
+        $this->actingAs($this->company->user)
+            ->get(route('companies.reports.ledger', [$this->company, 'account' => $client->id]))
+            ->assertSee('USD 500.00');
+    }
+
+    public function test_foreign_opening_ignored_on_rupee_ledger(): void
+    {
+        $group = $this->company->accountGroups()->where('code', 'SUNDRY_DEBTORS')->value('id');
+
+        $this->actingAs($this->company->user)
+            ->post(route('companies.accounts.store', $this->company), [
+                'name' => 'Local Client', 'account_group_id' => $group, 'opening_balance' => 1000,
+                'opening_balance_type' => 'dr', 'opening_foreign_amount' => 12, 'is_active' => '1',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertNull($this->company->accounts()->where('name', 'Local Client')->value('opening_foreign_amount'));
+    }
+
     public function test_currency_cannot_change_once_ledger_has_vouchers(): void
     {
         $this->postSaleAndReceipt();

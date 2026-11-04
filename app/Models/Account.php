@@ -22,6 +22,7 @@ class Account extends Model
         'opening_balance',
         'opening_balance_type',
         'currency_code',
+        'opening_foreign_amount',
         'is_active',
         'gstin',
         'state_code',
@@ -39,6 +40,7 @@ class Account extends Model
     {
         return [
             'opening_balance' => 'decimal:2',
+            'opening_foreign_amount' => 'decimal:2',
             'is_active' => 'boolean',
             'itc_blocked' => 'boolean',
         ];
@@ -62,6 +64,16 @@ class Account extends Model
     /**
      * Opening balance as a signed number: debit positive, credit negative.
      */
+    /**
+     * Foreign-currency opening balance, signed like the rupee one (debit positive).
+     */
+    public function signedOpeningForeign(): float
+    {
+        $amount = (float) $this->opening_foreign_amount;
+
+        return $this->opening_balance_type === 'cr' ? -$amount : $amount;
+    }
+
     public function signedOpeningBalance(): float
     {
         $amount = (float) $this->opening_balance;

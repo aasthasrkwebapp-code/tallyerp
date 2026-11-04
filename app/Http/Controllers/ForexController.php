@@ -160,9 +160,13 @@ class ForexController extends Controller
                     ->whereDate('vouchers.date', '<=', $to->toDateString())
                     ->get(['voucher_entries.debit', 'voucher_entries.credit', 'voucher_entries.foreign_amount']);
 
-                $foreign = round($entries->sum(fn ($e) => ($e->debit > 0 ? 1 : -1) * (float) $e->foreign_amount), 2);
-                // Opening balances are kept in rupees only, so only voucher entries are revalued.
-                $rupees = round($entries->sum(fn ($e) => (float) $e->debit - (float) $e->credit), 2);
+                // A foreign opening amount brings the opening balance into revaluation;
+                // without one, the rupee opening is left as it is.
+                $hasForeignOpening = $account->opening_foreign_amount !== null && (float) $account->opening_foreign_amount != 0;
+                $foreign = round(($hasForeignOpening ? $account->signedOpeningForeign() : 0)
+                    + $entries->sum(fn ($e) => ($e->debit > 0 ? 1 : -1) * (float) $e->foreign_amount), 2);
+                $rupees = round(($hasForeignOpening ? $account->signedOpeningBalance() : 0)
+                    + $entries->sum(fn ($e) => (float) $e->debit - (float) $e->credit), 2);
 
                 return (object) [
                     'account' => $account,

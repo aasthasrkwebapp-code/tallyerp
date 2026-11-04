@@ -56,7 +56,11 @@
                     <tbody>
                         <tr class="fw-semibold">
                             <td>{{ $from->format('d-m-Y') }}</td>
-                            <td colspan="{{ $account->currency_code ? 6 : 4 }}">Opening Balance</td>
+                            <td colspan="4">Opening Balance</td>
+                            @if ($account->currency_code)
+                                <td class="text-end">{{ $account->opening_foreign_amount !== null ? inr($account->signedOpeningForeign()) : '' }}</td>
+                                <td></td>
+                            @endif
                             <td class="text-end">{{ $drcr($statement['opening']) }}</td>
                         </tr>
                         @forelse ($statement['rows'] as $row)
@@ -88,7 +92,7 @@
                             <td class="text-end">{{ inr($statement['debits'], 2) }}</td>
                             <td class="text-end">{{ inr($statement['credits'], 2) }}</td>
                             @if ($account->currency_code)
-                                <td class="text-end">{{ $account->currency_code }} {{ inr($statement['rows']->sum('foreign')) }}</td>
+                                <td class="text-end">{{ $account->currency_code }} {{ inr($account->signedOpeningForeign() + $statement['rows']->sum('foreign')) }}</td>
                                 <td></td>
                             @endif
                             <td class="text-end">{{ $drcr($statement['closing']) }}</td>

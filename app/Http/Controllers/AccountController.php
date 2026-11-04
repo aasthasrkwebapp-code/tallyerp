@@ -118,6 +118,7 @@ class AccountController extends Controller
             'opening_balance' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'opening_balance_type' => ['required', 'in:dr,cr'],
             'currency_code' => ['nullable', Rule::in($company->currencies()->pluck('code'))],
+            'opening_foreign_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'is_active' => ['sometimes', 'boolean'],
             'gstin' => ['nullable', 'string', 'size:15', 'regex:/^[0-9]{2}[0-9A-Z]{13}$/'],
             'state_code' => ['nullable', Rule::in(array_keys(GstStates::STATES))],
@@ -134,6 +135,10 @@ class AccountController extends Controller
         $data['state_code'] = GstStates::codeFor($data['gstin'] ?? null) ?? ($data['state_code'] ?? null);
 
         $data['opening_balance'] = $data['opening_balance'] ?? 0;
+        // A foreign opening amount only makes sense on a foreign-currency ledger.
+        $data['opening_foreign_amount'] = ! empty($data['currency_code']) && ! empty($data['opening_foreign_amount'])
+            ? $data['opening_foreign_amount']
+            : null;
 
         // Entries already made in one currency can't switch to another.
         if ($account && $account->currency_code !== ($data['currency_code'] ?? null) && $account->entries()->exists()) {
