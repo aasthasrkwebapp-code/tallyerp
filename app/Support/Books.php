@@ -35,6 +35,11 @@ class Books
         return [$start, $start->addYear()->subDay()];
     }
 
+    public function groupParent(int $groupId): ?int
+    {
+        return $this->groups->get($groupId)?->parent_id;
+    }
+
     /**
      * The primary (top-level) group a group sits under.
      */

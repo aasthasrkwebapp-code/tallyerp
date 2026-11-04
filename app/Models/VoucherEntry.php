@@ -12,6 +12,8 @@ class VoucherEntry extends Model
         'account_id',
         'debit',
         'credit',
+        'instrument_no',
+        'bank_date',
     ];
 
     protected function casts(): array
@@ -19,6 +21,7 @@ class VoucherEntry extends Model
         return [
             'debit' => 'decimal:2',
             'credit' => 'decimal:2',
+            'bank_date' => 'date',
         ];
     }
 

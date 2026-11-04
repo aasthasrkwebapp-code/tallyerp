@@ -20,6 +20,7 @@
             ['companies.reports.ledger', 'Ledger', 'All transactions of one ledger with running balance.'],
             ['companies.vouchers.index', 'Day Book', 'All vouchers by date.'],
             ['companies.inventory.summary', 'Stock Summary', 'Quantity and value of every stock item.'],
+            ['companies.banking.reconciliation', 'Bank Reconciliation', 'Match bank entries with your bank statement.'],
             ['companies.gst.gstr1', 'GSTR-1', 'Outward supplies: B2B, B2C and HSN summary.'],
             ['companies.gst.gstr3b', 'GSTR-3B', 'Output tax, input credit and net GST payable.'],
         ] as [$route, $name, $description])

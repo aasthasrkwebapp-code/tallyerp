@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AccountGroupController;
+use App\Http\Controllers\BankReconciliationController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\GstInvoiceController;
 use App\Http\Controllers\GstReportController;
@@ -54,6 +55,11 @@ Route::middleware(['auth'])->group(function () {
             Route::delete('groups/{stockGroup}', 'destroyGroup')->name('groups.destroy');
             Route::get('summary', 'summary')->name('summary');
         });
+
+    Route::get('companies/{company}/banking/reconciliation', [BankReconciliationController::class, 'show'])
+        ->name('companies.banking.reconciliation');
+    Route::put('companies/{company}/banking/reconciliation', [BankReconciliationController::class, 'update'])
+        ->name('companies.banking.reconciliation.update');
 
     Route::controller(ReportController::class)
         ->prefix('companies/{company}/reports')
