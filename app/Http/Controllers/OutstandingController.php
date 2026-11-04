@@ -26,7 +26,10 @@ class OutstandingController extends Controller
 
         $books = new Books($company);
         [$fyStart, $fyEnd] = $books->financialYear();
-        $to = $request->filled('to') ? CarbonImmutable::parse($request->input('to')) : $fyEnd;
+        // Ageing is measured to today by default (or the year end, for a past year).
+        $to = $request->filled('to')
+            ? CarbonImmutable::parse($request->input('to'))
+            : (CarbonImmutable::today()->between($fyStart, $fyEnd) ? CarbonImmutable::today() : $fyEnd);
 
         $groupCode = $kind === 'receivables' ? 'SUNDRY_DEBTORS' : 'SUNDRY_CREDITORS';
         // Receivables are debit balances; payables credit balances.

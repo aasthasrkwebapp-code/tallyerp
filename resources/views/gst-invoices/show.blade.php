@@ -48,13 +48,18 @@
                 <div class="col-12 col-md-6">
                     <div class="text-secondary small">{{ in_array($voucher->type, ['sales', 'credit_note']) ? 'From' : 'Bill to' }}</div>
                     <div class="fw-semibold">{{ $company->legal_name ?: $company->name }}</div>
-                    @if ($company->address)<div class="small">{{ $company->address }}</div>@endif
+                    @if ($company->address || $company->city)
+                        <div class="small">{{ collect([$company->address, $company->city, $company->pincode])->filter()->join(', ') }}</div>
+                    @endif
                     @if ($company->gstin)<div class="small">GSTIN: {{ $company->gstin }}</div>@endif
                     <div class="small">State: {{ \App\Support\GstStates::name($company->stateCode()) }} ({{ $company->stateCode() }})</div>
                 </div>
                 <div class="col-12 col-md-6">
                     <div class="text-secondary small">{{ in_array($voucher->type, ['sales', 'credit_note']) ? 'Bill to' : 'Supplier' }}</div>
                     <div class="fw-semibold">{{ $voucher->party?->name }}</div>
+                    @if ($voucher->party?->address || $voucher->party?->city)
+                        <div class="small">{{ collect([$voucher->party->address, $voucher->party->city, $voucher->party->pincode])->filter()->join(', ') }}</div>
+                    @endif
                     @if ($voucher->party?->gstin)<div class="small">GSTIN: {{ $voucher->party->gstin }}</div>@endif
                     <div class="small">Place of supply: {{ \App\Support\GstStates::name($voucher->place_of_supply) }} ({{ $voucher->place_of_supply }})</div>
                     <div class="small">No. {{ $voucher->number }}/{{ $voucher->financialYearLabel() }} ·{{ $voucher->date->format('d-m-Y') }}

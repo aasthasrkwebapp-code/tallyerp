@@ -41,7 +41,7 @@ class DemoSeeder extends Seeder
 
         $cash = $ledger('Cash', 'CASH_IN_HAND', ['opening_balance' => 25000]);
         $bank = $ledger('HDFC Bank', 'BANK_ACCOUNTS', ['opening_balance' => 300000]);
-        $ledger('Capital', 'CAPITAL_ACCOUNT', ['opening_balance' => 375000, 'opening_balance_type' => 'cr']);
+        $ledger('Capital', 'CAPITAL_ACCOUNT', ['opening_balance' => 325000, 'opening_balance_type' => 'cr']);
         $sales = $ledger('Sales', 'SALES_ACCOUNTS', ['hsn_sac' => '8471', 'gst_rate' => 18]);
         $purchases = $ledger('Purchases', 'PURCHASE_ACCOUNTS');
         $rent = $ledger('Rent', 'INDIRECT_EXPENSES');
@@ -56,7 +56,7 @@ class DemoSeeder extends Seeder
             'hsn_sac' => '8471', 'gst_rate' => 18, 'opening_quantity' => 20, 'opening_rate' => 40000,
         ]);
         $capital = $company->accounts()->where('name', 'Capital')->first();
-        $capital->update(['opening_balance' => 375000 + 800000]); // stock funded by capital
+        $capital->update(['opening_balance' => 325000 + 800000]); // cash + bank + stock
 
         $date = fn (int $monthOffset, int $day) => now()->setDate($year, 4, 1)->addMonths($monthOffset)->setDay($day)->toDateString();
 

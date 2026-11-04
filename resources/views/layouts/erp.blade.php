@@ -97,13 +97,27 @@
                 min-height: auto;
             }
 
+            /* On phones the menu folds away behind the Menu button. */
             .erp-sidebar .nav {
-                display: grid;
+                display: none !important;
+            }
+
+            .erp-sidebar.is-open .nav {
+                display: grid !important;
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
 
             .erp-brand {
                 padding: 1rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .erp-menu-toggle {
+                display: none;
             }
         }
     </style>
@@ -111,9 +125,13 @@
 <body>
 <div class="d-md-flex min-vh-100">
 
-    <aside class="erp-sidebar">
+    <aside class="erp-sidebar" id="erp-sidebar">
         <div class="erp-brand">
-            <i class="bi bi-grid-1x2-fill me-2"></i>Business ERP
+            <span><i class="bi bi-grid-1x2-fill me-2"></i>Business ERP</span>
+            <button type="button" class="btn btn-sm btn-outline-light erp-menu-toggle" aria-expanded="false" aria-controls="erp-sidebar"
+                onclick="this.setAttribute('aria-expanded', document.getElementById('erp-sidebar').classList.toggle('is-open'))">
+                <i class="bi bi-list"></i> Menu
+            </button>
         </div>
 
         @php
@@ -159,8 +177,14 @@
         <header class="erp-topbar px-3 px-lg-4 py-3">
             <div class="d-flex justify-content-between align-items-center gap-3">
                 <div>
-                    <div class="fw-semibold">@yield('page-heading', 'Dashboard')</div>
-                    <small class="text-secondary">Business management workspace</small>
+                    <div class="fw-semibold">
+                        @hasSection('page-heading')
+                            @yield('page-heading')
+                        @else
+                            @yield('title', 'Dashboard')
+                        @endif
+                    </div>
+                    <small class="text-secondary">{{ $activeCompany ? $activeCompany->name.' · FY '.$activeCompany->financial_year : 'Business management workspace' }}</small>
                 </div>
 
                 <div class="d-flex align-items-center gap-3">
