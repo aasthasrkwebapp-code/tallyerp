@@ -100,7 +100,7 @@
                     <table class="table align-middle mb-2" id="lines">
                         <thead class="table-light">
                             <tr>
-                                <th style="min-width: 200px">{{ $salesSide ? 'Sales' : 'Purchase' }} ledger</th>
+                                <th style="min-width: 200px">{{ $salesSide ? 'Sales' : 'Purchase / expense' }} ledger</th>
                                 <th style="min-width: 170px">Stock item</th>
                                 <th style="min-width: 140px">Description</th>
                                 <th style="width: 120px">HSN/SAC</th>

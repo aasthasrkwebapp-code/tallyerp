@@ -50,6 +50,6 @@ Feature tests cover each module with worked examples (see `tests/Feature`).
 
 ## Simplifications
 
-- GSTR-3B assumes all input credit is eligible (no blocked credit or reversals).
+- ITC reversals (e.g. rule 42/43 for exempt supplies) are not calculated.
 - Payroll uses common PF/ESI rules and a flat professional tax of 200 above 10,000; adjust `app/Support/Payroll.php` for your state.
 - GST invoices, TDS bills and payroll journals are deleted and re-entered rather than edited.

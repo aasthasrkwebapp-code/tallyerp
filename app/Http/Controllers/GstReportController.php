@@ -92,8 +92,9 @@ class GstReportController extends Controller
         $outward = (object) $outward;
         $itc = (object) $itc;
         $openingCredit = (object) $openingCredit;
+        $ineligible = (object) $this->ineligibleItc($company, $from, $to);
 
-        return view('gst.gstr3b', compact('company', 'from', 'to', 'outward', 'itc', 'openingCredit', 'payable', 'carryForward', 'used'));
+        return view('gst.gstr3b', compact('company', 'from', 'to', 'outward', 'itc', 'openingCredit', 'ineligible', 'payable', 'carryForward', 'used'));
     }
 
     /**
@@ -110,10 +111,21 @@ class GstReportController extends Controller
                 $this->totals($this->lines($company, 'credit_note', $from, $to)),
             ),
             $this->minus(
-                $this->totals($this->lines($company, 'purchase', $from, $to)),
-                $this->totals($this->lines($company, 'debit_note', $from, $to)),
+                $this->totals($this->lines($company, 'purchase', $from, $to)->where('itc_eligible', true)),
+                $this->totals($this->lines($company, 'debit_note', $from, $to)->where('itc_eligible', true)),
             ),
         ];
+    }
+
+    /**
+     * GST paid on purchases whose credit is blocked (shown in 4(D), not claimed).
+     */
+    protected function ineligibleItc(Company $company, CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        return $this->minus(
+            $this->totals($this->lines($company, 'purchase', $from, $to)->where('itc_eligible', false)),
+            $this->totals($this->lines($company, 'debit_note', $from, $to)->where('itc_eligible', false)),
+        );
     }
 
     /**

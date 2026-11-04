@@ -26,6 +26,7 @@ class Account extends Model
         'state_code',
         'hsn_sac',
         'gst_rate',
+        'itc_blocked',
         'pan',
         'tds_section',
     ];
@@ -35,6 +36,7 @@ class Account extends Model
         return [
             'opening_balance' => 'decimal:2',
             'is_active' => 'boolean',
+            'itc_blocked' => 'boolean',
         ];
     }
 

@@ -34,12 +34,21 @@ class GstInvoiceController extends Controller
         'debit_note' => ['side' => 'purchase', 'partyDebit' => true, 'stockOut' => true],
     ];
 
+    /**
+     * Primary groups whose ledgers can be used on invoice lines, per side.
+     * Purchase bills may be for goods, expenses or fixed assets.
+     */
+    public const LINE_GROUPS = [
+        'sales' => ['SALES_ACCOUNTS'],
+        'purchase' => ['PURCHASE_ACCOUNTS', 'DIRECT_EXPENSES', 'INDIRECT_EXPENSES', 'FIXED_ASSETS'],
+    ];
+
     public function create(Request $request, Company $company)
     {
         $this->authorizeCompany($company);
 
         $type = array_key_exists($request->query('type'), self::KINDS) ? $request->query('type') : 'sales';
-        $itemGroup = self::KINDS[$type]['side'] === 'sales' ? 'SALES_ACCOUNTS' : 'PURCHASE_ACCOUNTS';
+        $itemGroups = self::LINE_GROUPS[self::KINDS[$type]['side']];
 
         $accounts = $company->accounts()->where('is_active', true)->with('group')->orderBy('name')->get();
         $books = new Books($company);
@@ -52,7 +61,7 @@ class GstInvoiceController extends Controller
                 ['CURRENT_ASSETS', 'CURRENT_LIABILITIES'],
                 true,
             ) && ! str_starts_with((string) $a->code, 'GST_')),
-            'items' => $accounts->filter(fn (Account $a) => $books->primaryGroup($a->account_group_id)->code === $itemGroup),
+            'items' => $accounts->filter(fn (Account $a) => in_array($books->primaryGroup($a->account_group_id)->code, $itemGroups, true)),
             'stockItems' => $company->stockItems()->with('unit')->orderBy('name')->get(),
             'rates' => self::RATES,
             'states' => GstStates::STATES,
@@ -96,7 +105,7 @@ class GstInvoiceController extends Controller
 
         $books = new Books($company);
         $kind = self::KINDS[$data['type']];
-        $itemGroup = $kind['side'] === 'sales' ? 'SALES_ACCOUNTS' : 'PURCHASE_ACCOUNTS';
+        $itemGroups = self::LINE_GROUPS[$kind['side']];
         foreach ($data['lines'] as $i => $line) {
             if (empty($line['stock_item_id']) && empty($line['taxable'])) {
                 throw ValidationException::withMessages([
@@ -105,9 +114,9 @@ class GstInvoiceController extends Controller
             }
 
             $account = $company->accounts()->find($line['account_id']);
-            if ($books->primaryGroup($account->account_group_id)->code !== $itemGroup) {
+            if (! in_array($books->primaryGroup($account->account_group_id)->code, $itemGroups, true)) {
                 throw ValidationException::withMessages([
-                    "lines.$i.account_id" => 'Line '.($i + 1).' must use a '.$kind['side'].' ledger.',
+                    "lines.$i.account_id" => 'Line '.($i + 1).' must use a '.($kind['side'] === 'sales' ? 'sales' : 'purchase, expense or fixed asset').' ledger.',
                 ]);
             }
         }
@@ -119,7 +128,12 @@ class GstInvoiceController extends Controller
             ?? $companyState;
         $interState = $placeOfSupply !== $companyState;
 
-        $lines = collect($data['lines'])->map(function (array $line) use ($interState) {
+        // Purchases to a blocked-credit ledger can't claim GST: the tax becomes part of the cost.
+        $blocked = $kind['side'] === 'purchase'
+            ? $company->accounts()->whereIn('id', array_column($data['lines'], 'account_id'))->where('itc_blocked', true)->pluck('id')->all()
+            : [];
+
+        $lines = collect($data['lines'])->map(function (array $line) use ($interState, $blocked) {
             $stockItemId = ! empty($line['stock_item_id']) ? (int) $line['stock_item_id'] : null;
             $quantity = $stockItemId ? round((float) $line['quantity'], 3) : null;
             $itemRate = $stockItemId ? round((float) $line['item_rate'], 2) : null;
@@ -141,6 +155,7 @@ class GstInvoiceController extends Controller
                 'cgst' => $interState ? 0 : $half,
                 'sgst' => $interState ? 0 : $half,
                 'igst' => $interState ? round($taxable * $rate / 100, 2) : 0,
+                'itc_eligible' => ! in_array((int) $line['account_id'], $blocked, true),
             ];
         });
 
@@ -155,12 +170,16 @@ class GstInvoiceController extends Controller
 
             $entries = [['account_id' => $party->id] + $side($total, $partyDebit)];
 
+            $lineTax = fn (array $l) => $l['cgst'] + $l['sgst'] + $l['igst'];
+
             foreach ($lines->groupBy('account_id') as $accountId => $group) {
-                $entries[] = ['account_id' => $accountId] + $side(round($group->sum('taxable'), 2), ! $partyDebit);
+                // Blocked credit: the ledger carries taxable value plus the GST.
+                $amount = $group->sum(fn ($l) => $l['taxable'] + ($l['itc_eligible'] ? 0 : $lineTax($l)));
+                $entries[] = ['account_id' => $accountId] + $side(round($amount, 2), ! $partyDebit);
             }
 
             foreach (['cgst', 'sgst', 'igst'] as $head) {
-                $tax = round($lines->sum($head), 2);
+                $tax = round($lines->where('itc_eligible', true)->sum($head), 2);
                 if ($tax > 0) {
                     $ledger = $company->gstLedger($kind['side'] === 'sales' ? 'output' : 'input', $head);
                     $entries[] = ['account_id' => $ledger->id] + $side($tax, ! $partyDebit);

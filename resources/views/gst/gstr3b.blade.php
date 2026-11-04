@@ -37,6 +37,15 @@
                         <td class="text-end">{{ $m($itc->cgst) }}</td>
                         <td class="text-end">{{ $m($itc->sgst) }}</td>
                     </tr>
+                    @if ($ineligible->tax != 0)
+                        <tr class="text-secondary">
+                            <td>4(D) Ineligible ITC (blocked, added to cost)</td>
+                            <td class="text-end">{{ $m($ineligible->taxable) }}</td>
+                            <td class="text-end">{{ $m($ineligible->igst) }}</td>
+                            <td class="text-end">{{ $m($ineligible->cgst) }}</td>
+                            <td class="text-end">{{ $m($ineligible->sgst) }}</td>
+                        </tr>
+                    @endif
                     <tr class="text-secondary">
                         <td>Unused credit brought forward from earlier months</td>
                         <td></td>

@@ -20,6 +20,7 @@ class VoucherGstLine extends Model
         'cgst',
         'sgst',
         'igst',
+        'itc_eligible',
     ];
 
     protected function casts(): array
@@ -30,6 +31,7 @@ class VoucherGstLine extends Model
             'cgst' => 'decimal:2',
             'sgst' => 'decimal:2',
             'igst' => 'decimal:2',
+            'itc_eligible' => 'boolean',
         ];
     }
 

@@ -123,6 +123,16 @@
                         </select>
                     </div>
 
+                    <div class="col-12">
+                        <input type="hidden" name="itc_blocked" value="0">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="itc_blocked" name="itc_blocked" value="1"
+                                @checked(old('itc_blocked', $account->itc_blocked))>
+                            <label class="form-check-label" for="itc_blocked">GST credit not available on purchases to this ledger</label>
+                            <div class="form-text mt-0">Blocked credit, e.g. motor cars, food, club fees or personal use. The GST is added to the cost instead.</div>
+                        </div>
+                    </div>
+
                     <div class="col-6 col-md-3">
                         <label class="form-label">PAN</label>
                         <input name="pan" value="{{ old('pan', $account->pan) }}" class="form-control text-uppercase" maxlength="10">
