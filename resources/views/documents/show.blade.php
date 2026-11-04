@@ -63,7 +63,7 @@
 
             <div class="row g-3 mb-3">
                 <div class="col-12 col-md-6">
-                    <div class="text-secondary small">From</div>
+                    <div class="text-secondary small">{{ $document->side() === 'purchase' ? 'Buyer' : 'From' }}</div>
                     <div class="fw-semibold">{{ $company->legal_name ?: $company->name }}</div>
                     @if ($company->address || $company->city)
                         <div class="small">{{ collect([$company->address, $company->city, $company->pincode])->filter()->join(', ') }}</div>
@@ -71,7 +71,7 @@
                     @if ($company->gstin)<div class="small">GSTIN: {{ $company->gstin }}</div>@endif
                 </div>
                 <div class="col-12 col-md-6">
-                    <div class="text-secondary small">To</div>
+                    <div class="text-secondary small">{{ $document->side() === 'purchase' ? 'Supplier' : 'To' }}</div>
                     <div class="fw-semibold">{{ $document->party->name }}</div>
                     @if ($document->party->address || $document->party->city)
                         <div class="small">{{ collect([$document->party->address, $document->party->city, $document->party->pincode])->filter()->join(', ') }}</div>

@@ -20,6 +20,8 @@ class BusinessDocument extends Model
      */
     public const TYPES = [
         'estimate' => ['Estimate', 'sales', 'sales'],
+        'sale_order' => ['Sale Order', 'sales', 'sales'],
+        'purchase_order' => ['Purchase Order', 'purchase', 'purchase'],
     ];
 
     public const STATUSES = ['open' => 'Open', 'converted' => 'Converted', 'cancelled' => 'Cancelled'];

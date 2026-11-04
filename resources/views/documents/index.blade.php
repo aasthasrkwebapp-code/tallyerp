@@ -14,6 +14,14 @@
         <a href="{{ route('companies.documents.create', [$company, $type]) }}" class="btn btn-primary">+ New {{ $label }}</a>
     </div>
 
+    <ul class="nav nav-tabs mb-3">
+        @foreach (\App\Models\BusinessDocument::TYPES as $tabType => [$tabLabel])
+            <li class="nav-item">
+                <a class="nav-link {{ $tabType === $type ? 'active' : '' }}" href="{{ route('companies.documents.index', [$company, $tabType]) }}">{{ \Illuminate\Support\Str::plural($tabLabel) }}</a>
+            </li>
+        @endforeach
+    </ul>
+
     @if (session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif
