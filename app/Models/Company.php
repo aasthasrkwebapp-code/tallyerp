@@ -187,6 +187,11 @@ class Company extends Model
         );
     }
 
+    public function budgets(): HasMany
+    {
+        return $this->hasMany(Budget::class);
+    }
+
     public function costCentres(): HasMany
     {
         return $this->hasMany(CostCentre::class);

@@ -11,7 +11,7 @@ A Tally-style accounting app for Indian businesses, built with Laravel 12 and Bo
 | **Vouchers** | Payment, Receipt, Contra, Journal, Sales, Purchase, Debit/Credit Note. Debits must equal credits, numbering per type, dates within the financial year, cash/bank rules for contra/payment/receipt. Day Book, edit and delete |
 | **GST** | GSTIN/state/HSN/rate on ledgers; sales and purchase invoices, credit and debit notes, split into CGST+SGST or IGST by place of supply; printable tax invoice; GSTR-1 (B2B, B2C, credit notes, HSN) and GSTR-3B with ITC set-off |
 | **Inventory** | Units, stock groups, stock items; invoice lines move stock; Stock Summary at weighted average cost; opening/closing stock in P&L and Balance Sheet |
-| **Reports** | Trial Balance, Profit & Loss, Balance Sheet, Ledger statement, Receivables/Payables with ageing, Cost Centres |
+| **Reports** | Trial Balance, Profit & Loss, Balance Sheet, Ledger statement, Receivables/Payables with ageing, Cost Centres, Budget vs Actual |
 | **Banking** | Bank reconciliation with cheque/UTR numbers and cleared dates; import a bank statement CSV to match and clear entries automatically |
 | **TDS** | TDS sections on suppliers (194C/H/I/J/Q, 20% without PAN), bills booked net of TDS, TDS report and balance payable |
 | **Payroll** | Employees, monthly runs with PF/ESI/professional tax, salary journal posted automatically, payslips and register |

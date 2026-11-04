@@ -38,6 +38,8 @@ class Access
         'account-groups.*' => 'masters',
         'accounts.*' => 'masters',
         'cost-centres.index' => 'reports',
+        'budgets.index' => 'reports',
+        'budgets.*' => 'masters',
         'cost-centres.*' => 'masters',
         'vouchers.*' => 'vouchers',
         'gst-invoices.*' => 'invoices',

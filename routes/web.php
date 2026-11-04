@@ -6,6 +6,7 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AccountGroupController;
 use App\Http\Controllers\BankReconciliationController;
+use App\Http\Controllers\BudgetController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyMemberController;
 use App\Http\Controllers\CostCentreController;
@@ -74,6 +75,10 @@ Route::middleware(['auth'])->group(function () {
         ->name('companies.banking.reconciliation.update');
     Route::post('companies/{company}/banking/reconciliation/import', [BankReconciliationController::class, 'import'])
         ->name('companies.banking.reconciliation.import');
+
+    Route::get('companies/{company}/budgets', [BudgetController::class, 'index'])->name('companies.budgets.index');
+    Route::get('companies/{company}/budgets/edit', [BudgetController::class, 'edit'])->name('companies.budgets.edit');
+    Route::put('companies/{company}/budgets', [BudgetController::class, 'update'])->name('companies.budgets.update');
 
     Route::resource('companies.cost-centres', CostCentreController::class)
         ->only(['index', 'store', 'destroy'])
