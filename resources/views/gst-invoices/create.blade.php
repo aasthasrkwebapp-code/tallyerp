@@ -118,7 +118,7 @@
                                     </td>
                                     <td>
                                         <select name="lines[{{ $i }}][stock_item_id]" class="form-select js-stock">
-                                            <option value="">— none —</option>
+                                            <option value="">â€” none â€”</option>
                                             @foreach ($stockItems as $stockItem)
                                                 <option value="{{ $stockItem->id }}" @selected((string) ($row['stock_item_id'] ?? '') === (string) $stockItem->id)>{{ $stockItem->name }} ({{ $stockItem->unit->symbol }})</option>
                                             @endforeach

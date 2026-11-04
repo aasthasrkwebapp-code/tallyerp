@@ -102,7 +102,7 @@
                                     @if ($costCentres->isNotEmpty())
                                         <td>
                                             <select name="entries[{{ $i }}][cost_centre_id]" class="form-select">
-                                                <option value="">—</option>
+                                                <option value="">â€”</option>
                                                 @foreach ($costCentres as $centre)
                                                     <option value="{{ $centre->id }}" @selected((string) ($row['cost_centre_id'] ?? '') === (string) $centre->id)>{{ $centre->name }}</option>
                                                 @endforeach

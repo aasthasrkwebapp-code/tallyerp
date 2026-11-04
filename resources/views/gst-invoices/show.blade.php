@@ -77,7 +77,7 @@
                                     @if ($line->stockItem)
                                         <div class="small text-secondary">
                                             {{ rtrim(rtrim(inr((float) $line->quantity, 3), '0'), '.') }} {{ $line->stockItem->unit->symbol }}
-                                            × {{ $money($line->item_rate) }}
+                                            Ã— {{ $money($line->item_rate) }}
                                         </div>
                                     @endif
                                 </td>

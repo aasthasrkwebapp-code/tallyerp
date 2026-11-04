@@ -133,7 +133,7 @@
                         <select name="tds_section" class="form-select">
                             <option value="">No TDS</option>
                             @foreach (\App\Support\Tds::SECTIONS as $key => [$section, $label, $rate])
-                                <option value="{{ $key }}" @selected(old('tds_section', $account->tds_section) === $key)>{{ $section }} · {{ $label }} ({{ $rate }}%)</option>
+                                <option value="{{ $key }}" @selected(old('tds_section', $account->tds_section) === $key)>{{ $section }} Â· {{ $label }} ({{ $rate }}%)</option>
                             @endforeach
                         </select>
                         <div class="form-text">For suppliers you deduct TDS from.</div>
