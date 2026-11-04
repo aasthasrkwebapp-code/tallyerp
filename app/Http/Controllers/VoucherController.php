@@ -190,13 +190,17 @@ class VoucherController extends Controller
             ],
             'entries.*.debit' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'entries.*.credit' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
+            'entries.*.foreign_amount' => ['nullable', 'numeric', 'gt:0', 'max:9999999999999.99'],
+            'entries.*.exchange_rate' => ['nullable', 'numeric', 'gt:0', 'max:99999999.999999'],
+            'entries.*.side' => ['nullable', 'in:dr,cr'],
             'entries.*.cost_centre_id' => ['nullable', Rule::exists('cost_centres', 'id')->where('company_id', $company->id)],
         ], [
             'date.after_or_equal' => 'The date must fall within financial year '.$company->financial_year.'.',
             'date.before_or_equal' => 'The date must fall within financial year '.$company->financial_year.'.',
         ]);
 
-        $entries = $this->normaliseEntries($data['entries']);
+        $currencies = $company->accounts()->whereNotNull('currency_code')->pluck('currency_code', 'id')->all();
+        $entries = $this->normaliseEntries($data['entries'], $currencies);
         $this->checkVoucherRules($company, $data['type'], $entries);
 
         return [$data, $entries];
@@ -227,13 +231,35 @@ class VoucherController extends Controller
      *
      * @return array<int, array{account_id: int, debit: float, credit: float}>
      */
-    protected function normaliseEntries(array $rows): array
+    protected function normaliseEntries(array $rows, array $currencies = []): array
     {
         $entries = [];
 
         foreach (array_values($rows) as $i => $row) {
             $debit = round((float) ($row['debit'] ?? 0), 2);
             $credit = round((float) ($row['credit'] ?? 0), 2);
+
+            // Foreign-currency ledger: the rupee amount is foreign amount × rate.
+            $currency = $currencies[(int) ($row['account_id'] ?? 0)] ?? null;
+            $foreign = null;
+            if ($currency) {
+                $amount = (float) ($row['foreign_amount'] ?? 0);
+                $rate = (float) ($row['exchange_rate'] ?? 0);
+
+                if ($amount <= 0 && $debit == 0 && $credit == 0) {
+                    continue; // blank row
+                }
+                if ($amount <= 0 || $rate <= 0) {
+                    throw ValidationException::withMessages([
+                        "entries.$i.foreign_amount" => 'Row '.($i + 1).': enter the '.$currency.' amount and exchange rate.',
+                    ]);
+                }
+
+                $rupees = round($amount * $rate, 2);
+                $isCredit = ($row['side'] ?? null) === 'cr' || (! isset($row['side']) && $credit > 0 && $debit == 0);
+                [$debit, $credit] = $isCredit ? [0.0, $rupees] : [$rupees, 0.0];
+                $foreign = ['currency_code' => $currency, 'foreign_amount' => round($amount, 2), 'exchange_rate' => round($rate, 6)];
+            }
 
             if ($debit > 0 && $credit > 0) {
                 throw ValidationException::withMessages([
@@ -250,6 +276,9 @@ class VoucherController extends Controller
                 'cost_centre_id' => ! empty($row['cost_centre_id']) ? (int) $row['cost_centre_id'] : null,
                 'debit' => $debit,
                 'credit' => $credit,
+                'currency_code' => $foreign['currency_code'] ?? null,
+                'foreign_amount' => $foreign['foreign_amount'] ?? null,
+                'exchange_rate' => $foreign['exchange_rate'] ?? null,
             ];
         }
 

@@ -21,6 +21,7 @@ class Account extends Model
         'account_type',
         'opening_balance',
         'opening_balance_type',
+        'currency_code',
         'is_active',
         'gstin',
         'state_code',

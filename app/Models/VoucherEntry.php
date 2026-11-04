@@ -13,6 +13,9 @@ class VoucherEntry extends Model
         'cost_centre_id',
         'debit',
         'credit',
+        'currency_code',
+        'foreign_amount',
+        'exchange_rate',
         'instrument_no',
         'bank_date',
     ];
@@ -22,6 +25,8 @@ class VoucherEntry extends Model
         return [
             'debit' => 'decimal:2',
             'credit' => 'decimal:2',
+            'foreign_amount' => 'decimal:2',
+            'exchange_rate' => 'decimal:6',
             'bank_date' => 'date',
         ];
     }

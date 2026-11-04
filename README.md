@@ -21,6 +21,7 @@ A Tally-style accounting app for Indian businesses, built with Laravel 12 and Bo
 | **Export** | Every report downloads as a CSV that opens in Excel |
 | **Audit log** | Who created, changed or deleted what, with before/after values |
 | **Budgets** | Yearly budgets per income/expense ledger and a Budget vs Actual report |
+| **Multi-currency** | Foreign currencies, foreign-currency ledgers, vouchers in amount × rate, foreign amounts on ledger statements, forex revaluation with exchange gain/loss posting |
 | **Backups** | Download a company as a JSON file and restore it as a new company |
 
 Amounts are shown in Indian format (1,15,000.00).
@@ -54,3 +55,4 @@ Feature tests cover each module with worked examples (see `tests/Feature`).
 - Payroll uses common PF/ESI rules and a flat professional tax of 200 above 10,000; adjust `app/Support/Payroll.php` for your state.
 - GST invoices, TDS bills and payroll journals are deleted and re-entered rather than edited.
 - e-invoice JSON is generated for upload to the e-invoice portal; the app does not call the IRP API or store the IRN/QR code. E-way bills are not generated.
+- Multi-currency: ledger opening balances are in rupees only and are not revalued; GST invoices are in rupees.

@@ -21,6 +21,7 @@
             ['companies.vouchers.index', 'Day Book', 'All vouchers by date.'],
             [['companies.outstanding', 'receivables'], 'Receivables', 'What customers owe you, by age.'],
             [['companies.outstanding', 'payables'], 'Payables', 'What you owe suppliers, by age.'],
+            ['companies.forex.revaluation', 'Forex Revaluation', 'Foreign-currency balances at today\'s rates.'],
             ['companies.budgets.index', 'Budget vs Actual', 'How income and expenses compare with this year\'s budget.'],
             ['companies.cost-centres.index', 'Cost Centres', 'Income and expenses by department or project.'],
             ['companies.inventory.summary', 'Stock Summary', 'Quantity and value of every stock item.'],

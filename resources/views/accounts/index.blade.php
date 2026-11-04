@@ -13,6 +13,9 @@
             <a href="{{ route('companies.accounts.create', $company) }}" class="btn btn-primary">
                 + Create Ledger
             </a>
+            <a href="{{ route('companies.currencies.index', $company) }}" class="btn btn-outline-primary">
+                Currencies
+            </a>
             <a href="{{ route('companies.show', $company) }}" class="btn btn-outline-secondary">
                 Back to Company
             </a>

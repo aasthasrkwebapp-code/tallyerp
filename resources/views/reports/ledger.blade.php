@@ -46,13 +46,17 @@
                             <th>Voucher</th>
                             <th class="text-end">Debit</th>
                             <th class="text-end">Credit</th>
+                            @if ($account->currency_code)
+                                <th class="text-end">{{ $account->currency_code }}</th>
+                                <th class="text-end">Rate</th>
+                            @endif
                             <th class="text-end">Balance</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr class="fw-semibold">
                             <td>{{ $from->format('d-m-Y') }}</td>
-                            <td colspan="4">Opening Balance</td>
+                            <td colspan="{{ $account->currency_code ? 6 : 4 }}">Opening Balance</td>
                             <td class="text-end">{{ $drcr($statement['opening']) }}</td>
                         </tr>
                         @forelse ($statement['rows'] as $row)
@@ -66,11 +70,15 @@
                                 </td>
                                 <td class="text-end">{{ $row->debit ? inr($row->debit, 2) : '' }}</td>
                                 <td class="text-end">{{ $row->credit ? inr($row->credit, 2) : '' }}</td>
+                                @if ($account->currency_code)
+                                    <td class="text-end">{{ $row->foreign !== null && $row->foreign != 0 ? inr($row->foreign) : '' }}</td>
+                                    <td class="text-end small text-secondary">{{ $row->rate }}</td>
+                                @endif
                                 <td class="text-end">{{ $drcr($row->balance) }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center text-secondary py-3">No transactions in this period.</td>
+                                <td colspan="{{ $account->currency_code ? 8 : 6 }}" class="text-center text-secondary py-3">No transactions in this period.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -79,6 +87,10 @@
                             <td colspan="3">Closing Balance</td>
                             <td class="text-end">{{ inr($statement['debits'], 2) }}</td>
                             <td class="text-end">{{ inr($statement['credits'], 2) }}</td>
+                            @if ($account->currency_code)
+                                <td class="text-end">{{ $account->currency_code }} {{ inr($statement['rows']->sum('foreign')) }}</td>
+                                <td></td>
+                            @endif
                             <td class="text-end">{{ $drcr($statement['closing']) }}</td>
                         </tr>
                     </tfoot>

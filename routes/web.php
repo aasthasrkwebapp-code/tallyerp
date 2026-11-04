@@ -12,6 +12,7 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyMemberController;
 use App\Http\Controllers\CostCentreController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\ForexController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\GstInvoiceController;
 use App\Http\Controllers\GstReportController;
@@ -87,6 +88,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('companies/{company}/budgets', [BudgetController::class, 'index'])->name('companies.budgets.index');
     Route::get('companies/{company}/budgets/edit', [BudgetController::class, 'edit'])->name('companies.budgets.edit');
     Route::put('companies/{company}/budgets', [BudgetController::class, 'update'])->name('companies.budgets.update');
+
+    Route::get('companies/{company}/currencies', [ForexController::class, 'index'])->name('companies.currencies.index');
+    Route::post('companies/{company}/currencies', [ForexController::class, 'store'])->name('companies.currencies.store');
+    Route::delete('companies/{company}/currencies/{currency}', [ForexController::class, 'destroy'])->name('companies.currencies.destroy');
+    Route::get('companies/{company}/forex-revaluation', [ForexController::class, 'revaluation'])->name('companies.forex.revaluation');
+    Route::post('companies/{company}/forex-revaluation', [ForexController::class, 'postRevaluation'])->name('companies.forex.post');
 
     Route::resource('companies.cost-centres', CostCentreController::class)
         ->only(['index', 'store', 'destroy'])

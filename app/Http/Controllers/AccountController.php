@@ -35,6 +35,7 @@ class AccountController extends Controller
             'company' => $company,
             'account' => new Account(['opening_balance_type' => 'dr', 'is_active' => true]),
             'groups' => $company->accountGroups()->orderBy('name')->get(),
+            'currencies' => $company->currencies()->orderBy('code')->get(),
         ]);
     }
 
@@ -57,6 +58,7 @@ class AccountController extends Controller
             'company' => $company,
             'account' => $account,
             'groups' => $company->accountGroups()->orderBy('name')->get(),
+            'currencies' => $company->currencies()->orderBy('code')->get(),
         ]);
     }
 
@@ -115,6 +117,7 @@ class AccountController extends Controller
             ],
             'opening_balance' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'opening_balance_type' => ['required', 'in:dr,cr'],
+            'currency_code' => ['nullable', Rule::in($company->currencies()->pluck('code'))],
             'is_active' => ['sometimes', 'boolean'],
             'gstin' => ['nullable', 'string', 'size:15', 'regex:/^[0-9]{2}[0-9A-Z]{13}$/'],
             'state_code' => ['nullable', Rule::in(array_keys(GstStates::STATES))],
@@ -131,6 +134,13 @@ class AccountController extends Controller
         $data['state_code'] = GstStates::codeFor($data['gstin'] ?? null) ?? ($data['state_code'] ?? null);
 
         $data['opening_balance'] = $data['opening_balance'] ?? 0;
+
+        // Entries already made in one currency can't switch to another.
+        if ($account && $account->currency_code !== ($data['currency_code'] ?? null) && $account->entries()->exists()) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'currency_code' => 'This ledger has vouchers, so its currency can\'t change.',
+            ]);
+        }
         $data['is_active'] = $request->boolean('is_active');
         $data['itc_blocked'] = $request->boolean('itc_blocked');
         $data['account_type'] = AccountGroup::find($data['account_group_id'])->nature;

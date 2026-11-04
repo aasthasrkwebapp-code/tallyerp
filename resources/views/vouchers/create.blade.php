@@ -4,13 +4,17 @@
 
 @section('content')
 @php
-    $blank = ['account_id' => '', 'cost_centre_id' => '', 'debit' => '', 'credit' => ''];
+    $blank = ['account_id' => '', 'cost_centre_id' => '', 'debit' => '', 'credit' => '', 'foreign_amount' => '', 'exchange_rate' => '', 'side' => 'dr'];
+    $ledgerCurrencies = $accounts->whereNotNull('currency_code')->pluck('currency_code', 'id');
     $rows = old('entries', $voucher->exists
         ? $voucher->entries->map(fn ($e) => [
             'account_id' => $e->account_id,
             'cost_centre_id' => $e->cost_centre_id,
             'debit' => $e->debit > 0 ? (float) $e->debit : '',
             'credit' => $e->credit > 0 ? (float) $e->credit : '',
+            'foreign_amount' => $e->foreign_amount !== null ? (float) $e->foreign_amount : '',
+            'exchange_rate' => $e->exchange_rate !== null ? (float) $e->exchange_rate : '',
+            'side' => $e->credit > 0 ? 'cr' : 'dr',
         ])->all()
         : [$blank, $blank]);
 @endphp
@@ -98,6 +102,19 @@
                                                 </option>
                                             @endforeach
                                         </select>
+                                        @php $fx = $ledgerCurrencies[$row['account_id'] ?? ''] ?? null; @endphp
+                                        <div class="input-group input-group-sm mt-1 js-fx {{ $fx ? '' : 'd-none' }}">
+                                            <select name="entries[{{ $i }}][side]" class="form-select js-side" style="max-width: 70px" aria-label="Debit or credit" @disabled(! $fx)>
+                                                <option value="dr" @selected(($row['side'] ?? 'dr') === 'dr')>Dr</option>
+                                                <option value="cr" @selected(($row['side'] ?? '') === 'cr')>Cr</option>
+                                            </select>
+                                            <span class="input-group-text js-fx-code">{{ $fx }}</span>
+                                            <input type="number" step="0.01" min="0" name="entries[{{ $i }}][foreign_amount]" value="{{ $row['foreign_amount'] ?? '' }}"
+                                                class="form-control text-end js-fx-amount" placeholder="Amount" aria-label="Foreign amount" @disabled(! $fx)>
+                                            <span class="input-group-text">@</span>
+                                            <input type="number" step="0.000001" min="0" name="entries[{{ $i }}][exchange_rate]" value="{{ $row['exchange_rate'] ?? '' }}"
+                                                class="form-control text-end js-fx-rate" placeholder="Rate" aria-label="Exchange rate" @disabled(! $fx)>
+                                        </div>
                                     </td>
                                     @if ($costCentres->isNotEmpty())
                                         <td>
@@ -152,7 +169,27 @@
 <script>
 (() => {
     const body = document.querySelector('#entries tbody');
+    const currencies = @json($ledgerCurrencies);
     let next = body.rows.length;
+
+    // Foreign-currency ledgers: rupees = amount × rate, on the chosen side.
+    function syncFx(row) {
+        const code = currencies[row.querySelector('select[name$="[account_id]"]').value];
+        const box = row.querySelector('.js-fx');
+        box.classList.toggle('d-none', !code);
+        box.querySelectorAll('select, input').forEach(el => el.disabled = !code);
+        row.querySelector('.js-fx-code').textContent = code || '';
+
+        const debit = row.querySelector('.js-debit'), credit = row.querySelector('.js-credit');
+        debit.readOnly = credit.readOnly = !!code;
+        if (!code) return;
+
+        const rupees = (parseFloat(row.querySelector('.js-fx-amount').value) || 0) * (parseFloat(row.querySelector('.js-fx-rate').value) || 0);
+        const value = rupees ? (Math.round(rupees * 100) / 100).toFixed(2) : '';
+        const isCredit = row.querySelector('.js-side').value === 'cr';
+        debit.value = isCredit ? '' : value;
+        credit.value = isCredit ? value : '';
+    }
 
     const fmt = n => n.toFixed(2);
     const sum = cls => [...body.querySelectorAll(cls)].reduce((t, el) => t + (parseFloat(el.value) || 0), 0);
@@ -171,10 +208,11 @@
         const row = body.rows[0].cloneNode(true);
         row.querySelectorAll('select, input').forEach(el => {
             el.name = el.name.replace(/entries\[\d+\]/, 'entries[' + next + ']');
-            el.value = '';
+            el.value = el.classList.contains('js-side') ? 'dr' : '';
         });
         next++;
         body.appendChild(row);
+        syncFx(row);
     });
 
     body.addEventListener('click', e => {
@@ -184,7 +222,15 @@
         }
     });
 
-    body.addEventListener('input', recalc);
+    body.addEventListener('input', e => {
+        if (e.target.closest('.js-fx')) syncFx(e.target.closest('tr'));
+        recalc();
+    });
+    body.addEventListener('change', e => {
+        syncFx(e.target.closest('tr'));
+        recalc();
+    });
+    [...body.rows].forEach(syncFx);
     recalc();
 })();
 </script>

@@ -213,6 +213,11 @@ class Books
                 'particulars' => $particulars,
                 'debit' => (float) $entry->debit,
                 'credit' => (float) $entry->credit,
+                // Signed amount in the ledger's foreign currency (debit positive), if any.
+                'foreign' => $entry->foreign_amount !== null
+                    ? round(($entry->debit > 0 ? 1 : -1) * (float) $entry->foreign_amount, 2)
+                    : null,
+                'rate' => $entry->exchange_rate !== null ? (float) $entry->exchange_rate : null,
                 'balance' => $running,
             ];
         });

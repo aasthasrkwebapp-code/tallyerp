@@ -81,6 +81,19 @@
                         </select>
                     </div>
 
+                    @if ($currencies->isNotEmpty())
+                        <div class="col-6 col-md-3">
+                            <label class="form-label">Currency</label>
+                            <select name="currency_code" class="form-select">
+                                <option value="">{{ $company->currency }} (base)</option>
+                                @foreach ($currencies as $currency)
+                                    <option value="{{ $currency->code }}" @selected(old('currency_code', $account->currency_code) === $currency->code)>{{ $currency->code }}{{ $currency->name ? ' - '.$currency->name : '' }}</option>
+                                @endforeach
+                            </select>
+                            <div class="form-text">Opening balance stays in {{ $company->currency }}.</div>
+                        </div>
+                    @endif
+
                     <div class="col-12">
                         <h3 class="h6 mt-2 mb-0">GST details</h3>
                         <div class="form-text mt-0">For parties fill GSTIN/state; for sales or purchase ledgers fill HSN/SAC and rate.</div>

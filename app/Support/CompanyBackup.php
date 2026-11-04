@@ -22,6 +22,7 @@ class CompanyBackup
      * Rows are found through 'via' (a parent table) when they have no company_id.
      */
     protected const TABLES = [
+        'currencies' => ['refs' => []],
         'account_groups' => ['refs' => [], 'self' => 'parent_id'],
         'chart_of_accounts' => ['refs' => ['account_group_id' => 'account_groups']],
         'units' => ['refs' => []],
