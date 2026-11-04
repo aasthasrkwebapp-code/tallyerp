@@ -1,59 +1,51 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# TallyERP
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A Tally-style accounting app for Indian businesses, built with Laravel 12 and Bootstrap 5.
 
-## About Laravel
+## Features
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+| Area | What it does |
+|---|---|
+| **Companies** | Several companies per user, GSTIN/PAN validation, financial years (e.g. `2026-27`) |
+| **Masters** | Tally's 28 predefined account groups created for every company; your own sub-groups; ledgers with Dr/Cr opening balances |
+| **Vouchers** | Payment, Receipt, Contra, Journal, Sales, Purchase, Debit/Credit Note. Debits must equal credits, numbering per type, dates within the financial year, cash/bank rules for contra/payment/receipt. Day Book, edit and delete |
+| **GST** | GSTIN/state/HSN/rate on ledgers; sales and purchase invoices split into CGST+SGST or IGST by place of supply; printable tax invoice; GSTR-1 (B2B, B2C, HSN) and GSTR-3B |
+| **Inventory** | Units, stock groups, stock items; invoice lines move stock; Stock Summary at weighted average cost; opening/closing stock in P&L and Balance Sheet |
+| **Reports** | Trial Balance, Profit & Loss, Balance Sheet, Ledger statement, Receivables/Payables with ageing, Cost Centres |
+| **Banking** | Bank reconciliation with cheque/UTR numbers and cleared dates |
+| **TDS** | TDS sections on suppliers (194C/H/I/J/Q, 20% without PAN), bills booked net of TDS, TDS report and balance payable |
+| **Payroll** | Employees, monthly runs with PF/ESI/professional tax, salary journal posted automatically, payslips and register |
+| **Year-end** | Move between financial years; assets/liabilities carry forward, income/expenses restart, earlier profit shown in P&L A/c |
+| **Users & roles** | Share a company with other users as admin, accountant, sales, purchases, inventory, employee or viewer |
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Amounts are shown in Indian format (1,15,000.00).
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Setup
 
-## Learning Laravel
+Requires PHP 8.2+, Composer and Node.js.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate --seed   # creates tables and the roles
+npm install && npm run build
+php artisan serve
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Then open http://localhost:8000, register, and create your first company.
 
-## Laravel Sponsors
+## Tests
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```bash
+php artisan test
+```
 
-### Premium Partners
+Feature tests cover each module with worked examples (see `tests/Feature`).
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+## Simplifications
 
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+- GSTR-3B nets each tax head separately (no IGST cross-utilisation).
+- Payroll uses common PF/ESI rules and a flat professional tax of 200 above 10,000; adjust `app/Support/Payroll.php` for your state.
+- GST invoices, TDS bills and payroll journals are deleted and re-entered rather than edited.
+- Voucher numbers run continuously across financial years.
