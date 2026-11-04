@@ -158,6 +158,17 @@ class UsabilityTest extends TestCase
             ->assertSessionHas('error');
     }
 
+    public function test_reports_offer_excel_export(): void
+    {
+        foreach (['companies.reports.trial-balance', 'companies.gst.gstr1', 'companies.inventory.summary', 'companies.tds.index'] as $route) {
+            $this->actingAs($this->company->user)
+                ->get(route($route, $this->company))
+                ->assertOk()
+                ->assertSee('Export to Excel')
+                ->assertSee('acme-traders-', false);
+        }
+    }
+
     public function test_sidebar_shows_company_menu_inside_a_company(): void
     {
         $this->actingAs($this->company->user)
