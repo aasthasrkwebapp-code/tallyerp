@@ -7,6 +7,8 @@ use App\Http\Controllers\AccountGroupController;
 use App\Http\Controllers\BankReconciliationController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CostCentreController;
+use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\GstInvoiceController;
 use App\Http\Controllers\GstReportController;
 use App\Http\Controllers\InventoryController;
@@ -72,6 +74,14 @@ Route::middleware(['auth'])->group(function () {
 
     Route::resource('companies.tds', TdsController::class)
         ->only(['index', 'create', 'store']);
+
+    Route::resource('companies.employees', EmployeeController::class)
+        ->except('show')
+        ->scoped();
+    Route::resource('companies.payroll', PayrollController::class)
+        ->only(['index', 'create', 'store', 'show', 'destroy']);
+    Route::get('companies/{company}/payroll/{payroll}/payslips/{payslip}', [PayrollController::class, 'payslip'])
+        ->name('companies.payroll.payslip');
 
     Route::get('companies/{company}/outstanding/{kind}', [OutstandingController::class, 'show'])
         ->whereIn('kind', ['receivables', 'payables'])

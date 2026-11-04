@@ -118,6 +118,29 @@ class Company extends Model
         );
     }
 
+    public function employees(): HasMany
+    {
+        return $this->hasMany(Employee::class);
+    }
+
+    public function payrollRuns(): HasMany
+    {
+        return $this->hasMany(PayrollRun::class);
+    }
+
+    /**
+     * A ledger the app manages itself (found by code), created on first use.
+     */
+    public function systemLedger(string $code, string $name, string $groupCode): Account
+    {
+        $group = $this->accountGroups()->where('code', $groupCode)->firstOrFail();
+
+        return $this->accounts()->firstOrCreate(
+            ['code' => $code],
+            ['name' => $name, 'account_group_id' => $group->id, 'account_type' => $group->nature],
+        );
+    }
+
     public function costCentres(): HasMany
     {
         return $this->hasMany(CostCentre::class);

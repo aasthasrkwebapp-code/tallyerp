@@ -132,6 +132,7 @@
                     ['companies.account-groups.index', [$activeCompany], 'diagram-3', 'Groups', 'companies.account-groups.*'],
                     ['companies.stock-items.index', [$activeCompany], 'box-seam', 'Inventory', 'companies.stock-items.*'],
                     ['companies.banking.reconciliation', [$activeCompany], 'bank', 'Banking', 'companies.banking.*'],
+                    ['companies.payroll.index', [$activeCompany], 'people', 'Payroll', ['companies.payroll.*', 'companies.employees.*']],
                     ['companies.reports.index', [$activeCompany], 'bar-chart-line', 'Reports', 'companies.reports.*'],
                 ]);
             }
