@@ -174,6 +174,24 @@ class GstTest extends TestCase
         $this->assertSame(13000.0, $hsn[0]->taxable);
     }
 
+    public function test_unused_credit_carries_into_next_month(): void
+    {
+        // June: purchase only → ITC 900 + 900 unused. July: sale with output 900 + 900.
+        $this->invoice('purchase', $this->localParty, $this->purchases, 10000, 18, ['date' => '2026-06-10'])->assertSessionHasNoErrors();
+        $this->invoice('sales', $this->localParty, $this->sales, 10000, 18, ['date' => '2026-07-10'])->assertSessionHasNoErrors();
+
+        $june = $this->actingAs($this->company->user)
+            ->get(route('companies.gst.gstr3b', [$this->company, 'month' => '2026-06']));
+        $this->assertSame(900.0, $june->viewData('carryForward')->cgst);
+
+        $july = $this->actingAs($this->company->user)
+            ->get(route('companies.gst.gstr3b', [$this->company, 'month' => '2026-07']))
+            ->assertSee('Unused credit brought forward');
+        $this->assertSame(900.0, $july->viewData('openingCredit')->cgst);
+        $this->assertSame(0.0, $july->viewData('payable')->cgst);
+        $this->assertSame(0.0, $july->viewData('carryForward')->cgst);
+    }
+
     public function test_gstr3b_nets_output_against_input(): void
     {
         $this->invoice('sales', $this->localParty, $this->sales, 10000);      // CGST 900, SGST 900

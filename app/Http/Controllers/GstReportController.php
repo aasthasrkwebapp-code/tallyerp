@@ -77,22 +77,70 @@ class GstReportController extends Controller
         $this->authorizeCompany($company);
         [$from, $to] = $this->period($request, $company);
 
-        // Credit notes reduce outward supplies; debit notes (purchase returns) reduce input credit.
-        $outward = (object) $this->minus(
-            $this->totals($this->lines($company, 'sales', $from, $to)),
-            $this->totals($this->lines($company, 'credit_note', $from, $to)),
-        );
-        $itc = (object) $this->minus(
-            $this->totals($this->lines($company, 'purchase', $from, $to)),
-            $this->totals($this->lines($company, 'debit_note', $from, $to)),
-        );
+        [$outward, $itc] = $this->outwardAndItc($company, $from, $to);
+        $openingCredit = $this->creditBroughtForward($company, $from);
 
-        $setOff = GstSetOff::compute((array) $outward, (array) $itc);
+        $available = [];
+        foreach (GstSetOff::HEADS as $head) {
+            $available[$head] = round(max(0, $itc[$head]) + $openingCredit[$head], 2);
+        }
+
+        $setOff = GstSetOff::compute($outward, $available);
         $payable = (object) $setOff['cash'];
         $carryForward = (object) $setOff['carry_forward'];
         $used = $setOff['used'];
+        $outward = (object) $outward;
+        $itc = (object) $itc;
+        $openingCredit = (object) $openingCredit;
 
-        return view('gst.gstr3b', compact('company', 'from', 'to', 'outward', 'itc', 'payable', 'carryForward', 'used'));
+        return view('gst.gstr3b', compact('company', 'from', 'to', 'outward', 'itc', 'openingCredit', 'payable', 'carryForward', 'used'));
+    }
+
+    /**
+     * Net outward tax and net input credit for a period. Credit notes reduce
+     * outward supplies; debit notes (purchase returns) reduce input credit.
+     *
+     * @return array{0: array, 1: array}
+     */
+    protected function outwardAndItc(Company $company, CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        return [
+            $this->minus(
+                $this->totals($this->lines($company, 'sales', $from, $to)),
+                $this->totals($this->lines($company, 'credit_note', $from, $to)),
+            ),
+            $this->minus(
+                $this->totals($this->lines($company, 'purchase', $from, $to)),
+                $this->totals($this->lines($company, 'debit_note', $from, $to)),
+            ),
+        ];
+    }
+
+    /**
+     * Unused input credit carried into $before: each month from the start of the
+     * books is set off in turn and what is left rolls into the next month.
+     *
+     * @return array{igst: float, cgst: float, sgst: float}
+     */
+    protected function creditBroughtForward(Company $company, CarbonImmutable $before): array
+    {
+        $credit = array_fill_keys(GstSetOff::HEADS, 0.0);
+        $month = (new Books($company))->booksStart();
+
+        while ($month->lt($before)) {
+            $end = min($month->endOfMonth()->startOfDay(), $before->subDay());
+            [$outward, $itc] = $this->outwardAndItc($company, $month, $end);
+
+            $available = [];
+            foreach (GstSetOff::HEADS as $head) {
+                $available[$head] = round(max(0, $itc[$head]) + $credit[$head], 2);
+            }
+            $credit = GstSetOff::compute($outward, $available)['carry_forward'];
+
+            $month = $month->addMonth()->startOfMonth();
+        }
+
+        return $credit;
     }
 
     /**

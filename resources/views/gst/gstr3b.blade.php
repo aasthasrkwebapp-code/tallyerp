@@ -37,6 +37,13 @@
                         <td class="text-end">{{ $m($itc->cgst) }}</td>
                         <td class="text-end">{{ $m($itc->sgst) }}</td>
                     </tr>
+                    <tr class="text-secondary">
+                        <td>Unused credit brought forward from earlier months</td>
+                        <td></td>
+                        <td class="text-end">{{ $m($openingCredit->igst) }}</td>
+                        <td class="text-end">{{ $m($openingCredit->cgst) }}</td>
+                        <td class="text-end">{{ $m($openingCredit->sgst) }}</td>
+                    </tr>
                 </tbody>
                 <tfoot class="fw-semibold">
                     <tr>
