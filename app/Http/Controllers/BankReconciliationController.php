@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Account;
 use App\Models\Company;
 use App\Models\VoucherEntry;
+use App\Support\BankStatement;
 use App\Support\Books;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -91,6 +92,52 @@ class BankReconciliationController extends Controller
         });
 
         return back()->with('success', 'Reconciliation saved.');
+    }
+
+    /**
+     * Upload a bank statement CSV and clear the entries it matches.
+     */
+    public function import(Request $request, Company $company)
+    {
+        $this->authorizeCompany($company);
+
+        $request->validate([
+            'account_id' => ['required', 'integer'],
+            'statement' => ['required', 'file', 'mimes:csv,txt', 'max:2048'],
+        ]);
+
+        $account = $this->bankAccounts($company, new Books($company))->firstWhere('id', $request->integer('account_id'));
+        abort_unless($account, 404);
+
+        try {
+            $lines = BankStatement::parse(file_get_contents($request->file('statement')->getRealPath()));
+        } catch (\InvalidArgumentException $e) {
+            throw ValidationException::withMessages(['statement' => $e->getMessage()]);
+        }
+
+        $uncleared = $account->entries()->whereNull('bank_date')->with('voucher')->get();
+        $result = BankStatement::match($lines, $uncleared);
+
+        DB::transaction(function () use ($result) {
+            foreach ($result['matched'] as ['line' => $line, 'entry' => $entry]) {
+                $entry->update([
+                    // The bank can't clear something before it was entered in the books.
+                    'bank_date' => max($line['date'], CarbonImmutable::instance($entry->voucher->date))->toDateString(),
+                    'instrument_no' => $entry->instrument_no ?: $line['reference'],
+                ]);
+            }
+        });
+
+        return redirect()
+            ->route('companies.banking.reconciliation', [$company, 'account' => $account->id, 'to' => $request->input('to')])
+            ->with('success', count($result['matched']).' of '.$lines->count().' statement lines matched and cleared.')
+            ->with('unmatched', array_map(fn ($l) => [
+                'date' => $l['date']->format('d-m-Y'),
+                'description' => $l['description'],
+                'reference' => $l['reference'],
+                'withdrawal' => $l['withdrawal'],
+                'deposit' => $l['deposit'],
+            ], $result['unmatched']));
     }
 
     /**

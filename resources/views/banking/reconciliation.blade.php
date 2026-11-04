@@ -60,6 +60,55 @@
     @endif
 
     @if ($account)
+        <div class="card border-0 shadow-sm mb-3 d-print-none">
+            <div class="card-body">
+                <form method="POST" action="{{ route('companies.banking.reconciliation.import', $company) }}"
+                    enctype="multipart/form-data" class="row g-2 align-items-end">
+                    @csrf
+                    <input type="hidden" name="account_id" value="{{ $account->id }}">
+                    <input type="hidden" name="to" value="{{ $to->toDateString() }}">
+                    <div class="col-12 col-md-8">
+                        <label class="form-label small text-secondary mb-1" for="statement">Import bank statement (CSV)</label>
+                        <input type="file" id="statement" name="statement" accept=".csv,text/csv" class="form-control" required>
+                    </div>
+                    <div class="col-12 col-md-4 d-grid">
+                        <button class="btn btn-outline-primary">Match &amp; clear</button>
+                    </div>
+                </form>
+                <div class="form-text">
+                    Download the statement from your bank as CSV. Entries are matched by amount and direction within
+                    {{ \App\Support\BankStatement::MATCH_WINDOW_DAYS }} days (cheque/UTR number first) and marked cleared on the statement date.
+                </div>
+            </div>
+        </div>
+
+        @if (session('unmatched'))
+            <div class="card border-0 shadow-sm mb-3 border-start border-warning border-4">
+                <div class="card-header bg-white fw-semibold">Statement lines with no matching entry ({{ count(session('unmatched')) }})</div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr><th>Date</th><th>Description</th><th>Ref</th><th class="text-end">Withdrawal</th><th class="text-end">Deposit</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (session('unmatched') as $line)
+                                <tr>
+                                    <td>{{ $line['date'] }}</td>
+                                    <td>{{ $line['description'] }}</td>
+                                    <td>{{ $line['reference'] }}</td>
+                                    <td class="text-end">{{ $line['withdrawal'] ? $m($line['withdrawal']) : '' }}</td>
+                                    <td class="text-end">{{ $line['deposit'] ? $m($line['deposit']) : '' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer bg-white small text-secondary">
+                    These are usually bank charges, interest or transfers not yet entered. Record them as vouchers, then import again.
+                </div>
+            </div>
+        @endif
+
         <div class="row g-3 mb-3">
             <div class="col-6 col-lg-3">
                 <div class="card border-0 shadow-sm h-100"><div class="card-body">

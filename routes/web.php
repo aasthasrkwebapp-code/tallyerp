@@ -72,6 +72,8 @@ Route::middleware(['auth'])->group(function () {
         ->name('companies.banking.reconciliation');
     Route::put('companies/{company}/banking/reconciliation', [BankReconciliationController::class, 'update'])
         ->name('companies.banking.reconciliation.update');
+    Route::post('companies/{company}/banking/reconciliation/import', [BankReconciliationController::class, 'import'])
+        ->name('companies.banking.reconciliation.import');
 
     Route::resource('companies.cost-centres', CostCentreController::class)
         ->only(['index', 'store', 'destroy'])
