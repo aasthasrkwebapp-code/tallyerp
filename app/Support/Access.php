@@ -47,6 +47,7 @@ class Access
         'cost-centres.*' => 'masters',
         'vouchers.*' => 'vouchers',
         'gst-invoices.*' => 'invoices',
+        'documents.*' => 'invoices',
         'stock-items.*' => 'inventory',
         'inventory.summary' => 'reports',
         'inventory.*' => 'inventory',

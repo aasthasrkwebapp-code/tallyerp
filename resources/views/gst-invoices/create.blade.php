@@ -62,6 +62,10 @@
     <form method="POST" action="{{ route('companies.gst-invoices.store', $company) }}">
         @csrf
         <input type="hidden" name="type" value="{{ $type }}">
+        @if (old('document_id'))
+            <input type="hidden" name="document_id" value="{{ old('document_id') }}">
+            <div class="alert alert-info">Converting {{ old('reference') }}. Check the details and save to create the invoice.</div>
+        @endif
 
         <div class="card border-0 shadow-sm">
             <div class="card-body p-3 p-md-4">

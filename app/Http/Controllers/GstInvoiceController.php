@@ -52,6 +52,29 @@ class GstInvoiceController extends Controller
         $type = array_key_exists($request->query('type'), self::KINDS) ? $request->query('type') : 'sales';
         $itemGroups = self::LINE_GROUPS[self::KINDS[$type]['side']];
 
+        // Converting an estimate/order/challan: start from its party and lines.
+        $fromDocument = null;
+        if ($request->filled('from_document') && ! $request->session()->hasOldInput()) {
+            $fromDocument = $company->businessDocuments()->with('lines')->where('status', 'open')->findOrFail($request->integer('from_document'));
+            $request->session()->now('_old_input', [
+                'party_account_id' => $fromDocument->party_account_id,
+                'place_of_supply' => $fromDocument->place_of_supply,
+                'reference' => $fromDocument->typeLabel().' '.$fromDocument->numberLabel(),
+                'narration' => $fromDocument->notes,
+                'document_id' => $fromDocument->id,
+                'lines' => $fromDocument->lines->map(fn ($l) => [
+                    'account_id' => $l->account_id,
+                    'stock_item_id' => $l->stock_item_id,
+                    'description' => $l->description,
+                    'hsn_sac' => $l->hsn_sac,
+                    'quantity' => $l->quantity !== null ? (float) $l->quantity : '',
+                    'item_rate' => $l->item_rate !== null ? (float) $l->item_rate : '',
+                    'taxable' => (float) $l->taxable,
+                    'rate' => (string) (float) $l->rate,
+                ])->all(),
+            ]);
+        }
+
         $accounts = $company->accounts()->where('is_active', true)->with('group')->orderBy('name')->get();
         $books = new Books($company);
 
@@ -79,6 +102,7 @@ class GstInvoiceController extends Controller
 
         $data = $request->validate([
             'type' => ['required', Rule::in(array_keys(self::KINDS))],
+            'document_id' => ['nullable', Rule::exists('business_documents', 'id')->where('company_id', $company->id)->where('status', 'open')],
             'date' => ['required', 'date', 'after_or_equal:'.$start->toDateString(), 'before_or_equal:'.$end->toDateString()],
             'reference' => ['nullable', 'string', 'max:255'],
             'narration' => ['nullable', 'string', 'max:2000'],
@@ -201,6 +225,10 @@ class GstInvoiceController extends Controller
 
             $voucher->entries()->createMany($entries);
             $voucher->gstLines()->createMany($lines->all());
+
+            if (! empty($data['document_id'])) {
+                $company->businessDocuments()->whereKey($data['document_id'])->update(['status' => 'converted', 'voucher_id' => $voucher->id]);
+            }
 
             foreach ($lines->whereNotNull('stock_item_id') as $line) {
                 $company->stockMovements()->create([

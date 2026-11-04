@@ -8,6 +8,7 @@ use App\Http\Controllers\BackupController;
 use App\Http\Controllers\AccountGroupController;
 use App\Http\Controllers\BankReconciliationController;
 use App\Http\Controllers\BudgetController;
+use App\Http\Controllers\BusinessDocumentController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CompanyMemberController;
 use App\Http\Controllers\CostCentreController;
@@ -53,6 +54,21 @@ Route::middleware(['auth'])->group(function () {
         ->name('companies.gst-invoices.e-way-bill');
     Route::put('companies/{company}/gst-invoices/{voucher}/e-way-bill', [GstInvoiceController::class, 'saveEWayBillNumber'])
         ->name('companies.gst-invoices.e-way-bill.save');
+    // Estimates, orders and challans: /companies/{company}/documents/{type}/...
+    Route::controller(BusinessDocumentController::class)
+        ->prefix('companies/{company}/documents/{type}')
+        ->name('companies.documents.')
+        ->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('create', 'create')->name('create');
+            Route::post('/', 'store')->name('store');
+            Route::get('{document}', 'show')->name('show');
+            Route::get('{document}/edit', 'edit')->name('edit');
+            Route::put('{document}', 'update')->name('update');
+            Route::delete('{document}', 'destroy')->name('destroy');
+            Route::post('{document}/convert', 'convert')->name('convert');
+        });
+
     Route::resource('companies.gst-invoices', GstInvoiceController::class)
         ->only(['create', 'store', 'show'])
         ->parameters(['gst-invoices' => 'voucher'])

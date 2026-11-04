@@ -139,6 +139,7 @@ class Company extends Model
             DB::table('vouchers')->where('company_id', $company->id)->delete();
             DB::table('employees')->where('company_id', $company->id)->delete();
             DB::table('stock_items')->where('company_id', $company->id)->delete();
+            DB::table('business_documents')->where('company_id', $company->id)->delete();
         });
 
         static::created(function (Company $company) {
@@ -206,6 +207,11 @@ class Company extends Model
             ['code' => $code],
             ['name' => $name, 'account_group_id' => $group->id, 'account_type' => $group->nature],
         );
+    }
+
+    public function businessDocuments(): HasMany
+    {
+        return $this->hasMany(BusinessDocument::class);
     }
 
     public function currencies(): HasMany
