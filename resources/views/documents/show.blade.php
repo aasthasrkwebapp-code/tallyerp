@@ -111,6 +111,12 @@
             @if ($document->notes)
                 <p class="small mb-0"><span class="text-secondary">Notes:</span> {{ $document->notes }}</p>
             @endif
+            @if ($document->type === 'delivery_challan')
+                <div class="row mt-5 small">
+                    <div class="col-6">Received the above goods in good condition.<br><br>Receiver's signature</div>
+                    <div class="col-6 text-end">For {{ $company->legal_name ?: $company->name }}<br><br>Authorised signatory</div>
+                </div>
+            @endif
         </div>
     </div>
 </div>

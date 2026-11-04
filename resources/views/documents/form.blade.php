@@ -21,7 +21,7 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
         <div>
             <h2 class="h4 mb-1">{{ $document->exists ? 'Edit '.$label.' #'.$document->number : 'New '.$label }}</h2>
-            <p class="text-secondary mb-0">{{ $company->name }} · doesn't affect the accounts or stock until converted</p>
+            <p class="text-secondary mb-0">{{ $company->name }} · doesn't affect the accounts or stock until converted{{ $type === 'delivery_challan' ? ' into an invoice' : '' }}</p>
         </div>
         <a href="{{ route('companies.documents.index', [$company, $type]) }}" class="btn btn-outline-secondary">Back</a>
     </div>

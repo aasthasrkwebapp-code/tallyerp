@@ -146,7 +146,7 @@
                     ['companies.vouchers.index', [$activeCompany], 'journal-text', 'Vouchers', 'companies.vouchers.*'],
                     ['companies.gst-invoices.create', [$activeCompany, 'type' => 'sales'], 'receipt', 'Sales Invoice', null],
                     ['companies.gst-invoices.create', [$activeCompany, 'type' => 'purchase'], 'cart3', 'Purchase Invoice', null],
-                    ['companies.documents.index', [$activeCompany, 'estimate'], 'file-earmark-text', 'Estimates & Orders', 'companies.documents.*'],
+                    ['companies.documents.index', [$activeCompany, 'estimate'], 'file-earmark-text', 'Estimates, Orders & Challans', 'companies.documents.*'],
                     ['companies.accounts.index', [$activeCompany], 'person-lines-fill', 'Ledgers', 'companies.accounts.*'],
                     ['companies.account-groups.index', [$activeCompany], 'diagram-3', 'Groups', 'companies.account-groups.*'],
                     ['companies.stock-items.index', [$activeCompany], 'box-seam', 'Inventory', 'companies.stock-items.*'],
