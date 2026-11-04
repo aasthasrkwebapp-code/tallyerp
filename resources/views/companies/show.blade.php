@@ -14,6 +14,9 @@
             <a href="{{ route('companies.vouchers.index', $company) }}" class="btn btn-outline-primary">
                 Day Book
             </a>
+            <a href="{{ route('companies.reports.index', $company) }}" class="btn btn-outline-primary">
+                Reports
+            </a>
             <a href="{{ route('companies.accounts.index', $company) }}" class="btn btn-outline-primary">
                 Ledgers
             </a>
