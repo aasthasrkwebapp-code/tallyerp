@@ -20,6 +20,8 @@ A Tally-style accounting app for Indian businesses, built with Laravel 12 and Bo
 | **Dashboards** | Company KPIs (cash & bank, receivables, payables, sales, profit, stock, GST), monthly sales chart, recent vouchers |
 | **Export** | Every report downloads as a CSV that opens in Excel |
 | **Audit log** | Who created, changed or deleted what, with before/after values |
+| **Budgets** | Yearly budgets per income/expense ledger and a Budget vs Actual report |
+| **Backups** | Download a company as a JSON file and restore it as a new company |
 
 Amounts are shown in Indian format (1,15,000.00).
 

@@ -31,6 +31,7 @@ class Access
         'show' => null,
         'members.*' => 'admin',
         'audit' => 'admin',
+        'backup' => 'admin',
         'edit' => 'admin',
         'update' => 'admin',
         'destroy' => 'owner',

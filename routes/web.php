@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\BackupController;
 use App\Http\Controllers\AccountGroupController;
 use App\Http\Controllers\BankReconciliationController;
 use App\Http\Controllers\BudgetController;
@@ -22,6 +23,11 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\VoucherController;
 
 Route::middleware(['auth'])->group(function () {
+    // Before the companies resource so "restore" isn't read as a company id.
+    Route::get('companies/restore', [BackupController::class, 'restoreForm'])->name('companies.restore');
+    Route::post('companies/restore', [BackupController::class, 'restore'])->name('companies.restore.store');
+    Route::get('companies/{company}/backup', [BackupController::class, 'download'])->name('companies.backup');
+
     Route::resource('companies', CompanyController::class);
     Route::put('companies/{company}/financial-year', [CompanyController::class, 'changeYear'])
         ->name('companies.financial-year');

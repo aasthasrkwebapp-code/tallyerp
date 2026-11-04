@@ -8,9 +8,12 @@
             <h2 class="h4 mb-1">Companies</h2>
             <p class="text-secondary mb-0">Manage your business profiles.</p>
         </div>
-        <a href="{{ route('companies.create') }}" class="btn btn-primary">
-            + Create Company
-        </a>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{{ route('companies.restore') }}" class="btn btn-outline-primary">Restore Backup</a>
+            <a href="{{ route('companies.create') }}" class="btn btn-primary">
+                + Create Company
+            </a>
+        </div>
     </div>
 
     @if (session('success'))

@@ -135,6 +135,7 @@
                     ['companies.payroll.index', [$activeCompany], 'people', 'Payroll', ['companies.payroll.*', 'companies.employees.*']],
                     ['companies.members.index', [$activeCompany], 'shield-lock', 'Users & Roles', 'companies.members.*'],
                     ['companies.audit', [$activeCompany], 'clock-history', 'Audit Log', 'companies.audit'],
+                    ['companies.backup', [$activeCompany], 'cloud-download', 'Download Backup', null],
                     ['companies.reports.index', [$activeCompany], 'bar-chart-line', 'Reports', 'companies.reports.*'],
                 ]);
             }
