@@ -1,6 +1,11 @@
 @extends('layouts.erp')
 
-@section('title', $type === 'sales' ? 'Sales Invoice' : 'Purchase Invoice')
+@php
+    $titles = ['sales' => 'Sales Invoice', 'purchase' => 'Purchase Invoice', 'credit_note' => 'Credit Note (Sales Return)', 'debit_note' => 'Debit Note (Purchase Return)'];
+    $salesSide = in_array($type, ['sales', 'credit_note'], true);
+@endphp
+
+@section('title', $titles[$type])
 
 @section('content')
 @php
@@ -12,17 +17,19 @@
 <div class="container-fluid py-3">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
         <div>
-            <h2 class="h4 mb-1">{{ $type === 'sales' ? 'Sales Invoice' : 'Purchase Invoice' }} (GST)</h2>
+            <h2 class="h4 mb-1">{{ $titles[$type] }} (GST)</h2>
             <p class="text-secondary mb-0">
                 {{ $company->name }}
                 · {{ \App\Support\GstStates::name($company->stateCode()) ?? 'State not set' }}
             </p>
         </div>
         <div class="d-flex flex-wrap gap-2">
-            <a href="{{ route('companies.gst-invoices.create', [$company, 'type' => $type === 'sales' ? 'purchase' : 'sales']) }}"
-                class="btn btn-outline-primary">
-                Switch to {{ $type === 'sales' ? 'Purchase' : 'Sales' }}
-            </a>
+            <div class="btn-group" role="group" aria-label="Voucher type">
+                @foreach (['sales' => 'Sales', 'purchase' => 'Purchase', 'credit_note' => 'Credit Note', 'debit_note' => 'Debit Note'] as $value => $label)
+                    <a href="{{ route('companies.gst-invoices.create', [$company, 'type' => $value]) }}"
+                        class="btn btn-sm {{ $type === $value ? 'btn-primary' : 'btn-outline-primary' }}">{{ $label }}</a>
+                @endforeach
+            </div>
             <a href="{{ route('companies.vouchers.index', $company) }}" class="btn btn-outline-secondary">Back to Day Book</a>
         </div>
     </div>
@@ -47,7 +54,7 @@
 
     @if ($items->isEmpty())
         <div class="alert alert-warning">
-            Create a ledger under {{ $type === 'sales' ? 'Sales Accounts' : 'Purchase Accounts' }} first.
+            Create a ledger under {{ $salesSide ? 'Sales Accounts' : 'Purchase Accounts' }} first.
             <a href="{{ route('companies.accounts.create', $company) }}">Create ledger</a>
         </div>
     @endif
@@ -84,7 +91,7 @@
                         <input type="date" name="date" class="form-control" required value="{{ old('date', now()->toDateString()) }}">
                     </div>
                     <div class="col-6 col-md-3">
-                        <label class="form-label">{{ $type === 'sales' ? 'Reference' : 'Supplier invoice no.' }}</label>
+                        <label class="form-label">{{ match ($type) { 'sales' => 'Reference', 'purchase' => 'Supplier invoice no.', default => 'Against invoice no.' } }}</label>
                         <input name="reference" class="form-control" maxlength="255" value="{{ old('reference') }}">
                     </div>
                 </div>
@@ -93,7 +100,7 @@
                     <table class="table align-middle mb-2" id="lines">
                         <thead class="table-light">
                             <tr>
-                                <th style="min-width: 200px">{{ $type === 'sales' ? 'Sales' : 'Purchase' }} ledger</th>
+                                <th style="min-width: 200px">{{ $salesSide ? 'Sales' : 'Purchase' }} ledger</th>
                                 <th style="min-width: 170px">Stock item</th>
                                 <th style="min-width: 140px">Description</th>
                                 <th style="width: 120px">HSN/SAC</th>

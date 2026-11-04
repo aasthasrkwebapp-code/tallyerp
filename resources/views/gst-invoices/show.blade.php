@@ -1,6 +1,6 @@
 @extends('layouts.erp')
 
-@section('title', $voucher->typeLabel().' Invoice #'.$voucher->number)
+@section('title', $voucher->typeLabel().' #'.$voucher->number)
 
 @section('content')
 @php
@@ -13,7 +13,7 @@
 @endphp
 <div class="container-fluid py-3">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4 d-print-none">
-        <h2 class="h4 mb-0">{{ $voucher->typeLabel() }} Invoice #{{ $voucher->number }}</h2>
+        <h2 class="h4 mb-0">{{ $voucher->typeLabel() }} #{{ $voucher->number }}</h2>
         <div class="d-flex flex-wrap gap-2">
             <button type="button" class="btn btn-outline-secondary" onclick="window.print()">Print</button>
             <a href="{{ route('companies.vouchers.show', [$company, $voucher]) }}" class="btn btn-outline-primary">Accounting entries</a>
@@ -28,19 +28,19 @@
     <div class="card border-0 shadow-sm">
         <div class="card-body p-3 p-md-4">
             <div class="text-center mb-3">
-                <div class="h5 mb-0">{{ $voucher->type === 'sales' ? 'TAX INVOICE' : 'PURCHASE INVOICE' }}</div>
+                <div class="h5 mb-0">{{ ['sales' => 'TAX INVOICE', 'purchase' => 'PURCHASE INVOICE', 'credit_note' => 'CREDIT NOTE', 'debit_note' => 'DEBIT NOTE'][$voucher->type] ?? 'INVOICE' }}</div>
             </div>
 
             <div class="row g-3 mb-3">
                 <div class="col-12 col-md-6">
-                    <div class="text-secondary small">{{ $voucher->type === 'sales' ? 'From' : 'Bill to' }}</div>
+                    <div class="text-secondary small">{{ in_array($voucher->type, ['sales', 'credit_note']) ? 'From' : 'Bill to' }}</div>
                     <div class="fw-semibold">{{ $company->legal_name ?: $company->name }}</div>
                     @if ($company->address)<div class="small">{{ $company->address }}</div>@endif
                     @if ($company->gstin)<div class="small">GSTIN: {{ $company->gstin }}</div>@endif
                     <div class="small">State: {{ \App\Support\GstStates::name($company->stateCode()) }} ({{ $company->stateCode() }})</div>
                 </div>
                 <div class="col-12 col-md-6">
-                    <div class="text-secondary small">{{ $voucher->type === 'sales' ? 'Bill to' : 'Supplier' }}</div>
+                    <div class="text-secondary small">{{ in_array($voucher->type, ['sales', 'credit_note']) ? 'Bill to' : 'Supplier' }}</div>
                     <div class="fw-semibold">{{ $voucher->party?->name }}</div>
                     @if ($voucher->party?->gstin)<div class="small">GSTIN: {{ $voucher->party->gstin }}</div>@endif
                     <div class="small">Place of supply: {{ \App\Support\GstStates::name($voucher->place_of_supply) }} ({{ $voucher->place_of_supply }})</div>

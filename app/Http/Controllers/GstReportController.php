@@ -39,17 +39,35 @@ class GstReportController extends Controller
             ->sortBy(['place_of_supply', 'rate'])
             ->values();
 
-        $hsn = $lines
-            ->groupBy(fn (VoucherGstLine $l) => ($l->hsn_sac ?: '—').'|'.$l->rate)
-            ->map(fn (Collection $items) => (object) ([
+        // Credit notes (sales returns) are reported separately and reduce the HSN summary.
+        $noteLines = $this->lines($company, 'credit_note', $from, $to);
+        $notes = $noteLines->groupBy('voucher_id')->map(function (Collection $items) {
+            $voucher = $items->first()->voucher;
+
+            return (object) ([
+                'voucher' => $voucher,
+                'gstin' => $voucher->party?->gstin,
+                'party' => $voucher->party?->name,
+                'value' => (float) $voucher->amount,
+            ] + $this->totals($items));
+        })->values();
+
+        $hsnKey = fn (VoucherGstLine $l) => ($l->hsn_sac ?: '—').'|'.(float) $l->rate;
+        $notesByHsn = $noteLines->groupBy($hsnKey);
+        $hsn = $lines->concat($noteLines)
+            ->groupBy($hsnKey)
+            ->map(fn (Collection $items, string $key) => (object) ([
                 'hsn_sac' => $items->first()->hsn_sac ?: '—',
                 'rate' => (float) $items->first()->rate,
-            ] + $this->totals($items)))
+            ] + $this->minus(
+                $this->totals($items->filter(fn ($l) => $l->voucher->type === 'sales')),
+                $this->totals($notesByHsn->get($key, collect())),
+            )))
             ->sortBy(['hsn_sac', 'rate'])
             ->values();
 
-        return view('gst.gstr1', compact('company', 'from', 'to', 'b2b', 'b2c', 'hsn') + [
-            'total' => (object) $this->totals($lines),
+        return view('gst.gstr1', compact('company', 'from', 'to', 'b2b', 'b2c', 'hsn', 'notes') + [
+            'total' => (object) $this->minus($this->totals($lines), $this->totals($noteLines)),
         ]);
     }
 
@@ -58,8 +76,15 @@ class GstReportController extends Controller
         $this->authorizeCompany($company);
         [$from, $to] = $this->period($request, $company);
 
-        $outward = (object) $this->totals($this->lines($company, 'sales', $from, $to));
-        $itc = (object) $this->totals($this->lines($company, 'purchase', $from, $to));
+        // Credit notes reduce outward supplies; debit notes (purchase returns) reduce input credit.
+        $outward = (object) $this->minus(
+            $this->totals($this->lines($company, 'sales', $from, $to)),
+            $this->totals($this->lines($company, 'credit_note', $from, $to)),
+        );
+        $itc = (object) $this->minus(
+            $this->totals($this->lines($company, 'purchase', $from, $to)),
+            $this->totals($this->lines($company, 'debit_note', $from, $to)),
+        );
 
         $payable = (object) [];
         foreach (['igst', 'cgst', 'sgst'] as $head) {
@@ -93,6 +118,11 @@ class GstReportController extends Controller
         $totals['tax'] = round($totals['igst'] + $totals['cgst'] + $totals['sgst'], 2);
 
         return $totals;
+    }
+
+    protected function minus(array $a, array $b): array
+    {
+        return array_map(fn ($key) => round($a[$key] - $b[$key], 2), array_combine(array_keys($a), array_keys($a)));
     }
 
     /**

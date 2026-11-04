@@ -20,12 +20,26 @@ class GstInvoiceController extends Controller
 {
     public const RATES = [0, 0.25, 3, 5, 12, 18, 28];
 
+    /**
+     * How each GST voucher type posts:
+     *  side       - 'sales' uses sales ledgers and output tax; 'purchase' purchase ledgers and input tax
+     *  partyDebit - whether the party is debited (they owe us more / we owe them less)
+     *  stockOut   - whether stock leaves (sale, purchase return) or comes in
+     * A credit note (sales return) reverses a sale; a debit note (purchase return) reverses a purchase.
+     */
+    public const KINDS = [
+        'sales' => ['side' => 'sales', 'partyDebit' => true, 'stockOut' => true],
+        'credit_note' => ['side' => 'sales', 'partyDebit' => false, 'stockOut' => false],
+        'purchase' => ['side' => 'purchase', 'partyDebit' => false, 'stockOut' => false],
+        'debit_note' => ['side' => 'purchase', 'partyDebit' => true, 'stockOut' => true],
+    ];
+
     public function create(Request $request, Company $company)
     {
         $this->authorizeCompany($company);
 
-        $type = $request->query('type') === 'purchase' ? 'purchase' : 'sales';
-        $itemGroup = $type === 'sales' ? 'SALES_ACCOUNTS' : 'PURCHASE_ACCOUNTS';
+        $type = array_key_exists($request->query('type'), self::KINDS) ? $request->query('type') : 'sales';
+        $itemGroup = self::KINDS[$type]['side'] === 'sales' ? 'SALES_ACCOUNTS' : 'PURCHASE_ACCOUNTS';
 
         $accounts = $company->accounts()->where('is_active', true)->with('group')->orderBy('name')->get();
         $books = new Books($company);
@@ -53,7 +67,7 @@ class GstInvoiceController extends Controller
         $inCompany = fn () => Rule::exists('chart_of_accounts', 'id')->where('company_id', $company->id);
 
         $data = $request->validate([
-            'type' => ['required', 'in:sales,purchase'],
+            'type' => ['required', Rule::in(array_keys(self::KINDS))],
             'date' => ['required', 'date', 'after_or_equal:'.$start->toDateString(), 'before_or_equal:'.$end->toDateString()],
             'reference' => ['nullable', 'string', 'max:255'],
             'narration' => ['nullable', 'string', 'max:2000'],
@@ -81,7 +95,8 @@ class GstInvoiceController extends Controller
         }
 
         $books = new Books($company);
-        $itemGroup = $data['type'] === 'sales' ? 'SALES_ACCOUNTS' : 'PURCHASE_ACCOUNTS';
+        $kind = self::KINDS[$data['type']];
+        $itemGroup = $kind['side'] === 'sales' ? 'SALES_ACCOUNTS' : 'PURCHASE_ACCOUNTS';
         foreach ($data['lines'] as $i => $line) {
             if (empty($line['stock_item_id']) && empty($line['taxable'])) {
                 throw ValidationException::withMessages([
@@ -92,7 +107,7 @@ class GstInvoiceController extends Controller
             $account = $company->accounts()->find($line['account_id']);
             if ($books->primaryGroup($account->account_group_id)->code !== $itemGroup) {
                 throw ValidationException::withMessages([
-                    "lines.$i.account_id" => 'Line '.($i + 1).' must use a '.($data['type'] === 'sales' ? 'sales' : 'purchase').' ledger.',
+                    "lines.$i.account_id" => 'Line '.($i + 1).' must use a '.$kind['side'].' ledger.',
                 ]);
             }
         }
@@ -129,26 +144,26 @@ class GstInvoiceController extends Controller
             ];
         });
 
-        $voucher = DB::transaction(function () use ($company, $data, $party, $placeOfSupply, $lines) {
-            $sales = $data['type'] === 'sales';
+        $voucher = DB::transaction(function () use ($company, $data, $kind, $party, $placeOfSupply, $lines) {
+            $partyDebit = $kind['partyDebit'];
             $total = round($lines->sum(fn ($l) => $l['taxable'] + $l['cgst'] + $l['sgst'] + $l['igst']), 2);
 
-            // Sales: party Dr, income and output tax Cr. Purchase: the mirror image.
+            // The party sits on one side; income/expense and tax ledgers on the other.
             $side = fn (float $amount, bool $debit) => $debit
                 ? ['debit' => $amount, 'credit' => 0]
                 : ['debit' => 0, 'credit' => $amount];
 
-            $entries = [['account_id' => $party->id] + $side($total, $sales)];
+            $entries = [['account_id' => $party->id] + $side($total, $partyDebit)];
 
             foreach ($lines->groupBy('account_id') as $accountId => $group) {
-                $entries[] = ['account_id' => $accountId] + $side(round($group->sum('taxable'), 2), ! $sales);
+                $entries[] = ['account_id' => $accountId] + $side(round($group->sum('taxable'), 2), ! $partyDebit);
             }
 
             foreach (['cgst', 'sgst', 'igst'] as $head) {
                 $tax = round($lines->sum($head), 2);
                 if ($tax > 0) {
-                    $ledger = $company->gstLedger($sales ? 'output' : 'input', $head);
-                    $entries[] = ['account_id' => $ledger->id] + $side($tax, ! $sales);
+                    $ledger = $company->gstLedger($kind['side'] === 'sales' ? 'output' : 'input', $head);
+                    $entries[] = ['account_id' => $ledger->id] + $side($tax, ! $partyDebit);
                 }
             }
 
@@ -171,8 +186,8 @@ class GstInvoiceController extends Controller
                     'voucher_id' => $voucher->id,
                     'stock_item_id' => $line['stock_item_id'],
                     'date' => $data['date'],
-                    'quantity_in' => $sales ? 0 : $line['quantity'],
-                    'quantity_out' => $sales ? $line['quantity'] : 0,
+                    'quantity_in' => $kind['stockOut'] ? 0 : $line['quantity'],
+                    'quantity_out' => $kind['stockOut'] ? $line['quantity'] : 0,
                     'rate' => $line['item_rate'],
                     'amount' => $line['taxable'],
                 ]);
@@ -183,7 +198,7 @@ class GstInvoiceController extends Controller
 
         return redirect()
             ->route('companies.gst-invoices.show', [$company, $voucher])
-            ->with('success', $voucher->typeLabel().' invoice #'.$voucher->number.' saved.');
+            ->with('success', $voucher->typeLabel().' #'.$voucher->number.' saved.');
     }
 
     public function show(Company $company, Voucher $voucher)
