@@ -49,6 +49,7 @@ class CompanyBackup
     protected const COMPANY_FIELDS = [
         'name', 'legal_name', 'gstin', 'pan', 'email', 'phone', 'address', 'city', 'pincode', 'state',
         'financial_year', 'books_start_year', 'currency',
+        'invoice_template', 'bank_name', 'bank_account_no', 'bank_ifsc', 'upi_id', 'invoice_terms',
     ];
 
     public static function export(Company $company): array

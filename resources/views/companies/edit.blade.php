@@ -108,6 +108,36 @@
                             </option>
                         </select>
                     </div>
+
+                    <div class="col-12"><h3 class="h6 mt-3 mb-0">Invoice printing</h3></div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="f-invoice-template">Invoice design</label>
+                        <select id="f-invoice-template" name="invoice_template" class="form-select">
+                            @foreach (\App\Models\Company::INVOICE_TEMPLATES as $value => $label)
+                                <option value="{{ $value }}" @selected(old('invoice_template', $company->invoice_template) === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-8">
+                        <label class="form-label" for="f-upi-id">UPI ID (for the pay-by-QR code on invoices)</label>
+                        <input id="f-upi-id" name="upi_id" value="{{ old('upi_id', $company->upi_id) }}" class="form-control" maxlength="100" placeholder="business@okhdfcbank">
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="f-bank-name">Bank name</label>
+                        <input id="f-bank-name" name="bank_name" value="{{ old('bank_name', $company->bank_name) }}" class="form-control" maxlength="255">
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label class="form-label" for="f-bank-account-no">Account number</label>
+                        <input id="f-bank-account-no" name="bank_account_no" value="{{ old('bank_account_no', $company->bank_account_no) }}" class="form-control" maxlength="34">
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label class="form-label" for="f-bank-ifsc">IFSC</label>
+                        <input id="f-bank-ifsc" name="bank_ifsc" value="{{ old('bank_ifsc', $company->bank_ifsc) }}" class="form-control text-uppercase" maxlength="11">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="f-invoice-terms">Terms &amp; conditions</label>
+                        <textarea id="f-invoice-terms" name="invoice_terms" rows="3" maxlength="2000" class="form-control" placeholder="Goods once sold will not be taken back. Subject to Pune jurisdiction.">{{ old('invoice_terms', $company->invoice_terms) }}</textarea>
+                    </div>
                 </div>
 
                 <div class="d-flex flex-wrap gap-2 mt-4">

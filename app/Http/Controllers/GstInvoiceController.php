@@ -458,6 +458,20 @@ class GstInvoiceController extends Controller
         return back()->with('success', filled($data['eway_bill_no']) ? 'E-way bill '.$data['eway_bill_no'].' saved.' : 'E-way bill details removed.');
     }
 
+    /**
+     * Narrow receipt for thermal printers (80 mm or 58 mm).
+     */
+    public function receipt(Request $request, Company $company, Voucher $voucher)
+    {
+        $this->authorizeCompany($company);
+        abort_unless((int) $voucher->company_id === (int) $company->id && $voucher->gstLines()->exists(), 404);
+
+        $width = (int) $request->input('width', 80) === 58 ? 58 : 80;
+        $voucher->load('gstLines.account', 'gstLines.stockItem.unit', 'party');
+
+        return view('gst-invoices.receipt', compact('company', 'voucher', 'width'));
+    }
+
     public function show(Company $company, Voucher $voucher)
     {
         $this->authorizeCompany($company);

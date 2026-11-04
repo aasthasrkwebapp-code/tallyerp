@@ -57,6 +57,7 @@ class CompanyController extends Controller
     {
         $this->authorizeCompany($company);
 
+        $request->merge(['bank_ifsc' => $request->filled('bank_ifsc') ? strtoupper(trim($request->input('bank_ifsc'))) : null]);
         $data = $request->validate($this->rules($company->id));
         $startYear = (int) substr($data['financial_year'], 0, 4);
 
@@ -147,6 +148,12 @@ class CompanyController extends Controller
                 },
             ],
             'currency' => ['required', 'in:INR'],
+            'invoice_template' => ['nullable', 'in:'.implode(',', array_keys(Company::INVOICE_TEMPLATES))],
+            'bank_name' => ['nullable', 'string', 'max:255'],
+            'bank_account_no' => ['nullable', 'string', 'max:34', 'regex:/^[0-9A-Za-z]+$/'],
+            'bank_ifsc' => ['nullable', 'regex:/^[A-Z]{4}0[A-Z0-9]{6}$/'],
+            'upi_id' => ['nullable', 'string', 'max:100', 'regex:/^[\w.\-]+@[\w.\-]+$/'],
+            'invoice_terms' => ['nullable', 'string', 'max:2000'],
         ];
     }
 }

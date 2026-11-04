@@ -10,12 +10,34 @@
     $sgst = $lines->sum(fn ($l) => (float) $l->sgst);
     $igst = $lines->sum(fn ($l) => (float) $l->igst);
     $money = fn ($v) => inr((float) $v, 2);
+    $template = $company->invoice_template ?: 'classic';
+    $ownInvoice = in_array($voucher->type, ['sales', 'debit_note'], true); // documents we issue to the party
+    $upiLink = $voucher->type === 'sales' ? $company->upiPaymentLink((float) $voucher->amount, 'Invoice '.$voucher->number.'/'.$voucher->financialYearLabel()) : null;
 @endphp
+<style>
+    /* Invoice designs (Company → Edit → Invoice printing). */
+    .invoice-modern .invoice-title { background: var(--erp-accent, #4f46e5); color: #fff; padding: .6rem 1rem; border-radius: .4rem; text-align: left !important; }
+    .invoice-modern .table-bordered, .invoice-modern .table-bordered td, .invoice-modern .table-bordered th { border-left: 0; border-right: 0; }
+    .invoice-modern thead th { background: #eef2ff !important; }
+    .invoice-compact { font-size: .82rem; }
+    .invoice-compact .card-body { padding: 1rem !important; }
+    .invoice-compact .table td, .invoice-compact .table th { padding: .25rem .4rem; }
+    @media print {
+        .invoice-sheet { box-shadow: none !important; }
+        .invoice-modern .invoice-title { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+</style>
 <div class="container-fluid py-3">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4 d-print-none">
         <h2 class="h4 mb-0">{{ $voucher->typeLabel() }} #{{ $voucher->number }}</h2>
         <div class="d-flex flex-wrap gap-2">
             <button type="button" class="btn btn-outline-secondary" onclick="window.print()">Print</button>
+            <button type="button" class="btn btn-outline-secondary" onclick="window.print()"
+                title="In the print window, choose &quot;Save as PDF&quot; as the printer">Download PDF</button>
+            <div class="btn-group">
+                <a href="{{ route('companies.gst-invoices.receipt', [$company, $voucher, 'width' => 80]) }}" target="_blank" class="btn btn-outline-secondary">Thermal 80mm</a>
+                <a href="{{ route('companies.gst-invoices.receipt', [$company, $voucher, 'width' => 58]) }}" target="_blank" class="btn btn-outline-secondary">58mm</a>
+            </div>
             @if (in_array($voucher->type, array_keys(\App\Support\EInvoice::DOC_TYPES)))
                 <a href="{{ route('companies.gst-invoices.e-invoice', [$company, $voucher]) }}" class="btn btn-outline-primary">e-Invoice JSON</a>
             @endif
@@ -57,9 +79,9 @@
         </div>
     @endif
 
-    <div class="card border-0 shadow-sm">
+    <div class="card border-0 shadow-sm invoice-sheet invoice-{{ $template }}">
         <div class="card-body p-3 p-md-4">
-            <div class="text-center mb-3">
+            <div class="text-center mb-3 invoice-title">
                 <div class="h5 mb-0">{{ ['sales' => 'TAX INVOICE', 'purchase' => 'PURCHASE INVOICE', 'credit_note' => 'CREDIT NOTE', 'debit_note' => 'DEBIT NOTE'][$voucher->type] ?? 'INVOICE' }}</div>
             </div>
 
@@ -160,11 +182,50 @@
                 </table>
             </div>
 
+            <p class="small mb-3"><span class="text-secondary">Amount in words:</span> <span class="fw-semibold">{{ \App\Support\AmountInWords::rupees($voucher->amount) }}</span></p>
+
             @if ($voucher->narration)
-                <p class="small mb-0"><span class="text-secondary">Narration:</span> {{ $voucher->narration }}</p>
+                <p class="small mb-3"><span class="text-secondary">Narration:</span> {{ $voucher->narration }}</p>
+            @endif
+
+            @if ($ownInvoice)
+                <div class="row g-3 align-items-end small">
+                    <div class="col-12 col-md-5">
+                        @if ($company->bank_account_no)
+                            <div class="fw-semibold">Bank details</div>
+                            <div>{{ $company->bank_name }}</div>
+                            <div>A/c {{ $company->bank_account_no }} · IFSC {{ $company->bank_ifsc }}</div>
+                        @endif
+                        @if ($company->invoice_terms)
+                            <div class="fw-semibold mt-2">Terms &amp; conditions</div>
+                            <div style="white-space: pre-line">{{ $company->invoice_terms }}</div>
+                        @endif
+                    </div>
+                    <div class="col-6 col-md-3 text-center">
+                        @if ($upiLink)
+                            <div id="upi-qr" class="d-inline-block" data-link="{{ $upiLink }}" role="img" aria-label="UPI payment QR code"></div>
+                            <div>Scan to pay ₹ {{ $money($voucher->amount) }}<br><span class="text-secondary">{{ $company->upi_id }}</span></div>
+                        @endif
+                    </div>
+                    <div class="col-6 col-md-4 text-end">
+                        <div>For {{ $company->legal_name ?: $company->name }}</div>
+                        <div style="height: 3rem"></div>
+                        <div class="border-top pt-1">Authorised signatory</div>
+                    </div>
+                </div>
             @endif
         </div>
     </div>
+
+    @if ($upiLink)
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+        <script>
+            (() => {
+                const box = document.getElementById('upi-qr');
+                if (box && window.QRCode) new QRCode(box, { text: box.dataset.link, width: 110, height: 110, correctLevel: QRCode.CorrectLevel.M });
+            })();
+        </script>
+    @endif
 
     @php $ewbNeeded = \App\Support\EWayBill::hasGoods($voucher) && (float) $voucher->amount > \App\Support\EWayBill::THRESHOLD; @endphp
     @if (\App\Support\EWayBill::hasGoods($voucher))

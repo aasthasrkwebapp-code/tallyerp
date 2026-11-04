@@ -55,6 +55,8 @@ Route::middleware(['auth'])->group(function () {
         ->name('companies.gst-invoices.e-way-bill');
     Route::put('companies/{company}/gst-invoices/{voucher}/e-way-bill', [GstInvoiceController::class, 'saveEWayBillNumber'])
         ->name('companies.gst-invoices.e-way-bill.save');
+    Route::get('companies/{company}/gst-invoices/{voucher}/receipt', [GstInvoiceController::class, 'receipt'])
+        ->name('companies.gst-invoices.receipt');
     // Estimates, orders and challans: /companies/{company}/documents/{type}/...
     Route::controller(BusinessDocumentController::class)
         ->prefix('companies/{company}/documents/{type}')

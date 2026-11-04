@@ -27,6 +27,12 @@ class Company extends Model
         'pincode',
         'financial_year',
         'currency',
+        'invoice_template',
+        'bank_name',
+        'bank_account_no',
+        'bank_ifsc',
+        'upi_id',
+        'invoice_terms',
     ];
 
     public function user(): BelongsTo
@@ -212,6 +218,26 @@ class Company extends Model
     public function businessDocuments(): HasMany
     {
         return $this->hasMany(BusinessDocument::class);
+    }
+
+    public const INVOICE_TEMPLATES = ['classic' => 'Classic', 'modern' => 'Modern', 'compact' => 'Compact'];
+
+    /**
+     * upi:// link for a payment of $amount to this company, or null without a UPI ID.
+     */
+    public function upiPaymentLink(float $amount, string $note): ?string
+    {
+        if (! $this->upi_id) {
+            return null;
+        }
+
+        return 'upi://pay?'.http_build_query([
+            'pa' => $this->upi_id,
+            'pn' => $this->legal_name ?: $this->name,
+            'am' => number_format($amount, 2, '.', ''),
+            'cu' => 'INR',
+            'tn' => $note,
+        ], '', '&', PHP_QUERY_RFC3986);
     }
 
     public function priceLists(): HasMany
