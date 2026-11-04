@@ -33,10 +33,27 @@
                     <tr>
                         <td>4(A)(5) Eligible ITC on inward supplies</td>
                         <td class="text-end">{{ $m($itc->taxable) }}</td>
-                        <td class="text-end">{{ $m($itc->igst) }}</td>
-                        <td class="text-end">{{ $m($itc->cgst) }}</td>
-                        <td class="text-end">{{ $m($itc->sgst) }}</td>
+                        {{-- Shown before the rule 42 reversal; $itc itself is net of it. --}}
+                        <td class="text-end">{{ $m($itc->igst + $reversal->igst) }}</td>
+                        <td class="text-end">{{ $m($itc->cgst + $reversal->cgst) }}</td>
+                        <td class="text-end">{{ $m($itc->sgst + $reversal->sgst) }}</td>
                     </tr>
+                    @if ($reversal->igst + $reversal->cgst + $reversal->sgst != 0)
+                        <tr class="text-danger">
+                            <td>4(B)(1) Reversal of common credit, rule 42 <span class="small">({{ $reversal->ratio }}% exempt sales)</span></td>
+                            <td></td>
+                            <td class="text-end">({{ $m($reversal->igst) }})</td>
+                            <td class="text-end">({{ $m($reversal->cgst) }})</td>
+                            <td class="text-end">({{ $m($reversal->sgst) }})</td>
+                        </tr>
+                        <tr class="fw-semibold">
+                            <td>4(C) Net ITC available</td>
+                            <td></td>
+                            <td class="text-end">{{ $m($itc->igst) }}</td>
+                            <td class="text-end">{{ $m($itc->cgst) }}</td>
+                            <td class="text-end">{{ $m($itc->sgst) }}</td>
+                        </tr>
+                    @endif
                     @if ($ineligible->tax != 0)
                         <tr class="text-secondary">
                             <td>4(D) Ineligible ITC (blocked, added to cost)</td>

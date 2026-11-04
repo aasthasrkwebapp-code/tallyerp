@@ -148,6 +148,7 @@ class AccountController extends Controller
         }
         $data['is_active'] = $request->boolean('is_active');
         $data['itc_blocked'] = $request->boolean('itc_blocked');
+        $data['itc_common'] = $request->boolean('itc_common');
         $data['account_type'] = AccountGroup::find($data['account_group_id'])->nature;
 
         return $data;

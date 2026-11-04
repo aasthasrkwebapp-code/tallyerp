@@ -166,6 +166,13 @@
                             <label class="form-check-label" for="itc_blocked">GST credit not available on purchases to this ledger</label>
                             <div class="form-text mt-0">Blocked credit, e.g. motor cars, food, club fees or personal use. The GST is added to the cost instead.</div>
                         </div>
+                        <input type="hidden" name="itc_common" value="0">
+                        <div class="form-check mt-2">
+                            <input type="checkbox" class="form-check-input" id="itc_common" name="itc_common" value="1"
+                                @checked(old('itc_common', $account->itc_common))>
+                            <label class="form-check-label" for="itc_common">Used for both taxable and exempt sales (rule 42)</label>
+                            <div class="form-text mt-0">Part of the GST credit is reversed in GSTR-3B in proportion to exempt (0%) sales.</div>
+                        </div>
                     </div>
 
                     <div class="col-6 col-md-3">

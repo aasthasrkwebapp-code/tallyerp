@@ -32,6 +32,7 @@ class Account extends Model
         'hsn_sac',
         'gst_rate',
         'itc_blocked',
+        'itc_common',
         'pan',
         'tds_section',
     ];
@@ -43,6 +44,7 @@ class Account extends Model
             'opening_foreign_amount' => 'decimal:2',
             'is_active' => 'boolean',
             'itc_blocked' => 'boolean',
+            'itc_common' => 'boolean',
         ];
     }
 

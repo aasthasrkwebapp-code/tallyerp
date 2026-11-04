@@ -77,7 +77,7 @@ class GstReportController extends Controller
         $this->authorizeCompany($company);
         [$from, $to] = $this->period($request, $company);
 
-        [$outward, $itc] = $this->outwardAndItc($company, $from, $to);
+        [$outward, $itc, $reversal] = $this->outwardAndItc($company, $from, $to);
         $openingCredit = $this->creditBroughtForward($company, $from);
 
         $available = [];
@@ -92,9 +92,10 @@ class GstReportController extends Controller
         $outward = (object) $outward;
         $itc = (object) $itc;
         $openingCredit = (object) $openingCredit;
+        $reversal = (object) $reversal;
         $ineligible = (object) $this->ineligibleItc($company, $from, $to);
 
-        return view('gst.gstr3b', compact('company', 'from', 'to', 'outward', 'itc', 'openingCredit', 'ineligible', 'payable', 'carryForward', 'used'));
+        return view('gst.gstr3b', compact('company', 'from', 'to', 'outward', 'itc', 'reversal', 'openingCredit', 'ineligible', 'payable', 'carryForward', 'used'));
     }
 
     /**
@@ -105,16 +106,31 @@ class GstReportController extends Controller
      */
     protected function outwardAndItc(Company $company, CarbonImmutable $from, CarbonImmutable $to): array
     {
-        return [
-            $this->minus(
-                $this->totals($this->lines($company, 'sales', $from, $to)),
-                $this->totals($this->lines($company, 'credit_note', $from, $to)),
-            ),
-            $this->minus(
-                $this->totals($this->lines($company, 'purchase', $from, $to)->where('itc_eligible', true)),
-                $this->totals($this->lines($company, 'debit_note', $from, $to)->where('itc_eligible', true)),
-            ),
-        ];
+        $sales = $this->lines($company, 'sales', $from, $to);
+        $returns = $this->lines($company, 'credit_note', $from, $to);
+        $purchases = $this->lines($company, 'purchase', $from, $to)->where('itc_eligible', true);
+        $purchaseReturns = $this->lines($company, 'debit_note', $from, $to)->where('itc_eligible', true);
+
+        $outward = $this->minus($this->totals($sales), $this->totals($returns));
+        $itc = $this->minus($this->totals($purchases), $this->totals($purchaseReturns));
+
+        // Rule 42: credit on purchases used for both taxable and exempt sales is
+        // reversed in the ratio exempt turnover / total turnover. 0% sales count as exempt.
+        $isZero = fn (VoucherGstLine $l) => (float) $l->rate == 0;
+        $exemptTurnover = $this->totals($sales->filter($isZero))['taxable'] - $this->totals($returns->filter($isZero))['taxable'];
+        $totalTurnover = $outward['taxable'];
+        $ratio = $totalTurnover > 0 ? max(0, min(1, $exemptTurnover / $totalTurnover)) : 0;
+
+        $isCommon = fn (VoucherGstLine $l) => (bool) $l->account?->itc_common;
+        $commonItc = $this->minus($this->totals($purchases->filter($isCommon)), $this->totals($purchaseReturns->filter($isCommon)));
+
+        $reversal = ['ratio' => round($ratio * 100, 2), 'common' => $commonItc['tax']];
+        foreach (GstSetOff::HEADS as $head) {
+            $reversal[$head] = round(max(0, $commonItc[$head]) * $ratio, 2);
+            $itc[$head] = round($itc[$head] - $reversal[$head], 2);
+        }
+
+        return [$outward, $itc, $reversal];
     }
 
     /**
@@ -165,7 +181,7 @@ class GstReportController extends Controller
                 ->where('company_id', $company->id)
                 ->where('type', $type)
                 ->whereBetween('date', [$from->toDateString(), $to->toDateString()]))
-            ->with('voucher.party')
+            ->with(['voucher.party', 'account'])
             ->get();
     }
 
