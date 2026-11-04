@@ -7,6 +7,7 @@
     $rows = old('lines', [['account_id' => '', 'description' => '', 'hsn_sac' => '', 'taxable' => '', 'rate' => '18']]);
     $itemData = $items->mapWithKeys(fn ($a) => [$a->id => ['hsn' => $a->hsn_sac, 'rate' => $a->gst_rate === null ? null : (float) $a->gst_rate]]);
     $partyData = $parties->mapWithKeys(fn ($a) => [$a->id => $a->state_code]);
+    $stockData = $stockItems->mapWithKeys(fn ($i) => [$i->id => ['hsn' => $i->hsn_sac, 'rate' => $i->gst_rate === null ? null : (float) $i->gst_rate, 'price' => (float) $i->opening_rate]]);
 @endphp
 <div class="container-fluid py-3">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
@@ -93,9 +94,12 @@
                         <thead class="table-light">
                             <tr>
                                 <th style="min-width: 200px">{{ $type === 'sales' ? 'Sales' : 'Purchase' }} ledger</th>
-                                <th style="min-width: 160px">Description</th>
+                                <th style="min-width: 170px">Stock item</th>
+                                <th style="min-width: 140px">Description</th>
                                 <th style="width: 120px">HSN/SAC</th>
-                                <th style="width: 150px" class="text-end">Taxable value</th>
+                                <th style="width: 100px" class="text-end">Qty</th>
+                                <th style="width: 120px" class="text-end">Rate</th>
+                                <th style="width: 140px" class="text-end">Taxable value</th>
                                 <th style="width: 110px">GST %</th>
                                 <th style="width: 130px" class="text-end">Tax</th>
                                 <th style="width: 50px"></th>
@@ -112,9 +116,19 @@
                                             @endforeach
                                         </select>
                                     </td>
+                                    <td>
+                                        <select name="lines[{{ $i }}][stock_item_id]" class="form-select js-stock">
+                                            <option value="">— none —</option>
+                                            @foreach ($stockItems as $stockItem)
+                                                <option value="{{ $stockItem->id }}" @selected((string) ($row['stock_item_id'] ?? '') === (string) $stockItem->id)>{{ $stockItem->name }} ({{ $stockItem->unit->symbol }})</option>
+                                            @endforeach
+                                        </select>
+                                    </td>
                                     <td><input name="lines[{{ $i }}][description]" value="{{ $row['description'] ?? '' }}" class="form-control" maxlength="255"></td>
                                     <td><input name="lines[{{ $i }}][hsn_sac]" value="{{ $row['hsn_sac'] ?? '' }}" class="form-control js-hsn" maxlength="10"></td>
-                                    <td><input type="number" step="0.01" min="0.01" name="lines[{{ $i }}][taxable]" value="{{ $row['taxable'] ?? '' }}" class="form-control text-end js-taxable" required></td>
+                                    <td><input type="number" step="0.001" min="0" name="lines[{{ $i }}][quantity]" value="{{ $row['quantity'] ?? '' }}" class="form-control text-end js-qty"></td>
+                                    <td><input type="number" step="0.01" min="0" name="lines[{{ $i }}][item_rate]" value="{{ $row['item_rate'] ?? '' }}" class="form-control text-end js-price"></td>
+                                    <td><input type="number" step="0.01" min="0.01" name="lines[{{ $i }}][taxable]" value="{{ $row['taxable'] ?? '' }}" class="form-control text-end js-taxable"></td>
                                     <td>
                                         <select name="lines[{{ $i }}][rate]" class="form-select js-rate">
                                             @foreach ($rates as $rate)
@@ -129,14 +143,14 @@
                         </tbody>
                         <tfoot>
                             <tr class="fw-semibold">
-                                <td colspan="3"><button type="button" class="btn btn-sm btn-outline-primary" id="add-line">+ Add line</button></td>
+                                <td colspan="6"><button type="button" class="btn btn-sm btn-outline-primary" id="add-line">+ Add line</button></td>
                                 <td class="text-end" id="total-taxable">0.00</td>
                                 <td></td>
                                 <td class="text-end" id="total-tax">0.00</td>
                                 <td></td>
                             </tr>
                             <tr class="fw-semibold">
-                                <td colspan="5" class="text-end">Invoice total <span class="text-secondary small" id="split"></span></td>
+                                <td colspan="8" class="text-end">Invoice total <span class="text-secondary small" id="split"></span></td>
                                 <td class="text-end" id="grand-total">0.00</td>
                                 <td></td>
                             </tr>
@@ -158,6 +172,7 @@
 (() => {
     const items = @json($itemData);
     const parties = @json($partyData);
+    const stock = @json($stockData);
     const companyState = @json($company->stateCode());
     const body = document.querySelector('#lines tbody');
     let next = body.rows.length;
@@ -171,6 +186,15 @@
     function recalc() {
         let taxable = 0, tax = 0;
         for (const row of body.rows) {
+            // A stock line's taxable value is quantity x rate.
+            const hasItem = row.querySelector('.js-stock').value !== '';
+            const taxInput = row.querySelector('.js-taxable');
+            taxInput.readOnly = hasItem;
+            if (hasItem) {
+                const q = parseFloat(row.querySelector('.js-qty').value) || 0;
+                const p = parseFloat(row.querySelector('.js-price').value) || 0;
+                taxInput.value = q && p ? (Math.round(q * p * 100) / 100).toFixed(2) : '';
+            }
             const t = parseFloat(row.querySelector('.js-taxable').value) || 0;
             const r = parseFloat(row.querySelector('.js-rate').value) || 0;
             const lineTax = interState() ? Math.round(t * r) / 100 : 2 * Math.round(t * r / 2) / 100;
@@ -208,6 +232,12 @@
             const row = e.target.closest('tr'), item = items[e.target.value];
             if (item.hsn) row.querySelector('.js-hsn').value = item.hsn;
             if (item.rate !== null) row.querySelector('.js-rate').value = String(item.rate);
+        }
+        if (e.target.classList.contains('js-stock') && stock[e.target.value]) {
+            const row = e.target.closest('tr'), s = stock[e.target.value];
+            if (s.hsn) row.querySelector('.js-hsn').value = s.hsn;
+            if (s.rate !== null) row.querySelector('.js-rate').value = String(s.rate);
+            if (!row.querySelector('.js-price').value && s.price) row.querySelector('.js-price').value = s.price;
         }
         recalc();
     });

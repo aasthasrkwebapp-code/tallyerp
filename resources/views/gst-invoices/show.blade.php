@@ -72,7 +72,15 @@
                         @foreach ($lines as $i => $line)
                             <tr>
                                 <td>{{ $i + 1 }}</td>
-                                <td>{{ $line->description ?: $line->account->name }}</td>
+                                <td>
+                                    {{ $line->description ?: ($line->stockItem?->name ?? $line->account->name) }}
+                                    @if ($line->stockItem)
+                                        <div class="small text-secondary">
+                                            {{ rtrim(rtrim(number_format((float) $line->quantity, 3), '0'), '.') }} {{ $line->stockItem->unit->symbol }}
+                                            × {{ $money($line->item_rate) }}
+                                        </div>
+                                    @endif
+                                </td>
                                 <td>{{ $line->hsn_sac }}</td>
                                 <td class="text-end">{{ $money($line->taxable) }}</td>
                                 <td class="text-end">{{ (float) $line->rate }}%</td>

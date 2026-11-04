@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Account;
 use App\Models\Company;
 use App\Support\Books;
+use App\Support\Stock;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -69,6 +70,10 @@ class ReportController extends Controller
         $accounts = $books->closingBalances($to);
 
         $assets = $this->byPrimary($accounts->where('primary.nature', 'assets'), 1);
+        $closingStock = (new Stock($company))->closingValue($to);
+        if ($closingStock != 0) {
+            $assets->push($this->stockLine('Closing Stock', $closingStock));
+        }
         $liabilities = $this->byPrimary($accounts->where('primary.nature', 'liabilities'), -1);
         $netProfit = $this->profitAndLossFigures($books, $to)['netProfit'];
 
@@ -123,6 +128,15 @@ class ReportController extends Controller
 
         $tradingIncome = $section(self::TRADING_INCOME, -1);
         $tradingExpense = $section(self::TRADING_EXPENSE, 1);
+
+        // Stock: opening stock is a trading expense, closing stock trading income.
+        $stock = new Stock($books->company);
+        if (($opening = $stock->openingValue()) != 0) {
+            $tradingExpense->prepend($this->stockLine('Opening Stock', $opening));
+        }
+        if (($closing = $stock->closingValue($to)) != 0) {
+            $tradingIncome->push($this->stockLine('Closing Stock', $closing));
+        }
         $indirectIncome = $section(['INDIRECT_INCOMES'], -1);
         $indirectExpense = $section(['INDIRECT_EXPENSES'], 1);
 
@@ -152,6 +166,11 @@ class ReportController extends Controller
                 'total' => round($items->sum('balance') * $sign, 2),
             ])
             ->values();
+    }
+
+    protected function stockLine(string $name, float $value): object
+    {
+        return (object) ['name' => $name, 'accounts' => collect(), 'total' => round($value, 2)];
     }
 
     protected function dateParam(Request $request, string $key, CarbonImmutable $default): CarbonImmutable

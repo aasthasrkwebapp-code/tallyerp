@@ -77,11 +77,14 @@ class Books
     }
 
     /**
-     * Total of all ledger opening balances. Non-zero means the opening entries don't balance.
+     * Total of all ledger opening balances plus opening stock (an asset, so a debit).
+     * Non-zero means the opening entries don't balance.
      */
     public function openingDifference(): float
     {
-        return round($this->company->accounts()->get()->sum(fn (Account $a) => $a->signedOpeningBalance()), 2);
+        $ledgers = $this->company->accounts()->get()->sum(fn (Account $a) => $a->signedOpeningBalance());
+
+        return round($ledgers + (new Stock($this->company))->openingValue(), 2);
     }
 
     /**

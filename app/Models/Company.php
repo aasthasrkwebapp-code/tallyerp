@@ -70,7 +70,37 @@ class Company extends Model
 
     protected static function booted(): void
     {
-        static::created(fn (Company $company) => $company->createDefaultGroups());
+        static::created(function (Company $company) {
+            $company->createDefaultGroups();
+            $company->createDefaultUnits();
+        });
+    }
+
+    public function units(): HasMany
+    {
+        return $this->hasMany(Unit::class);
+    }
+
+    public function stockGroups(): HasMany
+    {
+        return $this->hasMany(StockGroup::class);
+    }
+
+    public function stockItems(): HasMany
+    {
+        return $this->hasMany(StockItem::class);
+    }
+
+    public function stockMovements(): HasMany
+    {
+        return $this->hasMany(StockMovement::class);
+    }
+
+    public function createDefaultUnits(): void
+    {
+        foreach (Unit::DEFAULTS as [$symbol, $name, $decimals]) {
+            $this->units()->firstOrCreate(['symbol' => $symbol], ['name' => $name, 'decimals' => $decimals]);
+        }
     }
 
     /**

@@ -39,6 +39,7 @@ class GstInvoiceController extends Controller
                 true,
             ) && ! str_starts_with((string) $a->code, 'GST_')),
             'items' => $accounts->filter(fn (Account $a) => $books->primaryGroup($a->account_group_id)->code === $itemGroup),
+            'stockItems' => $company->stockItems()->with('unit')->orderBy('name')->get(),
             'rates' => self::RATES,
             'states' => GstStates::STATES,
         ]);
@@ -62,7 +63,10 @@ class GstInvoiceController extends Controller
             'lines.*.account_id' => ['required', $inCompany()],
             'lines.*.description' => ['nullable', 'string', 'max:255'],
             'lines.*.hsn_sac' => ['nullable', 'string', 'max:10'],
-            'lines.*.taxable' => ['required', 'numeric', 'gt:0', 'max:9999999999999.99'],
+            'lines.*.stock_item_id' => ['nullable', Rule::exists('stock_items', 'id')->where('company_id', $company->id)],
+            'lines.*.quantity' => ['nullable', 'required_with:lines.*.stock_item_id', 'numeric', 'gt:0', 'max:9999999999.999'],
+            'lines.*.item_rate' => ['nullable', 'required_with:lines.*.stock_item_id', 'numeric', 'min:0', 'max:9999999999999.99'],
+            'lines.*.taxable' => ['nullable', 'numeric', 'gt:0', 'max:9999999999999.99'],
             'lines.*.rate' => ['required', Rule::in(self::RATES)],
         ], [
             'date.after_or_equal' => 'The date must fall within financial year '.$company->financial_year.'.',
@@ -79,6 +83,12 @@ class GstInvoiceController extends Controller
         $books = new Books($company);
         $itemGroup = $data['type'] === 'sales' ? 'SALES_ACCOUNTS' : 'PURCHASE_ACCOUNTS';
         foreach ($data['lines'] as $i => $line) {
+            if (empty($line['stock_item_id']) && empty($line['taxable'])) {
+                throw ValidationException::withMessages([
+                    "lines.$i.taxable" => 'Line '.($i + 1).' needs a taxable value or a stock item with quantity and rate.',
+                ]);
+            }
+
             $account = $company->accounts()->find($line['account_id']);
             if ($books->primaryGroup($account->account_group_id)->code !== $itemGroup) {
                 throw ValidationException::withMessages([
@@ -95,12 +105,20 @@ class GstInvoiceController extends Controller
         $interState = $placeOfSupply !== $companyState;
 
         $lines = collect($data['lines'])->map(function (array $line) use ($interState) {
-            $taxable = round((float) $line['taxable'], 2);
+            $stockItemId = ! empty($line['stock_item_id']) ? (int) $line['stock_item_id'] : null;
+            $quantity = $stockItemId ? round((float) $line['quantity'], 3) : null;
+            $itemRate = $stockItemId ? round((float) $line['item_rate'], 2) : null;
+
+            // With a stock item, the taxable value is quantity × rate.
+            $taxable = $stockItemId ? round($quantity * $itemRate, 2) : round((float) $line['taxable'], 2);
             $rate = (float) $line['rate'];
             $half = round($taxable * $rate / 200, 2);
 
             return [
                 'account_id' => (int) $line['account_id'],
+                'stock_item_id' => $stockItemId,
+                'quantity' => $quantity,
+                'item_rate' => $itemRate,
                 'description' => $line['description'] ?? null,
                 'hsn_sac' => $line['hsn_sac'] ?? null,
                 'taxable' => $taxable,
@@ -148,6 +166,18 @@ class GstInvoiceController extends Controller
             $voucher->entries()->createMany($entries);
             $voucher->gstLines()->createMany($lines->all());
 
+            foreach ($lines->whereNotNull('stock_item_id') as $line) {
+                $company->stockMovements()->create([
+                    'voucher_id' => $voucher->id,
+                    'stock_item_id' => $line['stock_item_id'],
+                    'date' => $data['date'],
+                    'quantity_in' => $sales ? 0 : $line['quantity'],
+                    'quantity_out' => $sales ? $line['quantity'] : 0,
+                    'rate' => $line['item_rate'],
+                    'amount' => $line['taxable'],
+                ]);
+            }
+
             return $voucher;
         });
 
@@ -161,7 +191,7 @@ class GstInvoiceController extends Controller
         $this->authorizeCompany($company);
         abort_unless($voucher->gstLines()->exists(), 404);
 
-        $voucher->load('gstLines.account', 'party');
+        $voucher->load('gstLines.account', 'gstLines.stockItem.unit', 'party');
 
         return view('gst-invoices.show', compact('company', 'voucher'));
     }

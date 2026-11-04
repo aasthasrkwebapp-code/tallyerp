@@ -7,6 +7,8 @@ use App\Http\Controllers\AccountGroupController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\GstInvoiceController;
 use App\Http\Controllers\GstReportController;
+use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\StockItemController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\VoucherController;
 
@@ -35,6 +37,22 @@ Route::middleware(['auth'])->group(function () {
         ->group(function () {
             Route::get('gstr-1', 'gstr1')->name('gstr1');
             Route::get('gstr-3b', 'gstr3b')->name('gstr3b');
+        });
+
+    Route::resource('companies.stock-items', StockItemController::class)
+        ->except('show')
+        ->scoped();
+
+    Route::controller(InventoryController::class)
+        ->prefix('companies/{company}/inventory')
+        ->name('companies.inventory.')
+        ->group(function () {
+            Route::get('setup', 'setup')->name('setup');
+            Route::post('units', 'storeUnit')->name('units.store');
+            Route::delete('units/{unit}', 'destroyUnit')->name('units.destroy');
+            Route::post('groups', 'storeGroup')->name('groups.store');
+            Route::delete('groups/{stockGroup}', 'destroyGroup')->name('groups.destroy');
+            Route::get('summary', 'summary')->name('summary');
         });
 
     Route::controller(ReportController::class)

@@ -10,6 +10,9 @@ class VoucherGstLine extends Model
     protected $fillable = [
         'voucher_id',
         'account_id',
+        'stock_item_id',
+        'quantity',
+        'item_rate',
         'description',
         'hsn_sac',
         'taxable',
@@ -33,6 +36,11 @@ class VoucherGstLine extends Model
     public function voucher(): BelongsTo
     {
         return $this->belongsTo(Voucher::class);
+    }
+
+    public function stockItem(): BelongsTo
+    {
+        return $this->belongsTo(StockItem::class);
     }
 
     public function account(): BelongsTo

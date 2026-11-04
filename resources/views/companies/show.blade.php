@@ -23,6 +23,9 @@
             <a href="{{ route('companies.reports.index', $company) }}" class="btn btn-outline-primary">
                 Reports
             </a>
+            <a href="{{ route('companies.stock-items.index', $company) }}" class="btn btn-outline-primary">
+                Stock Items
+            </a>
             <a href="{{ route('companies.accounts.index', $company) }}" class="btn btn-outline-primary">
                 Ledgers
             </a>
