@@ -28,8 +28,20 @@ class EWayBill
      * @param  array{mode: string, distance: int|string, vehicle_no: ?string, transporter_id: ?string, transporter_name: ?string, trans_doc_no: ?string}  $transport
      * @return array<int, string>
      */
+    /**
+     * E-way bills cover movement of goods; an invoice for services only (SAC 99xx) needs none.
+     */
+    public static function hasGoods(Voucher $voucher): bool
+    {
+        return $voucher->gstLines->contains(fn ($line) => ! str_starts_with((string) $line->hsn_sac, '99'));
+    }
+
     public static function problems(Voucher $voucher, array $transport): array
     {
+        if (! self::hasGoods($voucher)) {
+            return ['This invoice has only services (SAC 99…), so no e-way bill is needed.'];
+        }
+
         $company = $voucher->company;
         $party = $voucher->party;
         $problems = [];

@@ -145,10 +145,12 @@
         </div>
     </div>
 
-    <details class="card border-0 shadow-sm mt-3 d-print-none" @if (session('ewaybill_problems') || (float) $voucher->amount > \App\Support\EWayBill::THRESHOLD) open @endif>
+    @php $ewbNeeded = \App\Support\EWayBill::hasGoods($voucher) && (float) $voucher->amount > \App\Support\EWayBill::THRESHOLD; @endphp
+    @if (\App\Support\EWayBill::hasGoods($voucher))
+    <details class="card border-0 shadow-sm mt-3 d-print-none" @if (session('ewaybill_problems') || $ewbNeeded) open @endif>
         <summary class="card-header bg-white fw-semibold">
             e-Way Bill
-            @if ((float) $voucher->amount > \App\Support\EWayBill::THRESHOLD)
+            @if ($ewbNeeded)
                 <span class="badge text-bg-warning ms-1">Needed: value over ₹{{ inr(\App\Support\EWayBill::THRESHOLD, 0) }}</span>
             @endif
         </summary>
@@ -188,5 +190,6 @@
             </div>
         </form>
     </details>
+    @endif
 </div>
 @endsection

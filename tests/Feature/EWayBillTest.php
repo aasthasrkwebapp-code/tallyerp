@@ -112,6 +112,24 @@ class EWayBillTest extends TestCase
             ->assertSessionHas('ewaybill_problems', fn ($p) => in_array('Vehicle number looks wrong (e.g. MH12AB1234).', $p));
     }
 
+    public function test_services_only_invoice_needs_no_e_way_bill(): void
+    {
+        $this->actingAs($this->company->user)
+            ->post(route('companies.gst-invoices.store', $this->company), [
+                'type' => 'sales', 'date' => '2026-08-14', 'party_account_id' => $this->buyer->id,
+                'lines' => [['account_id' => $this->sales->id, 'taxable' => 90000, 'hsn_sac' => '998314', 'rate' => 18]],
+            ])
+            ->assertSessionHasNoErrors();
+        $voucher = $this->company->vouchers()->latest('id')->firstOrFail();
+
+        $this->actingAs($this->company->user)
+            ->get(route('companies.gst-invoices.show', [$this->company, $voucher]))
+            ->assertDontSee('e-Way Bill JSON');
+
+        $this->download($voucher, ['mode' => '1', 'distance' => 10, 'vehicle_no' => 'MH12AB1234'])
+            ->assertSessionHas('ewaybill_problems', ['This invoice has only services (SAC 99…), so no e-way bill is needed.']);
+    }
+
     public function test_invoice_page_shows_form_and_flags_value_over_threshold(): void
     {
         $this->actingAs($this->company->user)

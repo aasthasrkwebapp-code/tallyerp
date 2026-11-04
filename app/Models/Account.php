@@ -64,9 +64,6 @@ class Account extends Model
     }
 
     /**
-     * Opening balance as a signed number: debit positive, credit negative.
-     */
-    /**
      * Foreign-currency opening balance, signed like the rupee one (debit positive).
      */
     public function signedOpeningForeign(): float
@@ -76,6 +73,9 @@ class Account extends Model
         return $this->opening_balance_type === 'cr' ? -$amount : $amount;
     }
 
+    /**
+     * Opening balance as a signed number: debit positive, credit negative.
+     */
     public function signedOpeningBalance(): float
     {
         $amount = (float) $this->opening_balance;
