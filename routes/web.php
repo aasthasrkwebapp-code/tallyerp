@@ -6,6 +6,7 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AccountGroupController;
 use App\Http\Controllers\BankReconciliationController;
 use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\CompanyMemberController;
 use App\Http\Controllers\CostCentreController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\PayrollController;
@@ -22,6 +23,8 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('companies', CompanyController::class);
     Route::put('companies/{company}/financial-year', [CompanyController::class, 'changeYear'])
         ->name('companies.financial-year');
+    Route::resource('companies.members', CompanyMemberController::class)
+        ->only(['index', 'store', 'update', 'destroy']);
 
     // scoped() makes {account_group} / {account} resolve only within {company}.
     Route::resource('companies.account-groups', AccountGroupController::class)

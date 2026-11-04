@@ -11,8 +11,7 @@ class CompanyController extends Controller
 {
     public function index()
     {
-        $companies = auth()->user()
-            ->companies()
+        $companies = Company::accessibleBy(auth()->user())
             ->latest()
             ->get();
 

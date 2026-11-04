@@ -133,12 +133,15 @@
                     ['companies.stock-items.index', [$activeCompany], 'box-seam', 'Inventory', 'companies.stock-items.*'],
                     ['companies.banking.reconciliation', [$activeCompany], 'bank', 'Banking', 'companies.banking.*'],
                     ['companies.payroll.index', [$activeCompany], 'people', 'Payroll', ['companies.payroll.*', 'companies.employees.*']],
+                    ['companies.members.index', [$activeCompany], 'shield-lock', 'Users & Roles', 'companies.members.*'],
                     ['companies.reports.index', [$activeCompany], 'bar-chart-line', 'Reports', 'companies.reports.*'],
                 ]);
             }
         @endphp
         <nav class="nav flex-column py-3">
             @foreach ($nav as [$routeName, $params, $icon, $label, $pattern])
+                @continue($activeCompany && str_starts_with($routeName, 'companies.') && $routeName !== 'companies.index'
+                    && ! $activeCompany->userCan(auth()->user(), \App\Support\Access::moduleForRoute($routeName), str_ends_with($routeName, '.create')))
                 <a class="nav-link {{ $pattern && request()->routeIs($pattern) ? 'active' : '' }}"
                     href="{{ route($routeName, $params) }}">
                     <i class="bi bi-{{ $icon }} me-2"></i>{{ $label }}

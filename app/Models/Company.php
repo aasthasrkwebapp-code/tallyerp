@@ -30,6 +30,46 @@ class Company extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function members(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(User::class)->withPivot('role_id')->withTimestamps();
+    }
+
+    /**
+     * Companies a user owns or has been added to.
+     */
+    public function scopeAccessibleBy($query, User $user)
+    {
+        return $query->where(fn ($q) => $q
+            ->where('user_id', $user->id)
+            ->orWhereHas('members', fn ($m) => $m->whereKey($user->id)));
+    }
+
+    /**
+     * The user's role name in this company, or null if they have no access.
+     */
+    public function roleFor(?User $user): ?string
+    {
+        if (! $user) {
+            return null;
+        }
+
+        if ((int) $this->user_id === (int) $user->id) {
+            return 'owner';
+        }
+
+        $roleId = $this->members()->whereKey($user->id)->value('company_user.role_id');
+
+        return $roleId ? Role::whereKey($roleId)->value('name') : null;
+    }
+
+    public function userCan(?User $user, ?string $module, bool $writing = false): bool
+    {
+        $role = $this->roleFor($user);
+
+        return $role !== null && \App\Support\Access::allows($role, $module, $writing);
+    }
+
     public function accountGroups(): HasMany
     {
         return $this->hasMany(AccountGroup::class);
