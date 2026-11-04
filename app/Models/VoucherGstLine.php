@@ -13,6 +13,8 @@ class VoucherGstLine extends Model
         'stock_item_id',
         'quantity',
         'item_rate',
+        'gross_amount',
+        'discount_percent',
         'description',
         'hsn_sac',
         'taxable',
@@ -26,6 +28,8 @@ class VoucherGstLine extends Model
     protected function casts(): array
     {
         return [
+            'gross_amount' => 'decimal:2',
+            'discount_percent' => 'decimal:2',
             'taxable' => 'decimal:2',
             'rate' => 'decimal:2',
             'cgst' => 'decimal:2',

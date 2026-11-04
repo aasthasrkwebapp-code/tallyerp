@@ -7,7 +7,8 @@
         ? $document->lines->map(fn ($l) => [
             'account_id' => $l->account_id, 'stock_item_id' => $l->stock_item_id, 'description' => $l->description,
             'hsn_sac' => $l->hsn_sac, 'quantity' => $l->quantity !== null ? (float) $l->quantity : '',
-            'item_rate' => $l->item_rate !== null ? (float) $l->item_rate : '', 'taxable' => (float) $l->taxable, 'rate' => (string) (float) $l->rate,
+            'item_rate' => $l->item_rate !== null ? (float) $l->item_rate : '', 'taxable' => (float) ($l->gross_amount ?? $l->taxable),
+            'discount_percent' => (float) $l->discount_percent ?: '', 'rate' => (string) (float) $l->rate,
         ])->all()
         : [$blank]);
     $itemData = $items->mapWithKeys(fn ($a) => [$a->id => ['hsn' => $a->hsn_sac, 'rate' => $a->gst_rate === null ? null : (float) $a->gst_rate]]);
@@ -87,7 +88,8 @@
                                 <th style="width: 110px">HSN/SAC</th>
                                 <th style="width: 90px" class="text-end">Qty</th>
                                 <th style="width: 110px" class="text-end">Rate</th>
-                                <th style="width: 130px" class="text-end">Taxable</th>
+                                <th style="width: 130px" class="text-end">Amount</th>
+                                <th style="width: 90px" class="text-end">Disc %</th>
                                 <th style="width: 90px">GST %</th>
                                 <th style="width: 40px"></th>
                             </tr>
@@ -115,7 +117,8 @@
                                     <td><input name="lines[{{ $i }}][hsn_sac]" value="{{ $row['hsn_sac'] ?? '' }}" class="form-control js-hsn" maxlength="10" aria-label="HSN/SAC"></td>
                                     <td><input type="number" step="0.001" min="0" name="lines[{{ $i }}][quantity]" value="{{ $row['quantity'] ?? '' }}" class="form-control text-end js-qty" aria-label="Quantity"></td>
                                     <td><input type="number" step="0.01" min="0" name="lines[{{ $i }}][item_rate]" value="{{ $row['item_rate'] ?? '' }}" class="form-control text-end js-price" aria-label="Rate"></td>
-                                    <td><input type="number" step="0.01" min="0" name="lines[{{ $i }}][taxable]" value="{{ $row['taxable'] ?? '' }}" class="form-control text-end js-taxable" aria-label="Taxable value"></td>
+                                    <td><input type="number" step="0.01" min="0" name="lines[{{ $i }}][taxable]" value="{{ $row['taxable'] ?? '' }}" class="form-control text-end js-taxable" aria-label="Amount"></td>
+                                    <td><input type="number" step="0.01" min="0" max="100" name="lines[{{ $i }}][discount_percent]" value="{{ $row['discount_percent'] ?? '' }}" class="form-control text-end js-disc" aria-label="Discount %"></td>
                                     <td>
                                         <select name="lines[{{ $i }}][rate]" class="form-select js-rate" aria-label="GST rate">
                                             @foreach ($rates as $rate)
@@ -130,11 +133,11 @@
                         <tfoot>
                             <tr class="fw-semibold">
                                 <td colspan="6"><button type="button" class="btn btn-sm btn-outline-primary" id="add-line">+ Add line</button></td>
-                                <td class="text-end" id="total-taxable">0.00</td>
+                                <td class="text-end" colspan="2">Taxable <span id="total-taxable">0.00</span></td>
                                 <td colspan="2" class="text-end small text-secondary">+ GST <span id="total-tax">0.00</span></td>
                             </tr>
                             <tr class="fw-semibold">
-                                <td colspan="7" class="text-end">Total</td>
+                                <td colspan="8" class="text-end">Total</td>
                                 <td colspan="2" class="text-end" id="grand-total">0.00</td>
                             </tr>
                         </tfoot>
@@ -168,7 +171,8 @@
                 const q = parseFloat(row.querySelector('.js-qty').value) || 0, p = parseFloat(row.querySelector('.js-price').value) || 0;
                 t.value = q && p ? (Math.round(q * p * 100) / 100).toFixed(2) : '';
             }
-            const v = parseFloat(t.value) || 0, r = parseFloat(row.querySelector('.js-rate').value) || 0;
+            const disc = parseFloat(row.querySelector('.js-disc').value) || 0;
+            const v = Math.round((parseFloat(t.value) || 0) * (1 - disc / 100) * 100) / 100, r = parseFloat(row.querySelector('.js-rate').value) || 0;
             taxable += v;
             tax += Math.round(v * r) / 100;
         }

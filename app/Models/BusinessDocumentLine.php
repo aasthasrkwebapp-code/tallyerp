@@ -15,6 +15,8 @@ class BusinessDocumentLine extends Model
         'hsn_sac',
         'quantity',
         'item_rate',
+        'gross_amount',
+        'discount_percent',
         'taxable',
         'rate',
         'tax',
@@ -25,6 +27,8 @@ class BusinessDocumentLine extends Model
         return [
             'quantity' => 'decimal:3',
             'item_rate' => 'decimal:2',
+            'gross_amount' => 'decimal:2',
+            'discount_percent' => 'decimal:2',
             'taxable' => 'decimal:2',
             'rate' => 'decimal:2',
             'tax' => 'decimal:2',

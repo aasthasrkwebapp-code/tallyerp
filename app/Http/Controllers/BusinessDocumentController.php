@@ -186,11 +186,14 @@ class BusinessDocumentController extends Controller
             'lines.*.item_rate' => ['nullable', 'required_with:lines.*.stock_item_id', 'numeric', 'min:0'],
             'lines.*.taxable' => ['nullable', 'required_without:lines.*.stock_item_id', 'numeric', 'gt:0'],
             'lines.*.rate' => ['required', Rule::in(GstInvoiceController::RATES)],
+            'lines.*.discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
 
         $lines = collect($data['lines'])->map(function (array $l) {
             $stock = ! empty($l['stock_item_id']);
-            $taxable = $stock ? round((float) $l['quantity'] * (float) $l['item_rate'], 2) : round((float) $l['taxable'], 2);
+            $gross = $stock ? round((float) $l['quantity'] * (float) $l['item_rate'], 2) : round((float) $l['taxable'], 2);
+            $discount = round((float) ($l['discount_percent'] ?? 0), 2);
+            $taxable = round($gross * (1 - $discount / 100), 2);
 
             return [
                 'account_id' => (int) $l['account_id'],
@@ -199,6 +202,8 @@ class BusinessDocumentController extends Controller
                 'hsn_sac' => $l['hsn_sac'] ?? null,
                 'quantity' => $stock ? round((float) $l['quantity'], 3) : null,
                 'item_rate' => $stock ? round((float) $l['item_rate'], 2) : null,
+                'gross_amount' => $gross,
+                'discount_percent' => $discount,
                 'taxable' => $taxable,
                 'rate' => (float) $l['rate'],
                 'tax' => round($taxable * (float) $l['rate'] / 100, 2),

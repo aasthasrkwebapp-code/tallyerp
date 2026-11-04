@@ -120,6 +120,9 @@
                                             × {{ $money($line->item_rate) }}
                                         </div>
                                     @endif
+                                    @if ((float) $line->discount_percent > 0)
+                                        <div class="small text-secondary">{{ inr($line->gross_amount) }} less {{ (float) $line->discount_percent }}% discount</div>
+                                    @endif
                                 </td>
                                 <td>{{ $line->hsn_sac }}</td>
                                 <td class="text-end">{{ $money($line->taxable) }}</td>

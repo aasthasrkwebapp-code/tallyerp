@@ -70,7 +70,8 @@ class EInvoice
         $items = $lines->values()->map(function ($line, $i) {
             $qty = $line->quantity !== null ? (float) $line->quantity : 1.0;
             $assessable = (float) $line->taxable;
-            $unitPrice = $line->item_rate !== null ? (float) $line->item_rate : $assessable;
+            $gross = $line->gross_amount !== null ? (float) $line->gross_amount : $assessable;
+            $unitPrice = $line->item_rate !== null ? (float) $line->item_rate : $gross;
             $tax = (float) $line->cgst + (float) $line->sgst + (float) $line->igst;
             $unit = strtoupper((string) $line->stockItem?->unit?->symbol);
 
@@ -83,8 +84,8 @@ class EInvoice
                 'Qty' => round($qty, 3),
                 'Unit' => self::UNIT_CODES[$unit] ?? 'OTH',
                 'UnitPrice' => round($unitPrice, 3),
-                'TotAmt' => round($assessable, 2),
-                'Discount' => 0,
+                'TotAmt' => round($gross, 2),
+                'Discount' => round($gross - $assessable, 2),
                 'AssAmt' => round($assessable, 2),
                 'GstRt' => (float) $line->rate,
                 'IgstAmt' => round((float) $line->igst, 2),
@@ -139,7 +140,7 @@ class EInvoice
                 'SgstVal' => $sum('SgstAmt'),
                 'IgstVal' => $sum('IgstAmt'),
                 'CesVal' => 0,
-                'Discount' => 0,
+                'Discount' => 0, // item discounts are already in each line's AssAmt
                 'OthChrg' => 0,
                 'RndOffAmt' => 0,
                 'TotInvVal' => $sum('TotItemVal'),

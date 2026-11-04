@@ -69,7 +69,8 @@ class GstInvoiceController extends Controller
                     'hsn_sac' => $l->hsn_sac,
                     'quantity' => $l->quantity !== null ? (float) $l->quantity : '',
                     'item_rate' => $l->item_rate !== null ? (float) $l->item_rate : '',
-                    'taxable' => (float) $l->taxable,
+                    'taxable' => (float) ($l->gross_amount ?? $l->taxable),
+                    'discount_percent' => (float) $l->discount_percent ?: '',
                     'rate' => (string) (float) $l->rate,
                 ])->all(),
             ]);
@@ -117,6 +118,7 @@ class GstInvoiceController extends Controller
             'lines.*.item_rate' => ['nullable', 'required_with:lines.*.stock_item_id', 'numeric', 'min:0', 'max:9999999999999.99'],
             'lines.*.taxable' => ['nullable', 'numeric', 'gt:0', 'max:9999999999999.99'],
             'lines.*.rate' => ['required', Rule::in(self::RATES)],
+            'lines.*.discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ], [
             'date.after_or_equal' => 'The date must fall within financial year '.$company->financial_year.'.',
             'date.before_or_equal' => 'The date must fall within financial year '.$company->financial_year.'.',
@@ -165,7 +167,10 @@ class GstInvoiceController extends Controller
             $itemRate = $stockItemId ? round((float) $line['item_rate'], 2) : null;
 
             // With a stock item, the taxable value is quantity × rate.
-            $taxable = $stockItemId ? round($quantity * $itemRate, 2) : round((float) $line['taxable'], 2);
+            // Line value (qty × rate, or the amount entered), less any discount, is the taxable value.
+            $gross = $stockItemId ? round($quantity * $itemRate, 2) : round((float) $line['taxable'], 2);
+            $discount = round((float) ($line['discount_percent'] ?? 0), 2);
+            $taxable = round($gross * (1 - $discount / 100), 2);
             $rate = (float) $line['rate'];
             $half = round($taxable * $rate / 200, 2);
 
@@ -174,6 +179,8 @@ class GstInvoiceController extends Controller
                 'stock_item_id' => $stockItemId,
                 'quantity' => $quantity,
                 'item_rate' => $itemRate,
+                'gross_amount' => $gross,
+                'discount_percent' => $discount,
                 'description' => $line['description'] ?? null,
                 'hsn_sac' => $line['hsn_sac'] ?? null,
                 'taxable' => $taxable,

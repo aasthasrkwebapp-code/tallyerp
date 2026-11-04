@@ -110,7 +110,8 @@
                                 <th style="width: 120px">HSN/SAC</th>
                                 <th style="width: 100px" class="text-end">Qty</th>
                                 <th style="width: 120px" class="text-end">Rate</th>
-                                <th style="width: 140px" class="text-end">Taxable value</th>
+                                <th style="width: 140px" class="text-end">Amount</th>
+                                <th style="width: 90px" class="text-end">Disc %</th>
                                 <th style="width: 110px">GST %</th>
                                 <th style="width: 130px" class="text-end">Tax</th>
                                 <th style="width: 50px"></th>
@@ -139,7 +140,8 @@
                                     <td><input name="lines[{{ $i }}][hsn_sac]" value="{{ $row['hsn_sac'] ?? '' }}" class="form-control js-hsn" maxlength="10"></td>
                                     <td><input type="number" step="0.001" min="0" name="lines[{{ $i }}][quantity]" value="{{ $row['quantity'] ?? '' }}" class="form-control text-end js-qty"></td>
                                     <td><input type="number" step="0.01" min="0" name="lines[{{ $i }}][item_rate]" value="{{ $row['item_rate'] ?? '' }}" class="form-control text-end js-price"></td>
-                                    <td><input type="number" step="0.01" min="0.01" name="lines[{{ $i }}][taxable]" value="{{ $row['taxable'] ?? '' }}" class="form-control text-end js-taxable"></td>
+                                    <td><input type="number" step="0.01" min="0.01" name="lines[{{ $i }}][taxable]" value="{{ $row['taxable'] ?? '' }}" class="form-control text-end js-taxable" aria-label="Amount"></td>
+                                    <td><input type="number" step="0.01" min="0" max="100" name="lines[{{ $i }}][discount_percent]" value="{{ $row['discount_percent'] ?? '' }}" class="form-control text-end js-disc" aria-label="Discount %"></td>
                                     <td>
                                         <select name="lines[{{ $i }}][rate]" class="form-select js-rate">
                                             @foreach ($rates as $rate)
@@ -155,13 +157,13 @@
                         <tfoot>
                             <tr class="fw-semibold">
                                 <td colspan="6"><button type="button" class="btn btn-sm btn-outline-primary" id="add-line">+ Add line</button></td>
-                                <td class="text-end" id="total-taxable">0.00</td>
+                                <td class="text-end" colspan="2">Taxable <span id="total-taxable">0.00</span></td>
                                 <td></td>
                                 <td class="text-end" id="total-tax">0.00</td>
                                 <td></td>
                             </tr>
                             <tr class="fw-semibold">
-                                <td colspan="8" class="text-end">Invoice total <span class="text-secondary small" id="split"></span></td>
+                                <td colspan="9" class="text-end">Invoice total <span class="text-secondary small" id="split"></span></td>
                                 <td class="text-end" id="grand-total">0.00</td>
                                 <td></td>
                             </tr>
@@ -206,7 +208,10 @@
                 const p = parseFloat(row.querySelector('.js-price').value) || 0;
                 taxInput.value = q && p ? (Math.round(q * p * 100) / 100).toFixed(2) : '';
             }
-            const t = parseFloat(row.querySelector('.js-taxable').value) || 0;
+            // Discount comes off before GST.
+            const gross = parseFloat(row.querySelector('.js-taxable').value) || 0;
+            const disc = parseFloat(row.querySelector('.js-disc').value) || 0;
+            const t = Math.round(gross * (1 - disc / 100) * 100) / 100;
             const r = parseFloat(row.querySelector('.js-rate').value) || 0;
             const lineTax = interState() ? Math.round(t * r) / 100 : 2 * Math.round(t * r / 2) / 100;
             row.querySelector('.js-tax').textContent = fmt(lineTax);
