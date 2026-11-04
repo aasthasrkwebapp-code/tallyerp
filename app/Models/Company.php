@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Audited;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Company extends Model
 {
-    use HasFactory;
+    use HasFactory, Audited;
 
     protected $fillable = [
         'user_id',
@@ -28,6 +29,11 @@ class Company extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function auditLogs(): HasMany
+    {
+        return $this->hasMany(AuditLog::class);
     }
 
     public function members(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
@@ -202,6 +208,12 @@ class Company extends Model
      * Create Tally's predefined account groups for this company.
      */
     public function createDefaultGroups(): void
+    {
+        // Setup data, not user activity: keep it out of the audit log.
+        AccountGroup::withoutEvents(fn () => $this->seedDefaultGroups());
+    }
+
+    protected function seedDefaultGroups(): void
     {
         $ids = [];
 

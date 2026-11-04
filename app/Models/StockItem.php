@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Audited;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class StockItem extends Model
 {
+    use Audited;
+
     protected $fillable = [
         'company_id',
         'stock_group_id',
@@ -51,5 +54,10 @@ class StockItem extends Model
     public function openingValue(): float
     {
         return round((float) $this->opening_quantity * (float) $this->opening_rate, 2);
+    }
+
+    public function auditLabel(): string
+    {
+        return 'Stock item '.$this->name;
     }
 }

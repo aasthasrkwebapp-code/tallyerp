@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Audited;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Account extends Model
 {
+    use Audited;
+
     protected $table = 'chart_of_accounts';
 
     protected $fillable = [
@@ -58,5 +61,10 @@ class Account extends Model
         $amount = (float) $this->opening_balance;
 
         return $this->opening_balance_type === 'cr' ? -$amount : $amount;
+    }
+
+    public function auditLabel(): string
+    {
+        return 'Ledger '.$this->name;
     }
 }

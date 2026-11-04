@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Audited;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Voucher extends Model
 {
+    use Audited;
+
     public const TYPES = [
         'payment' => 'Payment',
         'receipt' => 'Receipt',
@@ -78,5 +81,10 @@ class Voucher extends Model
             ->where('type', $type)
             ->lockForUpdate()
             ->max('number') + 1;
+    }
+
+    public function auditLabel(): string
+    {
+        return $this->typeLabel().' #'.$this->number.' ('.inr($this->amount).')';
     }
 }

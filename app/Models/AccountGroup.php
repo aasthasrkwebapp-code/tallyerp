@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Audited;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AccountGroup extends Model
 {
+    use Audited;
+
     public const NATURES = ['assets', 'liabilities', 'income', 'expenses'];
 
     /**
@@ -78,5 +81,10 @@ class AccountGroup extends Model
     public function accounts(): HasMany
     {
         return $this->hasMany(Account::class);
+    }
+
+    public function auditLabel(): string
+    {
+        return 'Group '.$this->name;
     }
 }

@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Audited;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Employee extends Model
 {
+    use Audited;
+
     protected $fillable = [
         'company_id',
         'code',
@@ -52,5 +55,10 @@ class Employee extends Model
     public function monthlyGross(): float
     {
         return round((float) $this->basic + (float) $this->hra + (float) $this->other_allowances, 2);
+    }
+
+    public function auditLabel(): string
+    {
+        return 'Employee '.$this->name;
     }
 }

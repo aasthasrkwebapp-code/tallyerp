@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Audited;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PayrollRun extends Model
 {
+    use Audited;
+
     protected $fillable = [
         'company_id',
         'month',
@@ -34,5 +37,10 @@ class PayrollRun extends Model
     public function payslips(): HasMany
     {
         return $this->hasMany(Payslip::class);
+    }
+
+    public function auditLabel(): string
+    {
+        return 'Payroll '.$this->month?->format('M Y');
     }
 }

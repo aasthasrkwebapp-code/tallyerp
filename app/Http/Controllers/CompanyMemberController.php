@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\Company;
 use App\Models\Role;
 use App\Models\User;
@@ -48,6 +49,7 @@ class CompanyMemberController extends Controller
         }
 
         $company->members()->attach($user->id, ['role_id' => $data['role_id']]);
+        $this->log($company, 'created', $user, 'Gave '.$user->name.' access as '.Role::find($data['role_id'])->name);
 
         return back()->with('success', $user->name.' can now access '.$company->name.'.');
     }
@@ -62,6 +64,7 @@ class CompanyMemberController extends Controller
         ]);
 
         $company->members()->updateExistingPivot($member->id, ['role_id' => $data['role_id']]);
+        $this->log($company, 'updated', $member, 'Changed role of '.$member->name.' to '.Role::find($data['role_id'])->name);
 
         return back()->with('success', 'Role updated for '.$member->name.'.');
     }
@@ -72,8 +75,21 @@ class CompanyMemberController extends Controller
         abort_unless($company->members()->whereKey($member->id)->exists(), 404);
 
         $company->members()->detach($member->id);
+        $this->log($company, 'deleted', $member, 'Removed access for '.$member->name);
 
         return back()->with('success', $member->name.' no longer has access.');
+    }
+
+    protected function log(Company $company, string $action, User $member, string $summary): void
+    {
+        AuditLog::create([
+            'company_id' => $company->id,
+            'user_id' => auth()->id(),
+            'action' => $action,
+            'subject_type' => 'Member',
+            'subject_id' => $member->id,
+            'summary' => $summary,
+        ]);
     }
 
     /**

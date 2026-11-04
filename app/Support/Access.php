@@ -30,6 +30,7 @@ class Access
     public const ROUTE_MODULES = [
         'show' => null,
         'members.*' => 'admin',
+        'audit' => 'admin',
         'edit' => 'admin',
         'update' => 'admin',
         'destroy' => 'owner',

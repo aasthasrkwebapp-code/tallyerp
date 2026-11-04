@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AccountGroupController;
 use App\Http\Controllers\BankReconciliationController;
 use App\Http\Controllers\CompanyController;
@@ -23,6 +24,7 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('companies', CompanyController::class);
     Route::put('companies/{company}/financial-year', [CompanyController::class, 'changeYear'])
         ->name('companies.financial-year');
+    Route::get('companies/{company}/audit', AuditLogController::class)->name('companies.audit');
     Route::resource('companies.members', CompanyMemberController::class)
         ->only(['index', 'store', 'update', 'destroy']);
 
