@@ -74,6 +74,32 @@ class Rule42ReversalTest extends TestCase
         $this->assertSame(4500.0, $response->viewData('payable')->cgst);
     }
 
+    public function test_longer_period_uses_each_months_own_ratio(): void
+    {
+        // August: only taxable sales and a larger common rent bill → no reversal for August.
+        $sales = $this->company->accounts()->where('name', 'Sales')->firstOrFail();
+        $rent = $this->company->accounts()->where('name', 'Office Rent')->firstOrFail();
+        $this->actingAs($this->company->user)->post(route('companies.gst-invoices.store', $this->company), [
+            'type' => 'sales', 'date' => '2026-08-10', 'party_account_id' => $this->party->id,
+            'lines' => [['account_id' => $sales->id, 'taxable' => 100000, 'rate' => 18, 'hsn_sac' => '9954']],
+        ]);
+        $this->actingAs($this->company->user)->post(route('companies.gst-invoices.store', $this->company), [
+            'type' => 'purchase', 'date' => '2026-08-10', 'party_account_id' => $this->party->id,
+            'lines' => [['account_id' => $rent->id, 'taxable' => 40000, 'rate' => 18, 'hsn_sac' => '9954']],
+        ]);
+
+        // July–August together: July reverses 25% of 1,800 = 450 and August 0% of 3,600 = 0.
+        // A blended 12.5% over both months would wrongly give 12.5% of 5,400 = 675.
+        $august = $this->actingAs($this->company->user)
+            ->get(route('companies.gst.gstr3b', [$this->company, 'month' => '2026-08']))->viewData('reversal');
+        $both = $this->actingAs($this->company->user)
+            ->get(route('companies.gst.gstr3b', [$this->company, 'from' => '2026-07-01', 'to' => '2026-08-31']))->viewData('reversal');
+
+        $this->assertSame(0.0, $august->cgst);
+        $this->assertSame(450.0, $both->cgst);
+        $this->assertSame(12.5, $both->ratio);
+    }
+
     public function test_no_exempt_sales_means_no_reversal(): void
     {
         $response = $this->actingAs($this->company->user)

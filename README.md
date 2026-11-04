@@ -51,7 +51,7 @@ Feature tests cover each module with worked examples (see `tests/Feature`).
 
 ## Simplifications
 
-- ITC reversal covers rules 42 and 43 (common inputs and capital goods, 0% sales treated as exempt), using the ratio for the period shown.
+- ITC reversal covers rules 42 and 43 (common inputs and capital goods, 0% sales treated as exempt), month by month.
 - Payroll uses common PF/ESI rules and a flat professional tax of 200 above 10,000; adjust `app/Support/Payroll.php` for your state.
 - GST invoices, TDS bills and payroll journals are deleted and re-entered rather than edited.
 - e-invoice JSON is generated for upload to the e-invoice portal; the app does not call the IRP API or store the IRN/QR code. E-way bill JSON is likewise uploaded on the portal; the EWB number is then entered on the invoice (not fetched automatically).

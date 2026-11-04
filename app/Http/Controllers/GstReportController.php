@@ -106,6 +106,37 @@ class GstReportController extends Controller
      */
     protected function outwardAndItc(Company $company, CarbonImmutable $from, CarbonImmutable $to): array
     {
+        // Rules 42/43 work per tax period (month): each month is reversed with its
+        // own exempt ratio, and the months are added up.
+        $outward = $itc = $reversal = null;
+        $exempt = 0.0;
+
+        for ($start = $from; $start->lte($to); $start = $start->addMonth()->startOfMonth()) {
+            $end = min($start->endOfMonth()->startOfDay(), $to);
+            [$o, $i, $r] = $this->monthOutwardAndItc($company, $start, $end);
+
+            $outward = $outward ? $this->plus($outward, $o) : $o;
+            $itc = $itc ? $this->plus($itc, $i) : $i;
+            $reversal = $reversal ? $this->plus($reversal, $r) : $r;
+            $exempt += $r['exempt_turnover'];
+        }
+
+        $reversal['ratio'] = $outward['taxable'] > 0 ? round(max(0, min(1, $exempt / $outward['taxable'])) * 100, 2) : 0.0;
+
+        return [$outward, $itc, $reversal];
+    }
+
+    protected function plus(array $a, array $b): array
+    {
+        foreach ($b as $key => $value) {
+            $a[$key] = round(($a[$key] ?? 0) + $value, 2);
+        }
+
+        return $a;
+    }
+
+    protected function monthOutwardAndItc(Company $company, CarbonImmutable $from, CarbonImmutable $to): array
+    {
         $sales = $this->lines($company, 'sales', $from, $to);
         $returns = $this->lines($company, 'credit_note', $from, $to);
         $purchases = $this->lines($company, 'purchase', $from, $to)->where('itc_eligible', true);
@@ -128,7 +159,7 @@ class GstReportController extends Controller
         $commonItc = $this->minus($this->totals($purchases->filter($isCommonInput)), $this->totals($purchaseReturns->filter($isCommonInput)));
         $capital = $this->capitalGoodsMonthlyCredit($company, $books, $isCapital, $from, $to);
 
-        $reversal = ['ratio' => round($ratio * 100, 2), 'common' => $commonItc['tax']];
+        $reversal = ['exempt_turnover' => $exemptTurnover, 'common' => $commonItc['tax']];
         foreach (GstSetOff::HEADS as $head) {
             $reversal['rule42_'.$head] = round(max(0, $commonItc[$head]) * $ratio, 2);
             $reversal['rule43_'.$head] = round(max(0, $capital[$head]) * $ratio, 2);
