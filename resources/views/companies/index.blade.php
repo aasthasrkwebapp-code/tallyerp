@@ -51,7 +51,7 @@
                                     </a>
                                     <form method="POST"
                                         action="{{ route('companies.destroy', $company) }}"
-                                        onsubmit="return confirm('Are you sure you want to delete {{ $company->name }}?');">
+                                        onsubmit="return confirm(@js('Are you sure you want to delete '.$company->name.'?'));">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-outline-danger">

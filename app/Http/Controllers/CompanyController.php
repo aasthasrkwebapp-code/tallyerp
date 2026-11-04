@@ -74,7 +74,7 @@ class CompanyController extends Controller
 
     protected function authorizeCompany(Company $company): void
     {
-        if ($company->user_id !== auth()->id()) {
+        if ((int) $company->user_id !== (int) auth()->id()) {
             abort(403);
         }
     }
@@ -89,7 +89,9 @@ class CompanyController extends Controller
                 'string',
                 'size:15',
                 'regex:/^[0-9A-Z]{15}$/',
-                Rule::unique('companies', 'gstin')->ignore($companyId),
+                Rule::unique('companies', 'gstin')
+                    ->where('user_id', auth()->id())
+                    ->ignore($companyId),
             ],
             'pan' => [
                 'nullable',
