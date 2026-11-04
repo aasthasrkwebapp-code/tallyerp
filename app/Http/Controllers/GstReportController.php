@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Company;
 use App\Models\VoucherGstLine;
 use App\Support\Books;
+use App\Support\GstSetOff;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -86,12 +87,12 @@ class GstReportController extends Controller
             $this->totals($this->lines($company, 'debit_note', $from, $to)),
         );
 
-        $payable = (object) [];
-        foreach (['igst', 'cgst', 'sgst'] as $head) {
-            $payable->$head = round($outward->$head - $itc->$head, 2);
-        }
+        $setOff = GstSetOff::compute((array) $outward, (array) $itc);
+        $payable = (object) $setOff['cash'];
+        $carryForward = (object) $setOff['carry_forward'];
+        $used = $setOff['used'];
 
-        return view('gst.gstr3b', compact('company', 'from', 'to', 'outward', 'itc', 'payable'));
+        return view('gst.gstr3b', compact('company', 'from', 'to', 'outward', 'itc', 'payable', 'carryForward', 'used'));
     }
 
     /**

@@ -9,7 +9,7 @@ A Tally-style accounting app for Indian businesses, built with Laravel 12 and Bo
 | **Companies** | Several companies per user, GSTIN/PAN validation, financial years (e.g. `2026-27`) |
 | **Masters** | Tally's 28 predefined account groups created for every company; your own sub-groups; ledgers with Dr/Cr opening balances |
 | **Vouchers** | Payment, Receipt, Contra, Journal, Sales, Purchase, Debit/Credit Note. Debits must equal credits, numbering per type, dates within the financial year, cash/bank rules for contra/payment/receipt. Day Book, edit and delete |
-| **GST** | GSTIN/state/HSN/rate on ledgers; sales and purchase invoices split into CGST+SGST or IGST by place of supply; printable tax invoice; GSTR-1 (B2B, B2C, HSN) and GSTR-3B |
+| **GST** | GSTIN/state/HSN/rate on ledgers; sales and purchase invoices, credit and debit notes, split into CGST+SGST or IGST by place of supply; printable tax invoice; GSTR-1 (B2B, B2C, credit notes, HSN) and GSTR-3B with ITC set-off |
 | **Inventory** | Units, stock groups, stock items; invoice lines move stock; Stock Summary at weighted average cost; opening/closing stock in P&L and Balance Sheet |
 | **Reports** | Trial Balance, Profit & Loss, Balance Sheet, Ledger statement, Receivables/Payables with ageing, Cost Centres |
 | **Banking** | Bank reconciliation with cheque/UTR numbers and cleared dates |
@@ -48,7 +48,7 @@ Feature tests cover each module with worked examples (see `tests/Feature`).
 
 ## Simplifications
 
-- GSTR-3B nets each tax head separately (no IGST cross-utilisation).
+- GSTR-3B sets off input credit by the GST rules but does not carry credit forward between months automatically.
 - Payroll uses common PF/ESI rules and a flat professional tax of 200 above 10,000; adjust `app/Support/Payroll.php` for your state.
 - GST invoices, TDS bills and payroll journals are deleted and re-entered rather than edited.
 - Voucher numbers run continuously across financial years.
