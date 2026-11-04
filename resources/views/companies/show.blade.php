@@ -41,6 +41,13 @@
         </div>
     </div>
 
+    @if (session('success'))
+        <div class="alert alert-success">{{ session('success') }}</div>
+    @endif
+    @error('year')
+        <div class="alert alert-danger">{{ $message }}</div>
+    @enderror
+
     <div class="card border-0 shadow-sm">
         <div class="card-body p-3 p-md-4">
             <div class="row g-3">
@@ -86,7 +93,20 @@
 
                 <div class="col-12 col-md-6">
                     <dt class="text-secondary small mb-1">Financial Year</dt>
-                    <dd class="mb-0">{{ $company->financial_year }}</dd>
+                    <dd class="mb-0">
+                        @php $currentStart = (int) substr($company->financial_year, 0, 4); @endphp
+                        <form method="POST" action="{{ route('companies.financial-year', $company) }}" class="d-flex flex-wrap gap-2 align-items-center">
+                            @csrf
+                            @method('PUT')
+                            <select name="year" class="form-select form-select-sm w-auto" aria-label="Financial year">
+                                @foreach (range($company->books_start_year, max($currentStart, now()->year) + 1) as $y)
+                                    <option value="{{ $y }}" @selected($y === $currentStart)>{{ sprintf('%d-%02d', $y, ($y + 1) % 100) }}</option>
+                                @endforeach
+                            </select>
+                            <button class="btn btn-sm btn-outline-primary">Change year</button>
+                        </form>
+                        <div class="form-text">Books start {{ $company->books_start_year }}-{{ sprintf('%02d', ($company->books_start_year + 1) % 100) }}. Balances carry forward; income and expenses restart each year.</div>
+                    </dd>
                 </div>
 
                 <div class="col-12 col-md-6">

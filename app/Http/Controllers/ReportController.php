@@ -35,9 +35,16 @@ class ReportController extends Controller
             ->groupBy(fn (Account $a) => $a->primary->name)
             ->sortKeys();
 
+        $yearStart = Books::yearStartFor($to);
+
+        // Earlier years' profit sits in the Profit & Loss A/c (a credit when it was a profit),
+        // and the stock carried into this year is shown as Opening Stock.
+        $priorProfitAndLoss = -$this->retainedProfit($books, $yearStart);
+        $openingStock = (new Stock($company))->closingValue($yearStart->subDay());
+
         $accounts = $groups->flatten(1);
-        $totalDebit = round($accounts->where('balance', '>', 0)->sum('balance'), 2);
-        $totalCredit = round(-$accounts->where('balance', '<', 0)->sum('balance'), 2);
+        $totalDebit = round($accounts->where('balance', '>', 0)->sum('balance') + max($priorProfitAndLoss, 0) + $openingStock, 2);
+        $totalCredit = round(-$accounts->where('balance', '<', 0)->sum('balance') + max(-$priorProfitAndLoss, 0), 2);
 
         return view('reports.trial-balance', [
             'company' => $company,
@@ -45,6 +52,8 @@ class ReportController extends Controller
             'groups' => $groups,
             'totalDebit' => $totalDebit,
             'totalCredit' => $totalCredit,
+            'priorProfitAndLoss' => $priorProfitAndLoss,
+            'openingStock' => $openingStock,
             'openingDifference' => $books->openingDifference(),
         ]);
     }
@@ -76,9 +85,10 @@ class ReportController extends Controller
         }
         $liabilities = $this->byPrimary($accounts->where('primary.nature', 'liabilities'), -1);
         $netProfit = $this->profitAndLossFigures($books, $to)['netProfit'];
+        $retained = $this->retainedProfit($books, Books::yearStartFor($to));
 
         $totalAssets = round($assets->sum('total'), 2);
-        $totalLiabilities = round($liabilities->sum('total') + $netProfit, 2);
+        $totalLiabilities = round($liabilities->sum('total') + $retained + $netProfit, 2);
 
         return view('reports.balance-sheet', [
             'company' => $company,
@@ -86,6 +96,7 @@ class ReportController extends Controller
             'assets' => $assets,
             'liabilities' => $liabilities,
             'netProfit' => $netProfit,
+            'retained' => $retained,
             'totalAssets' => $totalAssets,
             'totalLiabilities' => $totalLiabilities,
             // Vouchers always balance, so any gap comes from opening balances.
@@ -131,7 +142,7 @@ class ReportController extends Controller
 
         // Stock: opening stock is a trading expense, closing stock trading income.
         $stock = new Stock($books->company);
-        if (($opening = $stock->openingValue()) != 0) {
+        if (($opening = $stock->closingValue(Books::yearStartFor($to)->subDay())) != 0) {
             $tradingExpense->prepend($this->stockLine('Opening Stock', $opening));
         }
         if (($closing = $stock->closingValue($to)) != 0) {
@@ -144,6 +155,22 @@ class ReportController extends Controller
         $netProfit = round($grossProfit + $indirectIncome->sum('total') - $indirectExpense->sum('total'), 2);
 
         return compact('tradingIncome', 'tradingExpense', 'indirectIncome', 'indirectExpense', 'grossProfit', 'netProfit');
+    }
+
+    /**
+     * Profit of all earlier financial years (income/expense ledgers plus the
+     * change in stock up to this year's start).
+     */
+    protected function retainedProfit(Books $books, CarbonImmutable $yearStart): float
+    {
+        if ($yearStart->lte($books->booksStart())) {
+            return 0.0;
+        }
+
+        $stock = new Stock($books->company);
+        $stockGain = $stock->closingValue($yearStart->subDay()) - $stock->openingValue();
+
+        return round(-$books->priorNominalBalance($yearStart) + $stockGain, 2);
     }
 
     /**

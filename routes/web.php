@@ -16,6 +16,8 @@ use App\Http\Controllers\VoucherController;
 
 Route::middleware(['auth'])->group(function () {
     Route::resource('companies', CompanyController::class);
+    Route::put('companies/{company}/financial-year', [CompanyController::class, 'changeYear'])
+        ->name('companies.financial-year');
 
     // scoped() makes {account_group} / {account} resolve only within {company}.
     Route::resource('companies.account-groups', AccountGroupController::class)

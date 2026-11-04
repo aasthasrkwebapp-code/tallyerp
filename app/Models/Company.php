@@ -70,6 +70,10 @@ class Company extends Model
 
     protected static function booted(): void
     {
+        static::saving(function (Company $company) {
+            $company->books_start_year ??= (int) substr($company->financial_year, 0, 4);
+        });
+
         static::created(function (Company $company) {
             $company->createDefaultGroups();
             $company->createDefaultUnits();

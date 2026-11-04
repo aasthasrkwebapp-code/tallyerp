@@ -21,11 +21,21 @@
                 <table class="table mb-0">
                     <tbody>
                         @include('reports._section', ['sections' => $liabilities])
-                        @if ($netProfit != 0)
+                        @if ($netProfit != 0 || $retained != 0)
                             <tr>
                                 <td class="fw-semibold">Profit &amp; Loss A/c</td>
-                                <td class="text-end fw-semibold">{{ inr($netProfit, 2) }}</td>
+                                <td class="text-end fw-semibold">{{ inr($retained + $netProfit, 2) }}</td>
                             </tr>
+                            @if ($retained != 0)
+                                <tr class="small">
+                                    <td class="ps-4 text-secondary">Opening balance (earlier years)</td>
+                                    <td class="text-end text-secondary">{{ inr($retained, 2) }}</td>
+                                </tr>
+                                <tr class="small">
+                                    <td class="ps-4 text-secondary">Current period</td>
+                                    <td class="text-end text-secondary">{{ inr($netProfit, 2) }}</td>
+                                </tr>
+                            @endif
                         @endif
                         @if ($difference > 0)
                             <tr class="text-danger">

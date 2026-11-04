@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Company;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class CompanyController extends Controller
 {
@@ -53,12 +54,45 @@ class CompanyController extends Controller
         $this->authorizeCompany($company);
 
         $data = $request->validate($this->rules($company->id));
+        $startYear = (int) substr($data['financial_year'], 0, 4);
+
+        if ($company->vouchers()->exists()) {
+            // Books with entries keep their start year; earlier years can't be opened.
+            if ($startYear < $company->books_start_year) {
+                throw ValidationException::withMessages([
+                    'financial_year' => 'The books start in '.$company->books_start_year.'. Choose that year or later.',
+                ]);
+            }
+        } else {
+            // No entries yet: the books simply start in the chosen year.
+            $company->books_start_year = $startYear;
+        }
 
         $company->update($data);
 
         return redirect()
             ->route('companies.index')
             ->with('success', 'Company updated successfully.');
+    }
+
+    /**
+     * Move the company to another financial year. Asset and liability balances
+     * carry forward; income and expenses start again from zero.
+     */
+    public function changeYear(Request $request, Company $company)
+    {
+        $this->authorizeCompany($company);
+
+        $data = $request->validate([
+            'year' => ['required', 'integer', 'min:'.$company->books_start_year, 'max:'.($company->books_start_year + 50)],
+        ], [
+            'year.min' => 'The books start in '.$company->books_start_year.'.',
+        ]);
+
+        $year = (int) $data['year'];
+        $company->update(['financial_year' => sprintf('%d-%02d', $year, ($year + 1) % 100)]);
+
+        return back()->with('success', 'Now working in financial year '.$company->financial_year.'.');
     }
 
     public function destroy(Company $company)
@@ -99,6 +133,12 @@ class CompanyController extends Controller
             'financial_year' => [
                 'required',
                 'regex:/^\d{4}-\d{2}$/',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    // "2026-27": the second part must be the following year.
+                    if (is_string($value) && preg_match('/^(\d{4})-(\d{2})$/', $value, $m) && (int) $m[2] !== ((int) $m[1] + 1) % 100) {
+                        $fail('The financial year must look like 2026-27.');
+                    }
+                },
             ],
             'currency' => ['required', 'in:INR'],
         ];

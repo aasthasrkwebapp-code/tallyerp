@@ -25,6 +25,20 @@
                     </tr>
                 </thead>
                 <tbody>
+                    @if ($priorProfitAndLoss != 0)
+                        <tr>
+                            <td class="fw-semibold">Profit &amp; Loss A/c <span class="text-secondary small">(earlier years)</span></td>
+                            <td class="text-end">{{ $priorProfitAndLoss > 0 ? inr($priorProfitAndLoss, 2) : '' }}</td>
+                            <td class="text-end">{{ $priorProfitAndLoss < 0 ? inr(-$priorProfitAndLoss, 2) : '' }}</td>
+                        </tr>
+                    @endif
+                    @if ($openingStock != 0)
+                        <tr>
+                            <td class="fw-semibold">Opening Stock</td>
+                            <td class="text-end">{{ inr($openingStock, 2) }}</td>
+                            <td></td>
+                        </tr>
+                    @endif
                     @forelse ($groups as $groupName => $accounts)
                         <tr class="table-group-divider">
                             <td class="fw-semibold" colspan="3">{{ $groupName }}</td>
