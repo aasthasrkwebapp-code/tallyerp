@@ -13,6 +13,7 @@ class VoucherGstLine extends Model
         'stock_item_id',
         'batch_no',
         'expiry_date',
+        'serial_numbers',
         'quantity',
         'item_rate',
         'gross_amount',

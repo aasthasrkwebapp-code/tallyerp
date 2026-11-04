@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Account;
 use App\Models\Company;
+use App\Models\SerialNumber;
 use App\Models\Voucher;
 use App\Support\Books;
 use App\Support\EInvoice;
@@ -124,6 +125,7 @@ class GstInvoiceController extends Controller
             'lines.*.discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'lines.*.batch_no' => ['nullable', 'string', 'max:40'],
             'lines.*.expiry_date' => ['nullable', 'date'],
+            'lines.*.serial_numbers' => ['nullable', 'string', 'max:5000'],
         ], [
             'date.after_or_equal' => 'The date must fall within financial year '.$company->financial_year.'.',
             'date.before_or_equal' => 'The date must fall within financial year '.$company->financial_year.'.',
@@ -155,6 +157,7 @@ class GstInvoiceController extends Controller
         }
 
         $this->checkBatches($company, $data['lines'], $kind['stockOut']);
+        $serials = $this->checkSerials($company, $data['lines'], $data['type']);
 
         $party = $company->accounts()->findOrFail($data['party_account_id']);
         $placeOfSupply = $data['place_of_supply']
@@ -200,12 +203,13 @@ class GstInvoiceController extends Controller
                 'igst' => $interState ? round($taxable * $rate / 100, 2) : 0,
                 'itc_eligible' => ! in_array((int) $line['account_id'], $blocked, true),
                 'batch_no' => $stockItemId && filled($line['batch_no'] ?? null) ? trim($line['batch_no']) : null,
+                'serial_numbers' => $stockItemId && ($list = SerialNumber::parse($line['serial_numbers'] ?? null)) ? implode(', ', $list) : null,
                 'expiry_date' => ! $stockItemId || ! filled($line['batch_no'] ?? null) ? null
                     : ($kind['stockOut'] ? ($batchExpiry[$stockItemId.'|'.trim($line['batch_no'])] ?? null) : ($line['expiry_date'] ?? null)),
             ];
         });
 
-        $voucher = DB::transaction(function () use ($company, $data, $kind, $party, $placeOfSupply, $lines) {
+        $voucher = DB::transaction(function () use ($company, $data, $kind, $party, $placeOfSupply, $lines, $serials) {
             $partyDebit = $kind['partyDebit'];
             $total = round($lines->sum(fn ($l) => $l['taxable'] + $l['cgst'] + $l['sgst'] + $l['igst']), 2);
 
@@ -245,6 +249,8 @@ class GstInvoiceController extends Controller
 
             $voucher->entries()->createMany($entries);
             $voucher->gstLines()->createMany($lines->all());
+
+            $this->recordSerials($company, $voucher, $serials, $data['type']);
 
             if (! empty($data['document_id'])) {
                 $company->businessDocuments()->whereKey($data['document_id'])->update(['status' => 'converted', 'voucher_id' => $voucher->id]);
@@ -316,6 +322,65 @@ class GstInvoiceController extends Controller
                 throw ValidationException::withMessages([
                     "lines.$i.batch_no" => 'Batch '.$batch->batch_no.' has only '.rtrim(rtrim(number_format($batch->balance(), 3), '0'), '.').' left.',
                 ]);
+            }
+        }
+    }
+
+    /**
+     * Serial-tracked items: one serial per unit. Purchases bring in new serials,
+     * sales returns bring back sold ones; sales and purchase returns take out
+     * serials that are in stock.
+     *
+     * @return array<int, array{item: int, serials: array<int, string>}>
+     */
+    protected function checkSerials(Company $company, array $lines, string $type): array
+    {
+        $tracked = $company->stockItems()->where('track_serials', true)->pluck('name', 'id');
+        $result = [];
+
+        foreach ($lines as $i => $line) {
+            $itemId = (int) ($line['stock_item_id'] ?? 0);
+            if (! $itemId || ! $tracked->has($itemId)) {
+                continue;
+            }
+
+            $list = SerialNumber::parse($line['serial_numbers'] ?? null);
+            $qty = (float) $line['quantity'];
+            $fail = fn (string $msg) => throw ValidationException::withMessages(["lines.$i.serial_numbers" => 'Line '.($i + 1).': '.$msg]);
+
+            if ($qty != floor($qty) || count($list) !== (int) $qty) {
+                $fail('enter '.rtrim(rtrim(number_format($qty, 3), '0'), '.').' serial number(s) for '.$tracked[$itemId].' (found '.count($list).').');
+            }
+
+            $existing = $company->serialNumbers()->where('stock_item_id', $itemId)->whereIn('serial', $list)->get()->keyBy('serial');
+
+            foreach ($list as $serial) {
+                $unit = $existing->get($serial);
+                $problem = match ($type) {
+                    'purchase' => $unit ? $serial.' is already recorded.' : null,
+                    'credit_note' => ! $unit || $unit->inStock() ? $serial.' was not sold, so it can\'t come back.' : null,
+                    default => ! $unit || ! $unit->inStock() ? $serial.' is not in stock.' : null, // sales, debit_note
+                };
+                if ($problem) {
+                    $fail($problem);
+                }
+            }
+
+            $result[] = ['item' => $itemId, 'serials' => $list];
+        }
+
+        return $result;
+    }
+
+    protected function recordSerials(Company $company, Voucher $voucher, array $serials, string $type): void
+    {
+        foreach ($serials as ['item' => $itemId, 'serials' => $list]) {
+            foreach ($list as $serial) {
+                match ($type) {
+                    'purchase' => $company->serialNumbers()->create(['stock_item_id' => $itemId, 'serial' => $serial, 'in_voucher_id' => $voucher->id]),
+                    'credit_note' => $company->serialNumbers()->where('stock_item_id', $itemId)->where('serial', $serial)->update(['out_voucher_id' => null]),
+                    default => $company->serialNumbers()->where('stock_item_id', $itemId)->where('serial', $serial)->update(['out_voucher_id' => $voucher->id]),
+                };
             }
         }
     }

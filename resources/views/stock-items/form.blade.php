@@ -101,6 +101,12 @@
                             <label class="form-check-label" for="track_batches">Track batches and expiry dates</label>
                             <div class="form-text mt-0">Purchases record a batch number and expiry; sales pick the batch. Opening stock stays without a batch.</div>
                         </div>
+                        <input type="hidden" name="track_serials" value="0">
+                        <div class="form-check mt-2">
+                            <input type="checkbox" class="form-check-input" id="track_serials" name="track_serials" value="1" @checked(old('track_serials', $item->track_serials))>
+                            <label class="form-check-label" for="track_serials">Track serial numbers (IMEI etc.)</label>
+                            <div class="form-text mt-0">Every unit bought or sold is listed by its serial number.</div>
+                        </div>
                     </div>
                 </div>
             </div>

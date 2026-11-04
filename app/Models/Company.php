@@ -229,6 +229,11 @@ class Company extends Model
         return $this->hasMany(CostCentre::class);
     }
 
+    public function serialNumbers(): HasMany
+    {
+        return $this->hasMany(SerialNumber::class);
+    }
+
     public function stockBatches(): HasMany
     {
         return $this->hasMany(StockBatch::class);

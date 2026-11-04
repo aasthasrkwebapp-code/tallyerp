@@ -23,6 +23,7 @@ class StockItem extends Model
         'barcode',
         'selling_price',
         'track_batches',
+        'track_serials',
     ];
 
     protected function casts(): array
@@ -33,6 +34,7 @@ class StockItem extends Model
             'opening_rate' => 'decimal:2',
             'selling_price' => 'decimal:2',
             'track_batches' => 'boolean',
+            'track_serials' => 'boolean',
         ];
     }
 
@@ -49,6 +51,11 @@ class StockItem extends Model
     public function unit(): BelongsTo
     {
         return $this->belongsTo(Unit::class);
+    }
+
+    public function serialNumbers(): HasMany
+    {
+        return $this->hasMany(SerialNumber::class);
     }
 
     public function batches(): HasMany

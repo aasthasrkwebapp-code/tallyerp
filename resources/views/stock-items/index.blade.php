@@ -14,6 +14,7 @@
             <a href="{{ route('companies.inventory.setup', $company) }}" class="btn btn-outline-primary">Units &amp; Groups</a>
             <a href="{{ route('companies.stock-items.labels', $company) }}" class="btn btn-outline-primary">Barcode Labels</a>
             <a href="{{ route('companies.inventory.batches', $company) }}" class="btn btn-outline-primary">Batches &amp; Expiry</a>
+            <a href="{{ route('companies.inventory.serials', $company) }}" class="btn btn-outline-primary">Serial Numbers</a>
             <a href="{{ route('companies.inventory.summary', $company) }}" class="btn btn-outline-primary">Stock Summary</a>
             <a href="{{ route('companies.show', $company) }}" class="btn btn-outline-secondary">Back to Company</a>
         </div>

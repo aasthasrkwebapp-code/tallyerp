@@ -99,6 +99,7 @@ Route::middleware(['auth'])->group(function () {
             Route::delete('groups/{stockGroup}', 'destroyGroup')->name('groups.destroy');
             Route::get('summary', 'summary')->name('summary');
             Route::get('batches', 'batches')->name('batches');
+            Route::get('serials', 'serials')->name('serials');
         });
 
     Route::get('companies/{company}/banking/reconciliation', [BankReconciliationController::class, 'show'])

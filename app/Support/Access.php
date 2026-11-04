@@ -51,6 +51,7 @@ class Access
         'stock-items.*' => 'inventory',
         'inventory.summary' => 'reports',
         'inventory.batches' => 'reports',
+        'inventory.serials' => 'reports',
         'inventory.*' => 'inventory',
         'banking.*' => 'banking',
         'tds.*' => 'tds',

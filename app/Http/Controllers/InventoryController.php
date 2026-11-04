@@ -105,6 +105,29 @@ class InventoryController extends Controller
         return view('inventory.batches', compact('company', 'rows', 'show'));
     }
 
+    /**
+     * Find a serial number: when it came in, from whom, and who it went to.
+     */
+    public function serials(Request $request, Company $company)
+    {
+        $this->authorizeCompany($company);
+
+        $request->validate(['q' => ['nullable', 'string', 'max:60'], 'item' => ['nullable', 'integer']]);
+        $search = strtoupper(trim((string) $request->input('q')));
+
+        $units = $company->serialNumbers()
+            ->with(['stockItem', 'inVoucher.party', 'outVoucher.party'])
+            ->when($search !== '', fn ($q) => $q->where('serial', 'like', '%'.$search.'%'))
+            ->when($request->filled('item'), fn ($q) => $q->where('stock_item_id', $request->integer('item')))
+            ->orderBy('serial')
+            ->limit(500)
+            ->get();
+
+        $items = $company->stockItems()->where('track_serials', true)->orderBy('name')->get();
+
+        return view('inventory.serials', compact('company', 'units', 'items', 'search'));
+    }
+
     public function summary(Request $request, Company $company)
     {
         $this->authorizeCompany($company);

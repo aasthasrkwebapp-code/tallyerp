@@ -24,6 +24,7 @@
             ['companies.forex.revaluation', 'Forex Revaluation', 'Foreign-currency balances at today\'s rates.'],
             ['companies.budgets.index', 'Budget vs Actual', 'How income and expenses compare with this year\'s budget.'],
             ['companies.cost-centres.index', 'Cost Centres', 'Income and expenses by department or project.'],
+            ['companies.inventory.serials', 'Serial Numbers', 'Find a serial: purchase, sale and stock status.'],
             ['companies.inventory.batches', 'Batch-wise Stock', 'Stock left per batch with expiry alerts.'],
             ['companies.inventory.summary', 'Stock Summary', 'Quantity and value of every stock item.'],
             ['companies.banking.reconciliation', 'Bank Reconciliation', 'Match bank entries with your bank statement.'],

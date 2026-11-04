@@ -14,6 +14,8 @@
     $partyData = $parties->mapWithKeys(fn ($a) => [$a->id => $a->state_code]);
     $inward = in_array($type, ['purchase', 'credit_note'], true);
     $hasBatches = $stockItems->contains('track_batches', true);
+    $hasSerials = $stockItems->contains('track_serials', true);
+    $extraCols = ($hasBatches ? 1 + ($inward ? 1 : 0) : 0) + ($hasSerials ? 1 : 0);
     $stockData = $stockItems->mapWithKeys(fn ($i) => [$i->id => ['hsn' => $i->hsn_sac, 'rate' => $i->gst_rate === null ? null : (float) $i->gst_rate, 'price' => (float) (in_array($type, ['sales', 'credit_note'], true) && $i->selling_price !== null ? $i->selling_price : $i->opening_rate)]]);
 @endphp
 <div class="container-fluid py-3">
@@ -124,6 +126,9 @@
                                     <th style="min-width: 120px">Batch</th>
                                     @if ($inward)<th style="min-width: 140px">Expiry</th>@endif
                                 @endif
+                                @if ($hasSerials)
+                                    <th style="min-width: 180px">Serial nos.</th>
+                                @endif
                                 <th style="width: 100px" class="text-end">Qty</th>
                                 <th style="width: 120px" class="text-end">Rate</th>
                                 <th style="width: 140px" class="text-end">Amount</th>
@@ -161,6 +166,10 @@
                                             <td><input type="date" name="lines[{{ $i }}][expiry_date]" value="{{ $row['expiry_date'] ?? '' }}" class="form-control" aria-label="Expiry date"></td>
                                         @endif
                                     @endif
+                                    @if ($hasSerials)
+                                        <td><textarea name="lines[{{ $i }}][serial_numbers]" rows="1" class="form-control" aria-label="Serial numbers"
+                                            placeholder="One per line or comma-separated">{{ $row['serial_numbers'] ?? '' }}</textarea></td>
+                                    @endif
                                     <td><input type="number" step="0.001" min="0" name="lines[{{ $i }}][quantity]" value="{{ $row['quantity'] ?? '' }}" class="form-control text-end js-qty"></td>
                                     <td><input type="number" step="0.01" min="0" name="lines[{{ $i }}][item_rate]" value="{{ $row['item_rate'] ?? '' }}" class="form-control text-end js-price"></td>
                                     <td><input type="number" step="0.01" min="0.01" name="lines[{{ $i }}][taxable]" value="{{ $row['taxable'] ?? '' }}" class="form-control text-end js-taxable" aria-label="Amount"></td>
@@ -179,14 +188,14 @@
                         </tbody>
                         <tfoot>
                             <tr class="fw-semibold">
-                                <td colspan="{{ 6 + ($hasBatches ? 1 + ($inward ? 1 : 0) : 0) }}"><button type="button" class="btn btn-sm btn-outline-primary" id="add-line">+ Add line</button></td>
+                                <td colspan="{{ 6 + $extraCols }}"><button type="button" class="btn btn-sm btn-outline-primary" id="add-line">+ Add line</button></td>
                                 <td class="text-end" colspan="2">Taxable <span id="total-taxable">0.00</span></td>
                                 <td></td>
                                 <td class="text-end" id="total-tax">0.00</td>
                                 <td></td>
                             </tr>
                             <tr class="fw-semibold">
-                                <td colspan="{{ 9 + ($hasBatches ? 1 + ($inward ? 1 : 0) : 0) }}" class="text-end">Invoice total <span class="text-secondary small" id="split"></span></td>
+                                <td colspan="{{ 9 + $extraCols }}" class="text-end">Invoice total <span class="text-secondary small" id="split"></span></td>
                                 <td class="text-end" id="grand-total">0.00</td>
                                 <td></td>
                             </tr>
