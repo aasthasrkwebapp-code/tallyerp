@@ -39,13 +39,17 @@
                         <td class="text-end">{{ $m($itc->sgst + $reversal->sgst) }}</td>
                     </tr>
                     @if ($reversal->igst + $reversal->cgst + $reversal->sgst != 0)
-                        <tr class="text-danger">
-                            <td>4(B)(1) Reversal of common credit, rule 42 <span class="small">({{ $reversal->ratio }}% exempt sales)</span></td>
-                            <td></td>
-                            <td class="text-end">({{ $m($reversal->igst) }})</td>
-                            <td class="text-end">({{ $m($reversal->cgst) }})</td>
-                            <td class="text-end">({{ $m($reversal->sgst) }})</td>
-                        </tr>
+                        @foreach (['rule42' => 'inputs, rule 42', 'rule43' => 'capital goods, rule 43'] as $rule => $label)
+                            @if ($reversal->{$rule.'_igst'} + $reversal->{$rule.'_cgst'} + $reversal->{$rule.'_sgst'} != 0)
+                                <tr class="text-danger">
+                                    <td>4(B)(1) Reversal of common credit on {{ $label }} <span class="small">({{ $reversal->ratio }}% exempt sales)</span></td>
+                                    <td></td>
+                                    <td class="text-end">({{ $m($reversal->{$rule.'_igst'}) }})</td>
+                                    <td class="text-end">({{ $m($reversal->{$rule.'_cgst'}) }})</td>
+                                    <td class="text-end">({{ $m($reversal->{$rule.'_sgst'}) }})</td>
+                                </tr>
+                            @endif
+                        @endforeach
                         <tr class="fw-semibold">
                             <td>4(C) Net ITC available</td>
                             <td></td>

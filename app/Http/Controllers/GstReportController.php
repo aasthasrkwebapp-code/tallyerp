@@ -121,16 +121,56 @@ class GstReportController extends Controller
         $totalTurnover = $outward['taxable'];
         $ratio = $totalTurnover > 0 ? max(0, min(1, $exemptTurnover / $totalTurnover)) : 0;
 
-        $isCommon = fn (VoucherGstLine $l) => (bool) $l->account?->itc_common;
-        $commonItc = $this->minus($this->totals($purchases->filter($isCommon)), $this->totals($purchaseReturns->filter($isCommon)));
+        // Common credit on inputs falls under rule 42; on capital goods (fixed assets) under rule 43.
+        $books = new Books($company);
+        $isCapital = fn (VoucherGstLine $l) => $l->account && $books->primaryGroup($l->account->account_group_id)->code === 'FIXED_ASSETS';
+        $isCommonInput = fn (VoucherGstLine $l) => (bool) $l->account?->itc_common && ! $isCapital($l);
+        $commonItc = $this->minus($this->totals($purchases->filter($isCommonInput)), $this->totals($purchaseReturns->filter($isCommonInput)));
+        $capital = $this->capitalGoodsMonthlyCredit($company, $books, $isCapital, $from, $to);
 
         $reversal = ['ratio' => round($ratio * 100, 2), 'common' => $commonItc['tax']];
         foreach (GstSetOff::HEADS as $head) {
-            $reversal[$head] = round(max(0, $commonItc[$head]) * $ratio, 2);
+            $reversal['rule42_'.$head] = round(max(0, $commonItc[$head]) * $ratio, 2);
+            $reversal['rule43_'.$head] = round(max(0, $capital[$head]) * $ratio, 2);
+            $reversal[$head] = round($reversal['rule42_'.$head] + $reversal['rule43_'.$head], 2);
             $itc[$head] = round($itc[$head] - $reversal[$head], 2);
         }
 
         return [$outward, $itc, $reversal];
+    }
+
+    /**
+     * Rule 43: credit on capital goods used for both taxable and exempt sales is
+     * spread over 60 months. For each month in the period, the common credit is
+     * 1/60 of that on such goods bought in the 60 months up to that month.
+     *
+     * @return array{igst: float, cgst: float, sgst: float}
+     */
+    protected function capitalGoodsMonthlyCredit(Company $company, Books $books, \Closure $isCapital, CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        $lookback = $from->startOfMonth()->subMonths(59);
+        $isCommonCapital = fn (VoucherGstLine $l) => (bool) $l->account?->itc_common && $isCapital($l);
+
+        $signed = $this->lines($company, 'purchase', $lookback, $to)->where('itc_eligible', true)->filter($isCommonCapital)
+            ->map(fn ($l) => [$l->voucher->date, 1, $l])
+            ->concat($this->lines($company, 'debit_note', $lookback, $to)->where('itc_eligible', true)->filter($isCommonCapital)
+                ->map(fn ($l) => [$l->voucher->date, -1, $l]));
+
+        $monthly = array_fill_keys(GstSetOff::HEADS, 0.0);
+        for ($month = $from->startOfMonth(); $month->lte($to); $month = $month->addMonth()) {
+            $windowStart = $month->subMonths(59);
+            $windowEnd = $month->endOfMonth();
+
+            foreach ($signed as [$date, $sign, $line]) {
+                if ($date->gte($windowStart) && $date->lte($windowEnd)) {
+                    foreach (GstSetOff::HEADS as $head) {
+                        $monthly[$head] += $sign * (float) $line->$head / 60;
+                    }
+                }
+            }
+        }
+
+        return array_map(fn ($v) => round($v, 2), $monthly);
     }
 
     /**
