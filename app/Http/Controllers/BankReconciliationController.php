@@ -32,7 +32,11 @@ class BankReconciliationController extends Controller
 
         $books = new Books($company);
         $banks = $this->bankAccounts($company, $books);
-        $to = $request->filled('to') ? CarbonImmutable::parse($request->input('to')) : $books->financialYear()[1];
+        [$fyStart, $fyEnd] = $books->financialYear();
+        // Today by default (or the year end, for a past year).
+        $to = $request->filled('to')
+            ? CarbonImmutable::parse($request->input('to'))
+            : (CarbonImmutable::today()->between($fyStart, $fyEnd) ? CarbonImmutable::today() : $fyEnd);
         $showAll = $request->input('show') === 'all';
 
         $account = null;

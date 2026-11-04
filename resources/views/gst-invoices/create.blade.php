@@ -67,7 +67,7 @@
             <div class="card-body p-3 p-md-4">
                 <div class="row g-3 mb-4">
                     <div class="col-12 col-md-4">
-                        <label class="form-label">Party *</label>
+                        <label class="form-label" for="party">Party *</label>
                         <select name="party_account_id" id="party" class="form-select" required>
                             <option value="">Select party / cash / bank</option>
                             @foreach ($parties as $party)
@@ -78,7 +78,7 @@
                         </select>
                     </div>
                     <div class="col-12 col-md-3">
-                        <label class="form-label">Place of supply</label>
+                        <label class="form-label" for="pos">Place of supply</label>
                         <select name="place_of_supply" id="pos" class="form-select">
                             <option value="">From party</option>
                             @foreach ($states as $code => $name)
@@ -87,12 +87,12 @@
                         </select>
                     </div>
                     <div class="col-6 col-md-2">
-                        <label class="form-label">Date *</label>
-                        <input type="date" name="date" class="form-control" required value="{{ old('date', now()->toDateString()) }}">
+                        <label class="form-label" for="f-date">Date *</label>
+                        <input id="f-date" type="date" name="date" class="form-control" required value="{{ old('date', now()->toDateString()) }}">
                     </div>
                     <div class="col-6 col-md-3">
-                        <label class="form-label">{{ match ($type) { 'sales' => 'Reference', 'purchase' => 'Supplier invoice no.', default => 'Against invoice no.' } }}</label>
-                        <input name="reference" class="form-control" maxlength="255" value="{{ old('reference') }}">
+                        <label class="form-label" for="f-reference">{{ match ($type) { 'sales' => 'Reference', 'purchase' => 'Supplier invoice no.', default => 'Against invoice no.' } }}</label>
+                        <input id="f-reference" name="reference" class="form-control" maxlength="255" value="{{ old('reference') }}">
                     </div>
                 </div>
 
@@ -165,8 +165,8 @@
                     </table>
                 </div>
 
-                <label class="form-label">Narration</label>
-                <textarea name="narration" rows="2" maxlength="2000" class="form-control">{{ old('narration') }}</textarea>
+                <label class="form-label" for="f-narration">Narration</label>
+                <textarea id="f-narration" name="narration" rows="2" maxlength="2000" class="form-control">{{ old('narration') }}</textarea>
             </div>
             <div class="card-footer bg-white text-end">
                 <button class="btn btn-primary">Save Invoice</button>

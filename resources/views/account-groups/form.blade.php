@@ -38,8 +38,8 @@
             <div class="card-body p-3 p-md-4">
                 <div class="row g-3">
                     <div class="col-12 col-md-6">
-                        <label class="form-label">Name *</label>
-                        <input name="name" value="{{ old('name', $group->name) }}"
+                        <label class="form-label" for="f-name">Name *</label>
+                        <input id="f-name" name="name" value="{{ old('name', $group->name) }}"
                             class="form-control" required maxlength="255">
                     </div>
 

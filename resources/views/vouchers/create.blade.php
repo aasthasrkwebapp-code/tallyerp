@@ -58,21 +58,21 @@
             <div class="card-body p-3 p-md-4">
                 <div class="row g-3 mb-4">
                     <div class="col-12 col-md-4">
-                        <label class="form-label">Type *</label>
-                        <select name="type" class="form-select" required @disabled($voucher->exists)>
+                        <label class="form-label" for="f-type">Type *</label>
+                        <select id="f-type" name="type" class="form-select" required @disabled($voucher->exists)>
                             @foreach (\App\Models\Voucher::TYPES as $value => $label)
                                 <option value="{{ $value }}" @selected(old('type', $type) === $value)>{{ $label }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div class="col-6 col-md-4">
-                        <label class="form-label">Date *</label>
-                        <input type="date" name="date" class="form-control" required
+                        <label class="form-label" for="f-date">Date *</label>
+                        <input id="f-date" type="date" name="date" class="form-control" required
                             value="{{ old('date', $voucher->date?->toDateString() ?? now()->toDateString()) }}">
                     </div>
                     <div class="col-6 col-md-4">
-                        <label class="form-label">Reference</label>
-                        <input name="reference" class="form-control" maxlength="255" value="{{ old('reference', $voucher->reference) }}">
+                        <label class="form-label" for="f-reference">Reference</label>
+                        <input id="f-reference" name="reference" class="form-control" maxlength="255" value="{{ old('reference', $voucher->reference) }}">
                     </div>
                 </div>
 
@@ -156,8 +156,8 @@
                     </table>
                 </div>
 
-                <label class="form-label">Narration</label>
-                <textarea name="narration" rows="2" maxlength="2000" class="form-control">{{ old('narration', $voucher->narration) }}</textarea>
+                <label class="form-label" for="f-narration">Narration</label>
+                <textarea id="f-narration" name="narration" rows="2" maxlength="2000" class="form-control">{{ old('narration', $voucher->narration) }}</textarea>
             </div>
             <div class="card-footer bg-white text-end">
                 <button class="btn btn-primary">Save Voucher</button>

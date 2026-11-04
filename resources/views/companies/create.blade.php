@@ -31,66 +31,66 @@
             <div class="card-body p-3 p-md-4">
                 <div class="row g-3">
                     <div class="col-12 col-md-6">
-                        <label class="form-label">Company Name *</label>
-                        <input name="name" value="{{ old('name') }}"
+                        <label class="form-label" for="f-name">Company Name *</label>
+                        <input id="f-name" name="name" value="{{ old('name') }}"
                             class="form-control" required maxlength="255">
                     </div>
 
                     <div class="col-12 col-md-6">
-                        <label class="form-label">Legal Name</label>
-                        <input name="legal_name" value="{{ old('legal_name') }}"
+                        <label class="form-label" for="f-legal-name">Legal Name</label>
+                        <input id="f-legal-name" name="legal_name" value="{{ old('legal_name') }}"
                             class="form-control" maxlength="255">
                     </div>
 
                     <div class="col-12 col-md-6">
-                        <label class="form-label">GSTIN</label>
-                        <input name="gstin" value="{{ old('gstin') }}"
+                        <label class="form-label" for="f-gstin">GSTIN</label>
+                        <input id="f-gstin" name="gstin" value="{{ old('gstin') }}"
                             class="form-control text-uppercase" maxlength="15">
                     </div>
 
                     <div class="col-12 col-md-6">
-                        <label class="form-label">PAN</label>
-                        <input name="pan" value="{{ old('pan') }}"
+                        <label class="form-label" for="f-pan">PAN</label>
+                        <input id="f-pan" name="pan" value="{{ old('pan') }}"
                             class="form-control text-uppercase" maxlength="10">
                     </div>
 
                     <div class="col-12 col-md-6">
-                        <label class="form-label">Email</label>
-                        <input type="email" name="email" value="{{ old('email') }}"
+                        <label class="form-label" for="f-email">Email</label>
+                        <input id="f-email" type="email" name="email" value="{{ old('email') }}"
                             class="form-control">
                     </div>
 
                     <div class="col-12 col-md-6">
-                        <label class="form-label">Phone</label>
-                        <input name="phone" value="{{ old('phone') }}"
+                        <label class="form-label" for="f-phone">Phone</label>
+                        <input id="f-phone" name="phone" value="{{ old('phone') }}"
                             class="form-control" maxlength="20">
                     </div>
 
                     <div class="col-12">
-                        <label class="form-label">Business Address</label>
-                        <textarea name="address" rows="3"
+                        <label class="form-label" for="f-address">Business Address</label>
+                        <textarea id="f-address" name="address" rows="3"
                             class="form-control">{{ old('address') }}</textarea>
                     </div>
 
                     <div class="col-12 col-md-6">
-                        <label class="form-label">State</label>
-                        <input name="state" value="{{ old('state') }}"
+                        <label class="form-label" for="f-state">State</label>
+                        <input id="f-state" name="state" value="{{ old('state') }}"
                             class="form-control">
                     </div>
 
                     <div class="col-6 col-md-3">
-                        <label class="form-label">City</label>
-                        <input name="city" value="{{ old('city') }}" class="form-control" maxlength="100">
+                        <label class="form-label" for="f-city">City</label>
+                        <input id="f-city" name="city" value="{{ old('city') }}" class="form-control" maxlength="100">
                     </div>
 
                     <div class="col-6 col-md-3">
-                        <label class="form-label">PIN code</label>
-                        <input name="pincode" value="{{ old('pincode') }}" class="form-control" maxlength="6" inputmode="numeric">
+                        <label class="form-label" for="f-pincode">PIN code</label>
+                        <input id="f-pincode" name="pincode" value="{{ old('pincode') }}" class="form-control" maxlength="6" inputmode="numeric">
                     </div>
 
                     <div class="col-12 col-md-6">
-                        <label class="form-label">Financial Year *</label>
-                        <select name="financial_year" class="form-select" required>
+                        <label class="form-label" for="f-financial-year">Financial Year *</label>
+                        <select id="f-financial-year" name="financial_year" class="form-select" required>
                             @foreach (['2026-27', '2025-26', '2027-28'] as $year)
                                 <option value="{{ $year }}"
                                     @selected(old('financial_year', '2026-27') === $year)>
@@ -101,8 +101,8 @@
                     </div>
 
                     <div class="col-12 col-md-6">
-                        <label class="form-label">Currency</label>
-                        <select name="currency" class="form-select" required>
+                        <label class="form-label" for="f-currency">Currency</label>
+                        <select id="f-currency" name="currency" class="form-select" required>
                             <option value="INR">INR — Indian Rupee</option>
                         </select>
                     </div>

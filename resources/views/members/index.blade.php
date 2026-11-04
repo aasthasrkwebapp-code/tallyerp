@@ -97,7 +97,7 @@
                         <tr>
                             <td class="fw-semibold" style="width: 140px">{{ ucfirst($role) }}</td>
                             <td>
-                                {{ in_array('*', $modules) ? 'Everything' : implode(', ', array_map('ucfirst', $modules)) }}
+                                {{ in_array('*', $modules) ? 'Everything' : implode(', ', array_map(fn ($m) => $m === 'tds' ? 'TDS' : ucfirst($m), $modules)) }}
                                 @if (in_array($role, \App\Support\Access::READ_ONLY))
                                     <span class="badge text-bg-light">read-only</span>
                                 @endif

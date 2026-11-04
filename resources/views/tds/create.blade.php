@@ -42,7 +42,7 @@
             <div class="card-body p-3 p-md-4">
                 <div class="row g-3">
                     <div class="col-12 col-md-6">
-                        <label class="form-label">Supplier *</label>
+                        <label class="form-label" for="party">Supplier *</label>
                         <select name="party_account_id" id="party" class="form-select" required>
                             <option value="">Select supplier</option>
                             @foreach ($parties as $party)
@@ -52,8 +52,8 @@
                         <div class="form-text" id="party-info"></div>
                     </div>
                     <div class="col-12 col-md-6">
-                        <label class="form-label">Expense ledger *</label>
-                        <select name="expense_account_id" class="form-select" required>
+                        <label class="form-label" for="f-expense-account-id">Expense ledger *</label>
+                        <select id="f-expense-account-id" name="expense_account_id" class="form-select" required>
                             <option value="">Select ledger</option>
                             @foreach ($expenses as $expense)
                                 <option value="{{ $expense->id }}" @selected((string) old('expense_account_id') === (string) $expense->id)>{{ $expense->name }}</option>
@@ -61,16 +61,16 @@
                         </select>
                     </div>
                     <div class="col-6 col-md-3">
-                        <label class="form-label">Date *</label>
-                        <input type="date" name="date" class="form-control" required value="{{ old('date', now()->toDateString()) }}">
+                        <label class="form-label" for="f-date">Date *</label>
+                        <input id="f-date" type="date" name="date" class="form-control" required value="{{ old('date', now()->toDateString()) }}">
                     </div>
                     <div class="col-6 col-md-3">
-                        <label class="form-label">Bill amount *</label>
+                        <label class="form-label" for="amount">Bill amount *</label>
                         <input type="number" step="0.01" min="0.01" name="amount" id="amount" class="form-control text-end" required value="{{ old('amount') }}">
                     </div>
                     <div class="col-12 col-md-6">
-                        <label class="form-label">Supplier bill no.</label>
-                        <input name="reference" class="form-control" maxlength="255" value="{{ old('reference') }}">
+                        <label class="form-label" for="f-reference">Supplier bill no.</label>
+                        <input id="f-reference" name="reference" class="form-control" maxlength="255" value="{{ old('reference') }}">
                     </div>
                     <div class="col-12">
                         <div class="row text-center g-2" id="preview">
@@ -80,8 +80,8 @@
                         </div>
                     </div>
                     <div class="col-12">
-                        <label class="form-label">Narration</label>
-                        <textarea name="narration" rows="2" maxlength="2000" class="form-control">{{ old('narration') }}</textarea>
+                        <label class="form-label" for="f-narration">Narration</label>
+                        <textarea id="f-narration" name="narration" rows="2" maxlength="2000" class="form-control">{{ old('narration') }}</textarea>
                     </div>
                 </div>
             </div>

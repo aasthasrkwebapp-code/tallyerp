@@ -33,42 +33,42 @@
             <div class="card-body p-3 p-md-4">
                 <div class="row g-3">
                     <div class="col-12 col-md-6">
-                        <label class="form-label">Name *</label>
-                        <input name="name" value="{{ old('name', $employee->name) }}" class="form-control" required maxlength="255">
+                        <label class="form-label" for="f-name">Name *</label>
+                        <input id="f-name" name="name" value="{{ old('name', $employee->name) }}" class="form-control" required maxlength="255">
                     </div>
                     <div class="col-6 col-md-3">
-                        <label class="form-label">Employee code</label>
-                        <input name="code" value="{{ old('code', $employee->code) }}" class="form-control" maxlength="30">
+                        <label class="form-label" for="f-code">Employee code</label>
+                        <input id="f-code" name="code" value="{{ old('code', $employee->code) }}" class="form-control" maxlength="30">
                     </div>
                     <div class="col-6 col-md-3">
-                        <label class="form-label">Joined on</label>
-                        <input type="date" name="joined_on" value="{{ old('joined_on', $employee->joined_on?->toDateString()) }}" class="form-control">
+                        <label class="form-label" for="f-joined-on">Joined on</label>
+                        <input id="f-joined-on" type="date" name="joined_on" value="{{ old('joined_on', $employee->joined_on?->toDateString()) }}" class="form-control">
                     </div>
                     <div class="col-12 col-md-6">
-                        <label class="form-label">Designation</label>
-                        <input name="designation" value="{{ old('designation', $employee->designation) }}" class="form-control" maxlength="255">
+                        <label class="form-label" for="f-designation">Designation</label>
+                        <input id="f-designation" name="designation" value="{{ old('designation', $employee->designation) }}" class="form-control" maxlength="255">
                     </div>
                     <div class="col-6 col-md-3">
-                        <label class="form-label">PAN</label>
-                        <input name="pan" value="{{ old('pan', $employee->pan) }}" class="form-control text-uppercase" maxlength="10">
+                        <label class="form-label" for="f-pan">PAN</label>
+                        <input id="f-pan" name="pan" value="{{ old('pan', $employee->pan) }}" class="form-control text-uppercase" maxlength="10">
                     </div>
                     <div class="col-6 col-md-3">
-                        <label class="form-label">UAN (PF)</label>
-                        <input name="uan" value="{{ old('uan', $employee->uan) }}" class="form-control" maxlength="20">
+                        <label class="form-label" for="f-uan">UAN (PF)</label>
+                        <input id="f-uan" name="uan" value="{{ old('uan', $employee->uan) }}" class="form-control" maxlength="20">
                     </div>
 
                     <div class="col-12"><h3 class="h6 mt-2 mb-0">Monthly salary</h3></div>
                     <div class="col-4">
-                        <label class="form-label">Basic *</label>
-                        <input type="number" step="0.01" min="0" name="basic" value="{{ old('basic', (float) $employee->basic ?: '') }}" class="form-control text-end" required>
+                        <label class="form-label" for="f-basic">Basic *</label>
+                        <input id="f-basic" type="number" step="0.01" min="0" name="basic" value="{{ old('basic', (float) $employee->basic ?: '') }}" class="form-control text-end" required>
                     </div>
                     <div class="col-4">
-                        <label class="form-label">HRA</label>
-                        <input type="number" step="0.01" min="0" name="hra" value="{{ old('hra', (float) $employee->hra ?: '') }}" class="form-control text-end">
+                        <label class="form-label" for="f-hra">HRA</label>
+                        <input id="f-hra" type="number" step="0.01" min="0" name="hra" value="{{ old('hra', (float) $employee->hra ?: '') }}" class="form-control text-end">
                     </div>
                     <div class="col-4">
-                        <label class="form-label">Other allowances</label>
-                        <input type="number" step="0.01" min="0" name="other_allowances" value="{{ old('other_allowances', (float) $employee->other_allowances ?: '') }}" class="form-control text-end">
+                        <label class="form-label" for="f-other-allowances">Other allowances</label>
+                        <input id="f-other-allowances" type="number" step="0.01" min="0" name="other_allowances" value="{{ old('other_allowances', (float) $employee->other_allowances ?: '') }}" class="form-control text-end">
                     </div>
 
                     <div class="col-12">

@@ -40,7 +40,7 @@
         </div>
         <div class="col-3 col-md-2"><input name="symbol" class="form-control" placeholder="Symbol" maxlength="5" aria-label="Symbol"></div>
         <div class="col-5 col-md-4"><input name="name" class="form-control" placeholder="Name (optional)" maxlength="255" aria-label="Name"></div>
-        <div class="col-12 col-md-2 d-grid"><button class="btn btn-primary">Add currency</button></div>
+        <div class="col-12 col-md-2 d-grid"><button class="btn btn-primary text-nowrap">Add currency</button></div>
     </form>
 
     <div class="card border-0 shadow-sm">
