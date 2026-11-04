@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\Voucher;
 use App\Support\Books;
 use App\Support\EInvoice;
+use App\Support\EWayBill;
 use App\Support\GstStates;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -236,6 +237,34 @@ class GstInvoiceController extends Controller
 
         $json = json_encode([EInvoice::build($voucher)], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         $filename = 'einvoice-'.str_replace('/', '-', $voucher->number.'-'.$voucher->financialYearLabel()).'.json';
+
+        return response()->streamDownload(fn () => print($json), $filename, ['Content-Type' => 'application/json']);
+    }
+
+    /**
+     * Download the e-way bill JSON (bulk-upload format) with the transport details entered.
+     */
+    public function eWayBill(Request $request, Company $company, Voucher $voucher)
+    {
+        $this->authorizeCompany($company);
+        abort_unless((int) $voucher->company_id === (int) $company->id && $voucher->gstLines()->exists(), 404);
+
+        $transport = $request->validate([
+            'mode' => ['required', Rule::in(array_keys(EWayBill::MODES))],
+            'distance' => ['required', 'integer'],
+            'vehicle_no' => ['nullable', 'string', 'max:20'],
+            'transporter_id' => ['nullable', 'string', 'max:15'],
+            'transporter_name' => ['nullable', 'string', 'max:100'],
+            'trans_doc_no' => ['nullable', 'string', 'max:15'],
+        ]);
+
+        $voucher->load('gstLines', 'party', 'company');
+        if ($problems = EWayBill::problems($voucher, $transport)) {
+            return back()->withInput()->with('ewaybill_problems', $problems);
+        }
+
+        $json = json_encode(EWayBill::build($voucher, $transport), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        $filename = 'ewaybill-'.str_replace('/', '-', $voucher->number.'-'.$voucher->financialYearLabel()).'.json';
 
         return response()->streamDownload(fn () => print($json), $filename, ['Content-Type' => 'application/json']);
     }

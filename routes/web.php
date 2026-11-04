@@ -49,6 +49,8 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('companies/{company}/gst-invoices/{voucher}/e-invoice', [GstInvoiceController::class, 'eInvoice'])
         ->name('companies.gst-invoices.e-invoice');
+    Route::post('companies/{company}/gst-invoices/{voucher}/e-way-bill', [GstInvoiceController::class, 'eWayBill'])
+        ->name('companies.gst-invoices.e-way-bill');
     Route::resource('companies.gst-invoices', GstInvoiceController::class)
         ->only(['create', 'store', 'show'])
         ->parameters(['gst-invoices' => 'voucher'])
