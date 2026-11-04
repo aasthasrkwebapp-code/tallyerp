@@ -72,13 +72,6 @@ class CompanyController extends Controller
             ->with('success', 'Company deleted successfully.');
     }
 
-    protected function authorizeCompany(Company $company): void
-    {
-        if ((int) $company->user_id !== (int) auth()->id()) {
-            abort(403);
-        }
-    }
-
     protected function rules(?int $companyId = null): array
     {
         return [

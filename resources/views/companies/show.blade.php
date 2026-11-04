@@ -7,7 +7,13 @@
             <h2 class="h4 mb-1">{{ $company->name }}</h2>
             <p class="text-secondary mb-0">Company profile</p>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{{ route('companies.accounts.index', $company) }}" class="btn btn-primary">
+                Ledgers
+            </a>
+            <a href="{{ route('companies.account-groups.index', $company) }}" class="btn btn-outline-primary">
+                Groups
+            </a>
             <a href="{{ route('companies.edit', $company) }}" class="btn btn-outline-primary">
                 Edit
             </a>

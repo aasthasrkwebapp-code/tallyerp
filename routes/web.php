@@ -2,10 +2,20 @@
 
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AccountController;
+use App\Http\Controllers\AccountGroupController;
 use App\Http\Controllers\CompanyController;
 
 Route::middleware(['auth'])->group(function () {
     Route::resource('companies', CompanyController::class);
+
+    // scoped() makes {account_group} / {account} resolve only within {company}.
+    Route::resource('companies.account-groups', AccountGroupController::class)
+        ->except('show')
+        ->scoped();
+    Route::resource('companies.accounts', AccountController::class)
+        ->except('show')
+        ->scoped();
 });
 Route::get('/', function () {
     return view('welcome');

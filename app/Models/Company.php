@@ -39,4 +39,29 @@ class Company extends Model
     {
         return $this->hasMany(Account::class);
     }
+
+    protected static function booted(): void
+    {
+        static::created(fn (Company $company) => $company->createDefaultGroups());
+    }
+
+    /**
+     * Create Tally's predefined account groups for this company.
+     */
+    public function createDefaultGroups(): void
+    {
+        $ids = [];
+
+        foreach (AccountGroup::DEFAULTS as [$name, $code, $nature, $parent]) {
+            $ids[$code] = $this->accountGroups()->firstOrCreate(
+                ['code' => $code],
+                [
+                    'name' => $name,
+                    'nature' => $nature,
+                    'parent_id' => $parent ? $ids[$parent] : null,
+                    'is_primary' => $parent === null,
+                ],
+            )->id;
+        }
+    }
 }

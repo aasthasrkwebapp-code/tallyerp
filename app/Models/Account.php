@@ -16,6 +16,7 @@ class Account extends Model
         'code',
         'account_type',
         'opening_balance',
+        'opening_balance_type',
         'is_active',
     ];
 
@@ -35,5 +36,15 @@ class Account extends Model
     public function group(): BelongsTo
     {
         return $this->belongsTo(AccountGroup::class, 'account_group_id');
+    }
+
+    /**
+     * Opening balance as a signed number: debit positive, credit negative.
+     */
+    public function signedOpeningBalance(): float
+    {
+        $amount = (float) $this->opening_balance;
+
+        return $this->opening_balance_type === 'cr' ? -$amount : $amount;
     }
 }
