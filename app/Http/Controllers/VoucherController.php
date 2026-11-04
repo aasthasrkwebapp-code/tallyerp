@@ -51,6 +51,7 @@ class VoucherController extends Controller
             'type' => $type,
             'accounts' => $accounts,
             'voucher' => new Voucher,
+            'costCentres' => $company->costCentres()->orderBy('name')->get(),
         ]);
     }
 
@@ -76,6 +77,7 @@ class VoucherController extends Controller
             'type' => $voucher->type,
             'accounts' => $accounts,
             'voucher' => $voucher,
+            'costCentres' => $company->costCentres()->orderBy('name')->get(),
         ]);
     }
 
@@ -176,6 +178,7 @@ class VoucherController extends Controller
             ],
             'entries.*.debit' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'entries.*.credit' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
+            'entries.*.cost_centre_id' => ['nullable', Rule::exists('cost_centres', 'id')->where('company_id', $company->id)],
         ], [
             'date.after_or_equal' => 'The date must fall within financial year '.$company->financial_year.'.',
             'date.before_or_equal' => 'The date must fall within financial year '.$company->financial_year.'.',
@@ -230,7 +233,12 @@ class VoucherController extends Controller
                 continue;
             }
 
-            $entries[] = ['account_id' => (int) $row['account_id'], 'debit' => $debit, 'credit' => $credit];
+            $entries[] = [
+                'account_id' => (int) $row['account_id'],
+                'cost_centre_id' => ! empty($row['cost_centre_id']) ? (int) $row['cost_centre_id'] : null,
+                'debit' => $debit,
+                'credit' => $credit,
+            ];
         }
 
         $debits = round(array_sum(array_column($entries, 'debit')), 2);

@@ -21,6 +21,7 @@
             ['companies.vouchers.index', 'Day Book', 'All vouchers by date.'],
             [['companies.outstanding', 'receivables'], 'Receivables', 'What customers owe you, by age.'],
             [['companies.outstanding', 'payables'], 'Payables', 'What you owe suppliers, by age.'],
+            ['companies.cost-centres.index', 'Cost Centres', 'Income and expenses by department or project.'],
             ['companies.inventory.summary', 'Stock Summary', 'Quantity and value of every stock item.'],
             ['companies.banking.reconciliation', 'Bank Reconciliation', 'Match bank entries with your bank statement.'],
             ['companies.gst.gstr1', 'GSTR-1', 'Outward supplies: B2B, B2C and HSN summary.'],

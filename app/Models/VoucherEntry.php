@@ -10,6 +10,7 @@ class VoucherEntry extends Model
     protected $fillable = [
         'voucher_id',
         'account_id',
+        'cost_centre_id',
         'debit',
         'credit',
         'instrument_no',
@@ -28,6 +29,11 @@ class VoucherEntry extends Model
     public function voucher(): BelongsTo
     {
         return $this->belongsTo(Voucher::class);
+    }
+
+    public function costCentre(): BelongsTo
+    {
+        return $this->belongsTo(CostCentre::class);
     }
 
     public function account(): BelongsTo

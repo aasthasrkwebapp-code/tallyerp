@@ -4,10 +4,11 @@
 
 @section('content')
 @php
-    $blank = ['account_id' => '', 'debit' => '', 'credit' => ''];
+    $blank = ['account_id' => '', 'cost_centre_id' => '', 'debit' => '', 'credit' => ''];
     $rows = old('entries', $voucher->exists
         ? $voucher->entries->map(fn ($e) => [
             'account_id' => $e->account_id,
+            'cost_centre_id' => $e->cost_centre_id,
             'debit' => $e->debit > 0 ? (float) $e->debit : '',
             'credit' => $e->credit > 0 ? (float) $e->credit : '',
         ])->all()
@@ -76,6 +77,9 @@
                         <thead class="table-light">
                             <tr>
                                 <th style="min-width: 220px">Ledger</th>
+                                @if ($costCentres->isNotEmpty())
+                                    <th style="min-width: 160px">Cost centre</th>
+                                @endif
                                 <th style="width: 160px" class="text-end">Debit</th>
                                 <th style="width: 160px" class="text-end">Credit</th>
                                 <th style="width: 50px"></th>
@@ -95,6 +99,16 @@
                                             @endforeach
                                         </select>
                                     </td>
+                                    @if ($costCentres->isNotEmpty())
+                                        <td>
+                                            <select name="entries[{{ $i }}][cost_centre_id]" class="form-select">
+                                                <option value="">—</option>
+                                                @foreach ($costCentres as $centre)
+                                                    <option value="{{ $centre->id }}" @selected((string) ($row['cost_centre_id'] ?? '') === (string) $centre->id)>{{ $centre->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </td>
+                                    @endif
                                     <td>
                                         <input type="number" step="0.01" min="0" name="entries[{{ $i }}][debit]"
                                             value="{{ $row['debit'] ?? '' }}" class="form-control text-end js-debit">
@@ -111,7 +125,7 @@
                         </tbody>
                         <tfoot>
                             <tr class="fw-semibold">
-                                <td>
+                                <td colspan="{{ $costCentres->isNotEmpty() ? 2 : 1 }}">
                                     <button type="button" class="btn btn-sm btn-outline-primary" id="add-row">+ Add row</button>
                                 </td>
                                 <td class="text-end" id="total-debit">0.00</td>
@@ -119,7 +133,7 @@
                                 <td></td>
                             </tr>
                             <tr>
-                                <td colspan="4" class="text-end small" id="difference"></td>
+                                <td colspan="{{ $costCentres->isNotEmpty() ? 5 : 4 }}" class="text-end small" id="difference"></td>
                             </tr>
                         </tfoot>
                     </table>

@@ -6,6 +6,7 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AccountGroupController;
 use App\Http\Controllers\BankReconciliationController;
 use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\CostCentreController;
 use App\Http\Controllers\GstInvoiceController;
 use App\Http\Controllers\GstReportController;
 use App\Http\Controllers\InventoryController;
@@ -63,6 +64,10 @@ Route::middleware(['auth'])->group(function () {
         ->name('companies.banking.reconciliation');
     Route::put('companies/{company}/banking/reconciliation', [BankReconciliationController::class, 'update'])
         ->name('companies.banking.reconciliation.update');
+
+    Route::resource('companies.cost-centres', CostCentreController::class)
+        ->only(['index', 'store', 'destroy'])
+        ->scoped();
 
     Route::get('companies/{company}/outstanding/{kind}', [OutstandingController::class, 'show'])
         ->whereIn('kind', ['receivables', 'payables'])
