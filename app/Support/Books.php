@@ -82,6 +82,20 @@ class Books
         return round($nominal->sum(fn (Account $a) => $a->signedOpeningBalance()) + (float) $movements, 2);
     }
 
+    /**
+     * Whether a ledger sits under one of the given group codes (at any depth).
+     */
+    public function isUnder(Account $account, array $groupCodes): bool
+    {
+        for ($groupId = $account->account_group_id; $groupId; $groupId = $this->groupParent($groupId)) {
+            if (in_array($this->groups->get($groupId)?->code, $groupCodes, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function groupParent(int $groupId): ?int
     {
         return $this->groups->get($groupId)?->parent_id;

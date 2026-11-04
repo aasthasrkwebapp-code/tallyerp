@@ -38,7 +38,11 @@ class CompanyController extends Controller
     {
         $this->authorizeCompany($company);
 
-        return view('companies.show', compact('company'));
+        $figures = $company->userCan(auth()->user(), 'reports')
+            ? \App\Support\Dashboard::figures($company)
+            : null;
+
+        return view('companies.show', compact('company', 'figures'));
     }
 
     public function edit(Company $company)

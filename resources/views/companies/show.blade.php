@@ -48,6 +48,10 @@
         <div class="alert alert-danger">{{ $message }}</div>
     @enderror
 
+    @if ($figures)
+        @include('companies._dashboard', ['f' => $figures])
+    @endif
+
     <div class="card border-0 shadow-sm">
         <div class="card-body p-3 p-md-4">
             <div class="row g-3">

@@ -106,7 +106,16 @@ Route::get('/', function () {
 });
 
 Route::get('/dashboard', function () {
-    return view('dashboard');
+    $user = auth()->user();
+
+    $companies = \App\Models\Company::accessibleBy($user)->orderBy('name')->get()
+        ->map(fn ($company) => [
+            $company,
+            $company->roleFor($user),
+            $company->userCan($user, 'reports') ? \App\Support\Dashboard::figures($company) : null,
+        ]);
+
+    return view('dashboard', compact('companies'));
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
