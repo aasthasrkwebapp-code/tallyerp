@@ -76,6 +76,35 @@ class InventoryController extends Controller
         return back()->with('success', 'Stock group deleted.');
     }
 
+    /**
+     * Stock left in each batch, with expired and soon-expiring batches flagged.
+     */
+    public function batches(Request $request, Company $company)
+    {
+        $this->authorizeCompany($company);
+
+        $request->validate(['show' => ['nullable', 'in:in_stock,expiring,all']]);
+        $show = $request->input('show', 'in_stock');
+
+        $rows = $company->stockBatches()->with('stockItem.unit')->get()
+            ->map(function ($batch) {
+                $in = (float) $batch->movements()->sum('quantity_in');
+                $out = (float) $batch->movements()->sum('quantity_out');
+
+                return (object) ['batch' => $batch, 'in' => round($in, 3), 'out' => round($out, 3), 'left' => round($in - $out, 3), 'status' => $batch->expiryStatus()];
+            })
+            ->filter(fn ($r) => match ($show) {
+                'all' => true,
+                'expiring' => $r->left > 0 && in_array($r->status, ['expired', 'expiring'], true),
+                default => $r->left > 0,
+            })
+            // Soonest expiry first; batches without expiry last.
+            ->sortBy(fn ($r) => [$r->batch->expiry_date?->toDateString() ?? '9999-12-31', $r->batch->stockItem->name])
+            ->values();
+
+        return view('inventory.batches', compact('company', 'rows', 'show'));
+    }
+
     public function summary(Request $request, Company $company)
     {
         $this->authorizeCompany($company);

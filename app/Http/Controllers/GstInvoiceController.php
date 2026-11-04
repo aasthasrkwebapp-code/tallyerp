@@ -89,6 +89,9 @@ class GstInvoiceController extends Controller
             ) && ! str_starts_with((string) $a->code, 'GST_')),
             'items' => $accounts->filter(fn (Account $a) => in_array($books->primaryGroup($a->account_group_id)->code, $itemGroups, true)),
             'stockItems' => $company->stockItems()->with('unit')->orderBy('name')->get(),
+            'batches' => $company->stockBatches()->orderBy('expiry_date')->get()
+                ->map(fn ($b) => ['item' => $b->stock_item_id, 'no' => $b->batch_no, 'expiry' => $b->expiry_date?->format('d-m-Y'), 'left' => $b->balance()])
+                ->values(),
             'rates' => self::RATES,
             'states' => GstStates::STATES,
         ]);
@@ -119,6 +122,8 @@ class GstInvoiceController extends Controller
             'lines.*.taxable' => ['nullable', 'numeric', 'gt:0', 'max:9999999999999.99'],
             'lines.*.rate' => ['required', Rule::in(self::RATES)],
             'lines.*.discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'lines.*.batch_no' => ['nullable', 'string', 'max:40'],
+            'lines.*.expiry_date' => ['nullable', 'date'],
         ], [
             'date.after_or_equal' => 'The date must fall within financial year '.$company->financial_year.'.',
             'date.before_or_equal' => 'The date must fall within financial year '.$company->financial_year.'.',
@@ -149,6 +154,8 @@ class GstInvoiceController extends Controller
             }
         }
 
+        $this->checkBatches($company, $data['lines'], $kind['stockOut']);
+
         $party = $company->accounts()->findOrFail($data['party_account_id']);
         $placeOfSupply = $data['place_of_supply']
             ?? $party->state_code
@@ -161,12 +168,15 @@ class GstInvoiceController extends Controller
             ? $company->accounts()->whereIn('id', array_column($data['lines'], 'account_id'))->where('itc_blocked', true)->pluck('id')->all()
             : [];
 
-        $lines = collect($data['lines'])->map(function (array $line) use ($interState, $blocked) {
+        // Outgoing batch lines print the batch's own expiry date.
+        $batchExpiry = $company->stockBatches()->whereNotNull('expiry_date')->get()
+            ->mapWithKeys(fn ($b) => [$b->stock_item_id.'|'.$b->batch_no => $b->expiry_date->toDateString()]);
+
+        $lines = collect($data['lines'])->map(function (array $line) use ($interState, $blocked, $kind, $batchExpiry) {
             $stockItemId = ! empty($line['stock_item_id']) ? (int) $line['stock_item_id'] : null;
             $quantity = $stockItemId ? round((float) $line['quantity'], 3) : null;
             $itemRate = $stockItemId ? round((float) $line['item_rate'], 2) : null;
 
-            // With a stock item, the taxable value is quantity × rate.
             // Line value (qty × rate, or the amount entered), less any discount, is the taxable value.
             $gross = $stockItemId ? round($quantity * $itemRate, 2) : round((float) $line['taxable'], 2);
             $discount = round((float) ($line['discount_percent'] ?? 0), 2);
@@ -189,6 +199,9 @@ class GstInvoiceController extends Controller
                 'sgst' => $interState ? 0 : $half,
                 'igst' => $interState ? round($taxable * $rate / 100, 2) : 0,
                 'itc_eligible' => ! in_array((int) $line['account_id'], $blocked, true),
+                'batch_no' => $stockItemId && filled($line['batch_no'] ?? null) ? trim($line['batch_no']) : null,
+                'expiry_date' => ! $stockItemId || ! filled($line['batch_no'] ?? null) ? null
+                    : ($kind['stockOut'] ? ($batchExpiry[$stockItemId.'|'.trim($line['batch_no'])] ?? null) : ($line['expiry_date'] ?? null)),
             ];
         });
 
@@ -238,9 +251,21 @@ class GstInvoiceController extends Controller
             }
 
             foreach ($lines->whereNotNull('stock_item_id') as $line) {
+                $batch = null;
+                if ($line['batch_no']) {
+                    // Stock coming in creates the batch; going out uses the existing one.
+                    $batch = $kind['stockOut']
+                        ? $company->stockBatches()->where('stock_item_id', $line['stock_item_id'])->where('batch_no', $line['batch_no'])->first()
+                        : $company->stockBatches()->firstOrCreate(
+                            ['stock_item_id' => $line['stock_item_id'], 'batch_no' => $line['batch_no']],
+                            ['expiry_date' => $line['expiry_date']],
+                        );
+                }
+
                 $company->stockMovements()->create([
                     'voucher_id' => $voucher->id,
                     'stock_item_id' => $line['stock_item_id'],
+                    'stock_batch_id' => $batch?->id,
                     'date' => $data['date'],
                     'quantity_in' => $kind['stockOut'] ? 0 : $line['quantity'],
                     'quantity_out' => $kind['stockOut'] ? $line['quantity'] : 0,
@@ -255,6 +280,44 @@ class GstInvoiceController extends Controller
         return redirect()
             ->route('companies.gst-invoices.show', [$company, $voucher])
             ->with('success', $voucher->typeLabel().' #'.$voucher->number.' saved.');
+    }
+
+    /**
+     * Batch-tracked items need a batch on every line; stock going out must come
+     * from a batch that exists and holds enough.
+     */
+    protected function checkBatches(Company $company, array $lines, bool $stockOut): void
+    {
+        $tracked = $company->stockItems()->where('track_batches', true)->pluck('name', 'id');
+        $needed = [];
+
+        foreach ($lines as $i => $line) {
+            $itemId = (int) ($line['stock_item_id'] ?? 0);
+            if (! $itemId || ! $tracked->has($itemId)) {
+                continue;
+            }
+
+            $batchNo = trim((string) ($line['batch_no'] ?? ''));
+            if ($batchNo === '') {
+                throw ValidationException::withMessages(["lines.$i.batch_no" => 'Line '.($i + 1).': enter the batch for '.$tracked[$itemId].'.']);
+            }
+
+            if ($stockOut) {
+                $batch = $company->stockBatches()->where('stock_item_id', $itemId)->where('batch_no', $batchNo)->first();
+                if (! $batch) {
+                    throw ValidationException::withMessages(["lines.$i.batch_no" => 'Line '.($i + 1).': '.$tracked[$itemId].' has no batch '.$batchNo.'.']);
+                }
+                $needed[$batch->id] = ['batch' => $batch, 'line' => $i, 'qty' => ($needed[$batch->id]['qty'] ?? 0) + (float) $line['quantity']];
+            }
+        }
+
+        foreach ($needed as ['batch' => $batch, 'line' => $i, 'qty' => $qty]) {
+            if ($qty > $batch->balance() + 0.0005) {
+                throw ValidationException::withMessages([
+                    "lines.$i.batch_no" => 'Batch '.$batch->batch_no.' has only '.rtrim(rtrim(number_format($batch->balance(), 3), '0'), '.').' left.',
+                ]);
+            }
+        }
     }
 
     /**

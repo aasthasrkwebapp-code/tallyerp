@@ -94,6 +94,14 @@
                         </div>
                         <div class="form-text">Scan the product's barcode, or generate one and print labels.</div>
                     </div>
+                    <div class="col-12">
+                        <input type="hidden" name="track_batches" value="0">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="track_batches" name="track_batches" value="1" @checked(old('track_batches', $item->track_batches))>
+                            <label class="form-check-label" for="track_batches">Track batches and expiry dates</label>
+                            <div class="form-text mt-0">Purchases record a batch number and expiry; sales pick the batch. Opening stock stays without a batch.</div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="card-footer bg-white text-end">

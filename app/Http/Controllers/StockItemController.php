@@ -126,6 +126,7 @@ class StockItemController extends Controller
         ]);
 
         $data['opening_quantity'] = $data['opening_quantity'] ?? 0;
+        $data['track_batches'] = $request->boolean('track_batches');
         $data['opening_rate'] = $data['opening_rate'] ?? 0;
 
         return $data;

@@ -11,6 +11,7 @@ class StockMovement extends Model
         'company_id',
         'voucher_id',
         'stock_item_id',
+        'stock_batch_id',
         'date',
         'quantity_in',
         'quantity_out',
@@ -32,6 +33,11 @@ class StockMovement extends Model
     public function voucher(): BelongsTo
     {
         return $this->belongsTo(Voucher::class);
+    }
+
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(StockBatch::class, 'stock_batch_id');
     }
 
     public function stockItem(): BelongsTo

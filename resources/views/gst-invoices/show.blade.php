@@ -120,6 +120,9 @@
                                             × {{ $money($line->item_rate) }}
                                         </div>
                                     @endif
+                                    @if ($line->batch_no)
+                                        <div class="small text-secondary">Batch {{ $line->batch_no }}@if ($line->expiry_date) · exp {{ $line->expiry_date->format('m/Y') }}@endif</div>
+                                    @endif
                                     @if ((float) $line->discount_percent > 0)
                                         <div class="small text-secondary">{{ inr($line->gross_amount) }} less {{ (float) $line->discount_percent }}% discount</div>
                                     @endif

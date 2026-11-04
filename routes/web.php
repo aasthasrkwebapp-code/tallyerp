@@ -98,6 +98,7 @@ Route::middleware(['auth'])->group(function () {
             Route::post('groups', 'storeGroup')->name('groups.store');
             Route::delete('groups/{stockGroup}', 'destroyGroup')->name('groups.destroy');
             Route::get('summary', 'summary')->name('summary');
+            Route::get('batches', 'batches')->name('batches');
         });
 
     Route::get('companies/{company}/banking/reconciliation', [BankReconciliationController::class, 'show'])

@@ -12,6 +12,8 @@
     $rows = old('lines', [['account_id' => '', 'description' => '', 'hsn_sac' => '', 'taxable' => '', 'rate' => '18']]);
     $itemData = $items->mapWithKeys(fn ($a) => [$a->id => ['hsn' => $a->hsn_sac, 'rate' => $a->gst_rate === null ? null : (float) $a->gst_rate]]);
     $partyData = $parties->mapWithKeys(fn ($a) => [$a->id => $a->state_code]);
+    $inward = in_array($type, ['purchase', 'credit_note'], true);
+    $hasBatches = $stockItems->contains('track_batches', true);
     $stockData = $stockItems->mapWithKeys(fn ($i) => [$i->id => ['hsn' => $i->hsn_sac, 'rate' => $i->gst_rate === null ? null : (float) $i->gst_rate, 'price' => (float) (in_array($type, ['sales', 'credit_note'], true) && $i->selling_price !== null ? $i->selling_price : $i->opening_rate)]]);
 @endphp
 <div class="container-fluid py-3">
@@ -102,6 +104,14 @@
 
                 @include('partials.barcode-scan')
 
+                @foreach ($batches->groupBy('item') as $itemId => $itemBatches)
+                    <datalist id="batches-{{ $itemId }}">
+                        @foreach ($itemBatches as $batch)
+                            <option value="{{ $batch['no'] }}">{{ $batch['expiry'] ? 'exp '.$batch['expiry'].' · ' : '' }}{{ rtrim(rtrim(number_format($batch['left'], 3), '0'), '.') }} left</option>
+                        @endforeach
+                    </datalist>
+                @endforeach
+
                 <div class="table-responsive">
                     <table class="table align-middle mb-2" id="lines">
                         <thead class="table-light">
@@ -110,6 +120,10 @@
                                 <th style="min-width: 170px">Stock item</th>
                                 <th style="min-width: 140px">Description</th>
                                 <th style="width: 120px">HSN/SAC</th>
+                                @if ($hasBatches)
+                                    <th style="min-width: 120px">Batch</th>
+                                    @if ($inward)<th style="min-width: 140px">Expiry</th>@endif
+                                @endif
                                 <th style="width: 100px" class="text-end">Qty</th>
                                 <th style="width: 120px" class="text-end">Rate</th>
                                 <th style="width: 140px" class="text-end">Amount</th>
@@ -140,6 +154,13 @@
                                     </td>
                                     <td><input name="lines[{{ $i }}][description]" value="{{ $row['description'] ?? '' }}" class="form-control" maxlength="255"></td>
                                     <td><input name="lines[{{ $i }}][hsn_sac]" value="{{ $row['hsn_sac'] ?? '' }}" class="form-control js-hsn" maxlength="10"></td>
+                                    @if ($hasBatches)
+                                        <td><input name="lines[{{ $i }}][batch_no]" value="{{ $row['batch_no'] ?? '' }}" class="form-control js-batch" maxlength="40"
+                                            list="{{ ! empty($row['stock_item_id']) ? 'batches-'.$row['stock_item_id'] : '' }}" aria-label="Batch" autocomplete="off"></td>
+                                        @if ($inward)
+                                            <td><input type="date" name="lines[{{ $i }}][expiry_date]" value="{{ $row['expiry_date'] ?? '' }}" class="form-control" aria-label="Expiry date"></td>
+                                        @endif
+                                    @endif
                                     <td><input type="number" step="0.001" min="0" name="lines[{{ $i }}][quantity]" value="{{ $row['quantity'] ?? '' }}" class="form-control text-end js-qty"></td>
                                     <td><input type="number" step="0.01" min="0" name="lines[{{ $i }}][item_rate]" value="{{ $row['item_rate'] ?? '' }}" class="form-control text-end js-price"></td>
                                     <td><input type="number" step="0.01" min="0.01" name="lines[{{ $i }}][taxable]" value="{{ $row['taxable'] ?? '' }}" class="form-control text-end js-taxable" aria-label="Amount"></td>
@@ -158,14 +179,14 @@
                         </tbody>
                         <tfoot>
                             <tr class="fw-semibold">
-                                <td colspan="6"><button type="button" class="btn btn-sm btn-outline-primary" id="add-line">+ Add line</button></td>
+                                <td colspan="{{ 6 + ($hasBatches ? 1 + ($inward ? 1 : 0) : 0) }}"><button type="button" class="btn btn-sm btn-outline-primary" id="add-line">+ Add line</button></td>
                                 <td class="text-end" colspan="2">Taxable <span id="total-taxable">0.00</span></td>
                                 <td></td>
                                 <td class="text-end" id="total-tax">0.00</td>
                                 <td></td>
                             </tr>
                             <tr class="fw-semibold">
-                                <td colspan="9" class="text-end">Invoice total <span class="text-secondary small" id="split"></span></td>
+                                <td colspan="{{ 9 + ($hasBatches ? 1 + ($inward ? 1 : 0) : 0) }}" class="text-end">Invoice total <span class="text-secondary small" id="split"></span></td>
                                 <td class="text-end" id="grand-total">0.00</td>
                                 <td></td>
                             </tr>
@@ -250,6 +271,10 @@
             const row = e.target.closest('tr'), item = items[e.target.value];
             if (item.hsn) row.querySelector('.js-hsn').value = item.hsn;
             if (item.rate !== null) row.querySelector('.js-rate').value = String(item.rate);
+        }
+        // Suggest this item's batches (with expiry and quantity left).
+        if (e.target.classList.contains('js-stock') && e.target.closest('tr').querySelector('.js-batch')) {
+            e.target.closest('tr').querySelector('.js-batch').setAttribute('list', e.target.value ? 'batches-' + e.target.value : '');
         }
         if (e.target.classList.contains('js-stock') && stock[e.target.value]) {
             const row = e.target.closest('tr'), s = stock[e.target.value];
