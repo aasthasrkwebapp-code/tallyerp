@@ -4,8 +4,8 @@
 
 @section('content')
 @php
-    $q = fn ($v) => rtrim(rtrim(number_format((float) $v, 3), '0'), '.');
-    $m = fn ($v) => number_format((float) $v, 2);
+    $q = fn ($v) => rtrim(rtrim(inr((float) $v, 3), '0'), '.');
+    $m = fn ($v) => inr((float) $v, 2);
 @endphp
 <div class="container-fluid py-3">
     @include('reports._header', ['title' => 'Stock Summary', 'subtitle' => $from->format('d-m-Y').' to '.$to->format('d-m-Y')])

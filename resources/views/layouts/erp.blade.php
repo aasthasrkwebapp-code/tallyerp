@@ -116,28 +116,36 @@
             <i class="bi bi-grid-1x2-fill me-2"></i>Business ERP
         </div>
 
+        @php
+            // [route, params, icon, label, active pattern]
+            $nav = [['dashboard', [], 'speedometer2', 'Dashboard', 'dashboard'], ['companies.index', [], 'building', 'Companies', 'companies.index']];
+            // Only inside a company's pages (the URL has {company}), not e.g. the companies list.
+            $activeCompany = request()->route('company');
+            $activeCompany = $activeCompany instanceof \App\Models\Company ? $activeCompany : null;
+            if ($activeCompany) {
+                $nav = array_merge($nav, [
+                    ['companies.show', [$activeCompany], 'house', 'Company', 'companies.show'],
+                    ['companies.vouchers.index', [$activeCompany], 'journal-text', 'Vouchers', 'companies.vouchers.*'],
+                    ['companies.gst-invoices.create', [$activeCompany, 'type' => 'sales'], 'receipt', 'Sales Invoice', null],
+                    ['companies.gst-invoices.create', [$activeCompany, 'type' => 'purchase'], 'cart3', 'Purchase Invoice', null],
+                    ['companies.accounts.index', [$activeCompany], 'person-lines-fill', 'Ledgers', 'companies.accounts.*'],
+                    ['companies.account-groups.index', [$activeCompany], 'diagram-3', 'Groups', 'companies.account-groups.*'],
+                    ['companies.stock-items.index', [$activeCompany], 'box-seam', 'Inventory', 'companies.stock-items.*'],
+                    ['companies.banking.reconciliation', [$activeCompany], 'bank', 'Banking', 'companies.banking.*'],
+                    ['companies.reports.index', [$activeCompany], 'bar-chart-line', 'Reports', 'companies.reports.*'],
+                ]);
+            }
+        @endphp
         <nav class="nav flex-column py-3">
-            <a class="nav-link active" href="{{ route('dashboard') }}">
-                <i class="bi bi-speedometer2 me-2"></i>Dashboard
-            </a>
-            <a class="nav-link" href="#accounting">
-                <i class="bi bi-journal-text me-2"></i>Accounting
-            </a>
-            <a class="nav-link" href="#sales">
-                <i class="bi bi-receipt me-2"></i>Sales
-            </a>
-            <a class="nav-link" href="#purchases">
-                <i class="bi bi-cart3 me-2"></i>Purchases
-            </a>
-            <a class="nav-link" href="#inventory">
-                <i class="bi bi-box-seam me-2"></i>Inventory
-            </a>
-            <a class="nav-link" href="#reports">
-                <i class="bi bi-bar-chart-line me-2"></i>Reports
-            </a>
-            <a class="nav-link" href="#settings">
-                <i class="bi bi-gear me-2"></i>Settings
-            </a>
+            @foreach ($nav as [$routeName, $params, $icon, $label, $pattern])
+                <a class="nav-link {{ $pattern && request()->routeIs($pattern) ? 'active' : '' }}"
+                    href="{{ route($routeName, $params) }}">
+                    <i class="bi bi-{{ $icon }} me-2"></i>{{ $label }}
+                </a>
+                @if ($loop->index === 1 && $activeCompany)
+                    <div class="px-3 pt-3 pb-1 small text-uppercase opacity-50 text-truncate">{{ $activeCompany->name }}</div>
+                @endif
+            @endforeach
         </nav>
     </aside>
 

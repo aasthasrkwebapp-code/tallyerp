@@ -1,15 +1,22 @@
 @extends('layouts.erp')
 
-@section('title', 'New Voucher')
+@section('title', $voucher->exists ? 'Edit Voucher' : 'New Voucher')
 
 @section('content')
 @php
-    $rows = old('entries', [['account_id' => '', 'debit' => '', 'credit' => ''], ['account_id' => '', 'debit' => '', 'credit' => '']]);
+    $blank = ['account_id' => '', 'debit' => '', 'credit' => ''];
+    $rows = old('entries', $voucher->exists
+        ? $voucher->entries->map(fn ($e) => [
+            'account_id' => $e->account_id,
+            'debit' => $e->debit > 0 ? (float) $e->debit : '',
+            'credit' => $e->credit > 0 ? (float) $e->credit : '',
+        ])->all()
+        : [$blank, $blank]);
 @endphp
 <div class="container-fluid py-3">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
         <div>
-            <h2 class="h4 mb-1">New Voucher</h2>
+            <h2 class="h4 mb-1">{{ $voucher->exists ? 'Edit '.$voucher->typeLabel().' #'.$voucher->number : 'New Voucher' }}</h2>
             <p class="text-secondary mb-0">{{ $company->name }} · FY {{ $company->financial_year }}</p>
         </div>
         <a href="{{ route('companies.vouchers.index', $company) }}" class="btn btn-outline-secondary">
@@ -35,15 +42,19 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('companies.vouchers.store', $company) }}">
+    <form method="POST"
+        action="{{ $voucher->exists ? route('companies.vouchers.update', [$company, $voucher]) : route('companies.vouchers.store', $company) }}">
         @csrf
+        @if ($voucher->exists)
+            @method('PUT')
+        @endif
 
         <div class="card border-0 shadow-sm">
             <div class="card-body p-3 p-md-4">
                 <div class="row g-3 mb-4">
                     <div class="col-12 col-md-4">
                         <label class="form-label">Type *</label>
-                        <select name="type" class="form-select" required>
+                        <select name="type" class="form-select" required @disabled($voucher->exists)>
                             @foreach (\App\Models\Voucher::TYPES as $value => $label)
                                 <option value="{{ $value }}" @selected(old('type', $type) === $value)>{{ $label }}</option>
                             @endforeach
@@ -52,11 +63,11 @@
                     <div class="col-6 col-md-4">
                         <label class="form-label">Date *</label>
                         <input type="date" name="date" class="form-control" required
-                            value="{{ old('date', now()->toDateString()) }}">
+                            value="{{ old('date', $voucher->date?->toDateString() ?? now()->toDateString()) }}">
                     </div>
                     <div class="col-6 col-md-4">
                         <label class="form-label">Reference</label>
-                        <input name="reference" class="form-control" maxlength="255" value="{{ old('reference') }}">
+                        <input name="reference" class="form-control" maxlength="255" value="{{ old('reference', $voucher->reference) }}">
                     </div>
                 </div>
 
@@ -115,7 +126,7 @@
                 </div>
 
                 <label class="form-label">Narration</label>
-                <textarea name="narration" rows="2" maxlength="2000" class="form-control">{{ old('narration') }}</textarea>
+                <textarea name="narration" rows="2" maxlength="2000" class="form-control">{{ old('narration', $voucher->narration) }}</textarea>
             </div>
             <div class="card-footer bg-white text-end">
                 <button class="btn btn-primary">Save Voucher</button>

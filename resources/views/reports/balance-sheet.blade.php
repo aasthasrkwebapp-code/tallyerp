@@ -9,7 +9,7 @@
 
     @if ($difference != 0)
         <div class="alert alert-warning">
-            Difference in opening balances: {{ number_format(abs($difference), 2) }}.
+            Difference in opening balances: {{ inr(abs($difference), 2) }}.
             Check the opening balances on your ledgers.
         </div>
     @endif
@@ -24,18 +24,18 @@
                         @if ($netProfit != 0)
                             <tr>
                                 <td class="fw-semibold">Profit &amp; Loss A/c</td>
-                                <td class="text-end fw-semibold">{{ number_format($netProfit, 2) }}</td>
+                                <td class="text-end fw-semibold">{{ inr($netProfit, 2) }}</td>
                             </tr>
                         @endif
                         @if ($difference > 0)
                             <tr class="text-danger">
                                 <td>Difference in opening balances</td>
-                                <td class="text-end">{{ number_format($difference, 2) }}</td>
+                                <td class="text-end">{{ inr($difference, 2) }}</td>
                             </tr>
                         @endif
                     </tbody>
                     <tfoot class="fw-semibold">
-                        <tr><td>Total</td><td class="text-end">{{ number_format($totalLiabilities + max($difference, 0), 2) }}</td></tr>
+                        <tr><td>Total</td><td class="text-end">{{ inr($totalLiabilities + max($difference, 0), 2) }}</td></tr>
                     </tfoot>
                 </table>
             </div>
@@ -49,12 +49,12 @@
                         @if ($difference < 0)
                             <tr class="text-danger">
                                 <td>Difference in opening balances</td>
-                                <td class="text-end">{{ number_format(-$difference, 2) }}</td>
+                                <td class="text-end">{{ inr(-$difference, 2) }}</td>
                             </tr>
                         @endif
                     </tbody>
                     <tfoot class="fw-semibold">
-                        <tr><td>Total</td><td class="text-end">{{ number_format($totalAssets + max(-$difference, 0), 2) }}</td></tr>
+                        <tr><td>Total</td><td class="text-end">{{ inr($totalAssets + max(-$difference, 0), 2) }}</td></tr>
                     </tfoot>
                 </table>
             </div>

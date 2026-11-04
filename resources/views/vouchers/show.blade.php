@@ -20,6 +20,9 @@
                     View Invoice
                 </a>
             @endif
+            @unless ($voucher->gstLines()->exists())
+                <a href="{{ route('companies.vouchers.edit', [$company, $voucher]) }}" class="btn btn-outline-primary">Edit</a>
+            @endunless
             <form method="POST" action="{{ route('companies.vouchers.destroy', [$company, $voucher]) }}"
                 onsubmit="return confirm('Delete this voucher?');">
                 @csrf
@@ -34,6 +37,9 @@
 
     @if (session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
+    @endif
+    @if (session('error'))
+        <div class="alert alert-danger">{{ session('error') }}</div>
     @endif
 
     <div class="card border-0 shadow-sm">
@@ -52,16 +58,16 @@
                         <tr>
                             <td>{{ $entry->account->name }}</td>
                             <td class="text-secondary">{{ $entry->account->group->name }}</td>
-                            <td class="text-end">{{ $entry->debit > 0 ? number_format((float) $entry->debit, 2) : '' }}</td>
-                            <td class="text-end">{{ $entry->credit > 0 ? number_format((float) $entry->credit, 2) : '' }}</td>
+                            <td class="text-end">{{ $entry->debit > 0 ? inr((float) $entry->debit, 2) : '' }}</td>
+                            <td class="text-end">{{ $entry->credit > 0 ? inr((float) $entry->credit, 2) : '' }}</td>
                         </tr>
                     @endforeach
                 </tbody>
                 <tfoot class="fw-semibold">
                     <tr>
                         <td colspan="2">Total</td>
-                        <td class="text-end">{{ number_format((float) $voucher->amount, 2) }}</td>
-                        <td class="text-end">{{ number_format((float) $voucher->amount, 2) }}</td>
+                        <td class="text-end">{{ inr((float) $voucher->amount, 2) }}</td>
+                        <td class="text-end">{{ inr((float) $voucher->amount, 2) }}</td>
                     </tr>
                 </tfoot>
             </table>

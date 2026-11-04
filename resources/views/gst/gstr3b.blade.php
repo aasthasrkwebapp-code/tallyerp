@@ -4,7 +4,7 @@
 
 @section('content')
 @php
-    $m = fn ($v) => number_format((float) $v, 2);
+    $m = fn ($v) => inr((float) $v, 2);
 @endphp
 <div class="container-fluid py-3">
     @include('reports._header', ['title' => 'GSTR-3B (Summary)', 'subtitle' => $from->format('d-m-Y').' to '.$to->format('d-m-Y')])

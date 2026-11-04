@@ -9,7 +9,7 @@
     $cgst = $lines->sum(fn ($l) => (float) $l->cgst);
     $sgst = $lines->sum(fn ($l) => (float) $l->sgst);
     $igst = $lines->sum(fn ($l) => (float) $l->igst);
-    $money = fn ($v) => number_format((float) $v, 2);
+    $money = fn ($v) => inr((float) $v, 2);
 @endphp
 <div class="container-fluid py-3">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4 d-print-none">
@@ -76,7 +76,7 @@
                                     {{ $line->description ?: ($line->stockItem?->name ?? $line->account->name) }}
                                     @if ($line->stockItem)
                                         <div class="small text-secondary">
-                                            {{ rtrim(rtrim(number_format((float) $line->quantity, 3), '0'), '.') }} {{ $line->stockItem->unit->symbol }}
+                                            {{ rtrim(rtrim(inr((float) $line->quantity, 3), '0'), '.') }} {{ $line->stockItem->unit->symbol }}
                                             × {{ $money($line->item_rate) }}
                                         </div>
                                     @endif

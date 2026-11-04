@@ -4,7 +4,7 @@
 
 @section('content')
 @php
-    $drcr = fn (float $v) => number_format(abs($v), 2).' '.($v < 0 ? 'Cr' : 'Dr');
+    $drcr = fn (float $v) => inr(abs($v), 2).' '.($v < 0 ? 'Cr' : 'Dr');
 @endphp
 <div class="container-fluid py-3">
     @include('reports._header', [
@@ -64,8 +64,8 @@
                                         {{ $row->voucher->typeLabel() }} #{{ $row->voucher->number }}
                                     </a>
                                 </td>
-                                <td class="text-end">{{ $row->debit ? number_format($row->debit, 2) : '' }}</td>
-                                <td class="text-end">{{ $row->credit ? number_format($row->credit, 2) : '' }}</td>
+                                <td class="text-end">{{ $row->debit ? inr($row->debit, 2) : '' }}</td>
+                                <td class="text-end">{{ $row->credit ? inr($row->credit, 2) : '' }}</td>
                                 <td class="text-end">{{ $drcr($row->balance) }}</td>
                             </tr>
                         @empty
@@ -77,8 +77,8 @@
                     <tfoot class="fw-semibold">
                         <tr>
                             <td colspan="3">Closing Balance</td>
-                            <td class="text-end">{{ number_format($statement['debits'], 2) }}</td>
-                            <td class="text-end">{{ number_format($statement['credits'], 2) }}</td>
+                            <td class="text-end">{{ inr($statement['debits'], 2) }}</td>
+                            <td class="text-end">{{ inr($statement['credits'], 2) }}</td>
                             <td class="text-end">{{ $drcr($statement['closing']) }}</td>
                         </tr>
                     </tfoot>

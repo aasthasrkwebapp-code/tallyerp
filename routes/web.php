@@ -25,7 +25,7 @@ Route::middleware(['auth'])->group(function () {
         ->except('show')
         ->scoped();
     Route::resource('companies.vouchers', VoucherController::class)
-        ->only(['index', 'create', 'store', 'show', 'destroy'])
+        ->except([])
         ->scoped();
 
     Route::resource('companies.gst-invoices', GstInvoiceController::class)

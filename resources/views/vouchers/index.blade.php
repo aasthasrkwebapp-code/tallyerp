@@ -70,7 +70,7 @@
                                 <span class="text-secondary">/</span>
                                 {{ $voucher->entries->where('credit', '>', 0)->pluck('account.name')->join(', ') }}
                             </td>
-                            <td class="text-end">{{ number_format((float) $voucher->amount, 2) }}</td>
+                            <td class="text-end">{{ inr((float) $voucher->amount, 2) }}</td>
                         </tr>
                     @empty
                         <tr>

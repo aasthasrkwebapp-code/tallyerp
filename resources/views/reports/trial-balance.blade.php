@@ -9,7 +9,7 @@
 
     @if ($openingDifference != 0)
         <div class="alert alert-warning">
-            Opening balances differ by {{ number_format(abs($openingDifference), 2) }}
+            Opening balances differ by {{ inr(abs($openingDifference), 2) }}
             {{ $openingDifference > 0 ? 'Dr' : 'Cr' }}. Check the opening balances on your ledgers.
         </div>
     @endif
@@ -36,8 +36,8 @@
                                         {{ $account->name }}
                                     </a>
                                 </td>
-                                <td class="text-end">{{ $account->balance > 0 ? number_format($account->balance, 2) : '' }}</td>
-                                <td class="text-end">{{ $account->balance < 0 ? number_format(-$account->balance, 2) : '' }}</td>
+                                <td class="text-end">{{ $account->balance > 0 ? inr($account->balance, 2) : '' }}</td>
+                                <td class="text-end">{{ $account->balance < 0 ? inr(-$account->balance, 2) : '' }}</td>
                             </tr>
                         @endforeach
                     @empty
@@ -49,8 +49,8 @@
                 <tfoot class="fw-semibold">
                     <tr>
                         <td>Grand Total</td>
-                        <td class="text-end">{{ number_format($totalDebit, 2) }}</td>
-                        <td class="text-end">{{ number_format($totalCredit, 2) }}</td>
+                        <td class="text-end">{{ inr($totalDebit, 2) }}</td>
+                        <td class="text-end">{{ inr($totalCredit, 2) }}</td>
                     </tr>
                 </tfoot>
             </table>

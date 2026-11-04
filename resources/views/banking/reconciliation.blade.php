@@ -4,8 +4,8 @@
 
 @section('content')
 @php
-    $m = fn ($v) => number_format((float) $v, 2);
-    $drcr = fn (float $v) => number_format(abs($v), 2).' '.($v < 0 ? 'Cr' : 'Dr');
+    $m = fn ($v) => inr((float) $v, 2);
+    $drcr = fn (float $v) => inr(abs($v), 2).' '.($v < 0 ? 'Cr' : 'Dr');
 @endphp
 <div class="container-fluid py-3">
     @include('reports._header', [

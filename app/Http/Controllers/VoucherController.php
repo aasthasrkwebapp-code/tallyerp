@@ -46,13 +46,122 @@ class VoucherController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('vouchers.create', compact('company', 'type', 'accounts'));
+        return view('vouchers.create', [
+            'company' => $company,
+            'type' => $type,
+            'accounts' => $accounts,
+            'voucher' => new Voucher,
+        ]);
+    }
+
+    public function edit(Company $company, Voucher $voucher)
+    {
+        $this->authorizeCompany($company);
+
+        if ($redirect = $this->refuseInvoiceEdit($company, $voucher)) {
+            return $redirect;
+        }
+
+        $voucher->load('entries');
+
+        // Keep inactive ledgers already used on this voucher selectable.
+        $accounts = $company->accounts()
+            ->where(fn ($q) => $q->where('is_active', true)->orWhereIn('id', $voucher->entries->pluck('account_id')))
+            ->with('group')
+            ->orderBy('name')
+            ->get();
+
+        return view('vouchers.create', [
+            'company' => $company,
+            'type' => $voucher->type,
+            'accounts' => $accounts,
+            'voucher' => $voucher,
+        ]);
+    }
+
+    public function update(Request $request, Company $company, Voucher $voucher)
+    {
+        $this->authorizeCompany($company);
+
+        if ($redirect = $this->refuseInvoiceEdit($company, $voucher)) {
+            return $redirect;
+        }
+
+        // The type (and so the number series) stays fixed once saved.
+        $request->merge(['type' => $voucher->type]);
+        [$data, $entries] = $this->validatedVoucher($request, $company);
+
+        DB::transaction(function () use ($voucher, $data, $entries) {
+            // Keep reconciliation details on lines that didn't change.
+            $previous = $voucher->entries()->get()->groupBy(fn ($e) => $e->account_id.'|'.(float) $e->debit.'|'.(float) $e->credit);
+
+            $voucher->update([
+                'date' => $data['date'],
+                'reference' => $data['reference'] ?? null,
+                'narration' => $data['narration'] ?? null,
+                'amount' => array_sum(array_column($entries, 'debit')),
+            ]);
+
+            $voucher->entries()->delete();
+            foreach ($entries as $entry) {
+                $old = $previous->get($entry['account_id'].'|'.$entry['debit'].'|'.$entry['credit'])?->shift();
+                $voucher->entries()->create($entry + [
+                    'instrument_no' => $old?->instrument_no,
+                    'bank_date' => $old?->bank_date,
+                ]);
+            }
+        });
+
+        return redirect()
+            ->route('companies.vouchers.show', [$company, $voucher])
+            ->with('success', $voucher->typeLabel().' voucher #'.$voucher->number.' updated.');
     }
 
     public function store(Request $request, Company $company)
     {
         $this->authorizeCompany($company);
 
+        [$data, $entries] = $this->validatedVoucher($request, $company);
+
+        $voucher = DB::transaction(function () use ($company, $data, $entries) {
+            $voucher = $company->vouchers()->create([
+                'type' => $data['type'],
+                'number' => Voucher::nextNumber($company, $data['type']),
+                'date' => $data['date'],
+                'reference' => $data['reference'] ?? null,
+                'narration' => $data['narration'] ?? null,
+                'amount' => array_sum(array_column($entries, 'debit')),
+            ]);
+
+            $voucher->entries()->createMany($entries);
+
+            return $voucher;
+        });
+
+        return redirect()
+            ->route('companies.vouchers.show', [$company, $voucher])
+            ->with('success', $voucher->typeLabel().' voucher #'.$voucher->number.' saved.');
+    }
+
+    /**
+     * GST invoices carry tax lines and stock movements, so they are re-entered rather than edited.
+     */
+    protected function refuseInvoiceEdit(Company $company, Voucher $voucher)
+    {
+        if (! $voucher->gstLines()->exists()) {
+            return null;
+        }
+
+        return redirect()
+            ->route('companies.vouchers.show', [$company, $voucher])
+            ->with('error', 'GST invoices cannot be edited. Delete it and enter it again.');
+    }
+
+    /**
+     * @return array{0: array, 1: array}
+     */
+    protected function validatedVoucher(Request $request, Company $company): array
+    {
         [$start, $end] = $this->financialYear($company);
 
         $data = $request->validate([
@@ -75,24 +184,7 @@ class VoucherController extends Controller
         $entries = $this->normaliseEntries($data['entries']);
         $this->checkVoucherRules($company, $data['type'], $entries);
 
-        $voucher = DB::transaction(function () use ($company, $data, $entries) {
-            $voucher = $company->vouchers()->create([
-                'type' => $data['type'],
-                'number' => Voucher::nextNumber($company, $data['type']),
-                'date' => $data['date'],
-                'reference' => $data['reference'] ?? null,
-                'narration' => $data['narration'] ?? null,
-                'amount' => array_sum(array_column($entries, 'debit')),
-            ]);
-
-            $voucher->entries()->createMany($entries);
-
-            return $voucher;
-        });
-
-        return redirect()
-            ->route('companies.vouchers.show', [$company, $voucher])
-            ->with('success', $voucher->typeLabel().' voucher #'.$voucher->number.' saved.');
+        return [$data, $entries];
     }
 
     public function show(Company $company, Voucher $voucher)

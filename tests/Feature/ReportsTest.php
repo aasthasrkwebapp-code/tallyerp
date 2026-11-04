@@ -92,7 +92,7 @@ class ReportsTest extends TestCase
 
         $this->assertSame(150000.0, $response->viewData('totalDebit'));
         $this->assertSame(150000.0, $response->viewData('totalCredit'));
-        $response->assertSee('115,000.00')
+        $response->assertSee('1,15,000.00')
             ->assertDontSee('Opening balances differ');
     }
 

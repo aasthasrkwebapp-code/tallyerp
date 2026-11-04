@@ -4,7 +4,7 @@
 
 @section('content')
 @php
-    $m = fn ($v) => number_format((float) $v, 2);
+    $m = fn ($v) => inr((float) $v, 2);
     $taxCells = fn ($r) => '<td class="text-end">'.$m($r->taxable).'</td><td class="text-end">'.$m($r->igst).'</td><td class="text-end">'.$m($r->cgst).'</td><td class="text-end">'.$m($r->sgst).'</td>';
 @endphp
 <div class="container-fluid py-3">

@@ -4,7 +4,7 @@
 
 @section('content')
 @php
-    $m = fn ($v) => $v ? number_format((float) $v, 2) : '';
+    $m = fn ($v) => $v ? inr((float) $v, 2) : '';
     $title = $kind === 'receivables' ? 'Receivables (Sundry Debtors)' : 'Payables (Sundry Creditors)';
 @endphp
 <div class="container-fluid py-3">
@@ -43,8 +43,8 @@
                             @foreach ($row->buckets as $bucket => $amount)
                                 <td class="text-end {{ $bucket === '90+' && $amount > 0 ? 'text-danger' : '' }}">{{ $m($amount) }}</td>
                             @endforeach
-                            <td class="text-end text-secondary">{{ $row->advance ? '('.number_format($row->advance, 2).')' : '' }}</td>
-                            <td class="text-end fw-semibold">{{ number_format($row->total, 2) }}</td>
+                            <td class="text-end text-secondary">{{ $row->advance ? '('.inr($row->advance, 2).')' : '' }}</td>
+                            <td class="text-end fw-semibold">{{ inr($row->total, 2) }}</td>
                         </tr>
                     @empty
                         <tr>
@@ -56,10 +56,10 @@
                     <tr>
                         <td>Total</td>
                         @foreach ($totals as $amount)
-                            <td class="text-end">{{ number_format($amount, 2) }}</td>
+                            <td class="text-end">{{ inr($amount, 2) }}</td>
                         @endforeach
                         <td></td>
-                        <td class="text-end">{{ number_format($grandTotal, 2) }}</td>
+                        <td class="text-end">{{ inr($grandTotal, 2) }}</td>
                     </tr>
                 </tfoot>
             </table>

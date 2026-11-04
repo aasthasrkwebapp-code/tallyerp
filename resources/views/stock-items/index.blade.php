@@ -46,7 +46,7 @@
                             <td class="text-end">{{ $item->gst_rate === null ? '—' : (float) $item->gst_rate.'%' }}</td>
                             <td class="text-end">
                                 {{ (float) $item->opening_quantity }} {{ $item->unit->symbol }}
-                                <span class="text-secondary small">@ {{ number_format((float) $item->opening_rate, 2) }}</span>
+                                <span class="text-secondary small">@ {{ inr((float) $item->opening_rate, 2) }}</span>
                             </td>
                             <td class="text-end">
                                 <div class="btn-group btn-group-sm" role="group">

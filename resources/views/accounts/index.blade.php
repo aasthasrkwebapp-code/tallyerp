@@ -68,7 +68,7 @@
                             </td>
                             <td>{{ $account->group->name }}</td>
                             <td class="text-end">
-                                {{ number_format((float) $account->opening_balance, 2) }}
+                                {{ inr((float) $account->opening_balance, 2) }}
                                 {{ strtoupper($account->opening_balance_type) }}
                             </td>
                             <td>
