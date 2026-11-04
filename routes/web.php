@@ -12,6 +12,7 @@ use App\Http\Controllers\GstReportController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\OutstandingController;
 use App\Http\Controllers\StockItemController;
+use App\Http\Controllers\TdsController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\VoucherController;
 
@@ -68,6 +69,9 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('companies.cost-centres', CostCentreController::class)
         ->only(['index', 'store', 'destroy'])
         ->scoped();
+
+    Route::resource('companies.tds', TdsController::class)
+        ->only(['index', 'create', 'store']);
 
     Route::get('companies/{company}/outstanding/{kind}', [OutstandingController::class, 'show'])
         ->whereIn('kind', ['receivables', 'payables'])

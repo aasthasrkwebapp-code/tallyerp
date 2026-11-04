@@ -146,17 +146,24 @@ class VoucherController extends Controller
     }
 
     /**
-     * GST invoices carry tax lines and stock movements, so they are re-entered rather than edited.
+     * GST invoices (tax lines, stock) and TDS bills (deduction records) are
+     * re-entered rather than edited.
      */
     protected function refuseInvoiceEdit(Company $company, Voucher $voucher)
     {
-        if (! $voucher->gstLines()->exists()) {
+        $kind = match (true) {
+            $voucher->gstLines()->exists() => 'GST invoices',
+            $voucher->tdsDeductions()->exists() => 'Bills with TDS',
+            default => null,
+        };
+
+        if (! $kind) {
             return null;
         }
 
         return redirect()
             ->route('companies.vouchers.show', [$company, $voucher])
-            ->with('error', 'GST invoices cannot be edited. Delete it and enter it again.');
+            ->with('error', $kind.' cannot be edited. Delete it and enter it again.');
     }
 
     /**

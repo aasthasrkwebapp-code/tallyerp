@@ -54,6 +54,11 @@ class Voucher extends Model
         return $this->hasMany(VoucherGstLine::class);
     }
 
+    public function tdsDeductions(): HasMany
+    {
+        return $this->hasMany(TdsDeduction::class);
+    }
+
     public function party(): BelongsTo
     {
         return $this->belongsTo(Account::class, 'party_account_id');

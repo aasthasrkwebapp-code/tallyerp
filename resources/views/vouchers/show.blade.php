@@ -20,7 +20,7 @@
                     View Invoice
                 </a>
             @endif
-            @unless ($voucher->gstLines()->exists())
+            @unless ($voucher->gstLines()->exists() || $voucher->tdsDeductions()->exists())
                 <a href="{{ route('companies.vouchers.edit', [$company, $voucher]) }}" class="btn btn-outline-primary">Edit</a>
             @endunless
             <form method="POST" action="{{ route('companies.vouchers.destroy', [$company, $voucher]) }}"

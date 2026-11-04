@@ -95,6 +95,29 @@ class Company extends Model
         return $this->hasMany(StockItem::class);
     }
 
+    public function tdsDeductions(): HasMany
+    {
+        return $this->hasMany(TdsDeduction::class);
+    }
+
+    /**
+     * "TDS Payable - 194C" style ledger under Duties & Taxes, created on first use.
+     */
+    public function tdsLedger(string $sectionKey): Account
+    {
+        $group = $this->accountGroups()->where('code', 'DUTIES_TAXES')->firstOrFail();
+        $section = \App\Support\Tds::SECTIONS[$sectionKey][0];
+
+        return $this->accounts()->firstOrCreate(
+            ['code' => 'TDS_'.$section],
+            [
+                'name' => 'TDS Payable - '.$section,
+                'account_group_id' => $group->id,
+                'account_type' => $group->nature,
+            ],
+        );
+    }
+
     public function costCentres(): HasMany
     {
         return $this->hasMany(CostCentre::class);

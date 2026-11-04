@@ -88,6 +88,10 @@ class AccountController extends Controller
 
     protected function validated(Request $request, Company $company, ?Account $account = null): array
     {
+        if ($request->filled('pan')) {
+            $request->merge(['pan' => strtoupper(trim($request->input('pan')))]);
+        }
+
         if ($request->filled('gstin')) {
             $request->merge(['gstin' => strtoupper(trim($request->input('gstin')))]);
         }
@@ -116,6 +120,8 @@ class AccountController extends Controller
             'state_code' => ['nullable', Rule::in(array_keys(GstStates::STATES))],
             'hsn_sac' => ['nullable', 'string', 'max:10', 'regex:/^[0-9]+$/'],
             'gst_rate' => ['nullable', Rule::in(GstInvoiceController::RATES)],
+            'pan' => ['nullable', 'string', 'regex:/^[A-Z]{5}[0-9]{4}[A-Z]$/'],
+            'tds_section' => ['nullable', Rule::in(array_keys(\App\Support\Tds::SECTIONS))],
         ]);
 
         // A party's state comes from its GSTIN when one is given.

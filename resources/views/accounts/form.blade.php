@@ -123,6 +123,22 @@
                         </select>
                     </div>
 
+                    <div class="col-6 col-md-3">
+                        <label class="form-label">PAN</label>
+                        <input name="pan" value="{{ old('pan', $account->pan) }}" class="form-control text-uppercase" maxlength="10">
+                    </div>
+
+                    <div class="col-6 col-md-5">
+                        <label class="form-label">TDS section</label>
+                        <select name="tds_section" class="form-select">
+                            <option value="">No TDS</option>
+                            @foreach (\App\Support\Tds::SECTIONS as $key => [$section, $label, $rate])
+                                <option value="{{ $key }}" @selected(old('tds_section', $account->tds_section) === $key)>{{ $section }} · {{ $label }} ({{ $rate }}%)</option>
+                            @endforeach
+                        </select>
+                        <div class="form-text">For suppliers you deduct TDS from.</div>
+                    </div>
+
                     <div class="col-12">
                         <input type="hidden" name="is_active" value="0">
                         <div class="form-check">

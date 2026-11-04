@@ -23,6 +23,8 @@ class Account extends Model
         'state_code',
         'hsn_sac',
         'gst_rate',
+        'pan',
+        'tds_section',
     ];
 
     protected function casts(): array
