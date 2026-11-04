@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AccountGroupController;
 use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\VoucherController;
 
 Route::middleware(['auth'])->group(function () {
     Route::resource('companies', CompanyController::class);
@@ -15,6 +16,9 @@ Route::middleware(['auth'])->group(function () {
         ->scoped();
     Route::resource('companies.accounts', AccountController::class)
         ->except('show')
+        ->scoped();
+    Route::resource('companies.vouchers', VoucherController::class)
+        ->only(['index', 'create', 'store', 'show', 'destroy'])
         ->scoped();
 });
 Route::get('/', function () {

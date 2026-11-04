@@ -40,6 +40,11 @@ class Company extends Model
         return $this->hasMany(Account::class);
     }
 
+    public function vouchers(): HasMany
+    {
+        return $this->hasMany(Voucher::class);
+    }
+
     protected static function booted(): void
     {
         static::created(fn (Company $company) => $company->createDefaultGroups());

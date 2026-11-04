@@ -8,7 +8,13 @@
             <p class="text-secondary mb-0">Company profile</p>
         </div>
         <div class="d-flex flex-wrap gap-2">
-            <a href="{{ route('companies.accounts.index', $company) }}" class="btn btn-primary">
+            <a href="{{ route('companies.vouchers.create', $company) }}" class="btn btn-primary">
+                New Voucher
+            </a>
+            <a href="{{ route('companies.vouchers.index', $company) }}" class="btn btn-outline-primary">
+                Day Book
+            </a>
+            <a href="{{ route('companies.accounts.index', $company) }}" class="btn btn-outline-primary">
                 Ledgers
             </a>
             <a href="{{ route('companies.account-groups.index', $company) }}" class="btn btn-outline-primary">

@@ -74,6 +74,10 @@ class AccountController extends Controller
     {
         $this->authorizeCompany($company);
 
+        if ($account->entries()->exists()) {
+            return back()->with('error', 'This ledger has vouchers. Mark it inactive instead of deleting it.');
+        }
+
         $account->delete();
 
         return redirect()

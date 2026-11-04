@@ -22,6 +22,9 @@
     @if (session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif
+    @if (session('error'))
+        <div class="alert alert-danger">{{ session('error') }}</div>
+    @endif
 
     <form method="GET" class="row g-2 mb-3">
         <div class="col-12 col-md-5">
