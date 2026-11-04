@@ -159,6 +159,14 @@
 <script>
 (() => {
     const items = @json($itemData), stock = @json($stockData);
+    // Price list of the chosen party, else the item's normal price.
+    const priceLists = @json(\App\Http\Controllers\PriceListController::forForm($company));
+    const listPrice = (itemId, fallback) => {
+        const list = priceLists.parties[document.getElementById('doc-party').value];
+        const price = list && priceLists.prices[list] ? priceLists.prices[list][itemId] : undefined;
+        return price !== undefined ? price : fallback;
+    };
+
     const body = document.querySelector('#lines tbody');
     let next = body.rows.length;
     const fmt = n => n.toFixed(2);
@@ -202,7 +210,8 @@
         if (src) {
             if (src.hsn) row.querySelector('.js-hsn').value = src.hsn;
             if (src.rate !== null) row.querySelector('.js-rate').value = String(src.rate);
-            if (src.price && !row.querySelector('.js-price').value) row.querySelector('.js-price').value = src.price;
+            const price = e.target.classList.contains('js-stock') ? listPrice(e.target.value, src.price) : src.price;
+            if (price && !row.querySelector('.js-price').value) row.querySelector('.js-price').value = price;
         }
         recalc();
     });

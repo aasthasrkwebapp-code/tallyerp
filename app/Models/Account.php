@@ -35,6 +35,7 @@ class Account extends Model
         'itc_common',
         'pan',
         'tds_section',
+        'price_list_id',
     ];
 
     protected function casts(): array

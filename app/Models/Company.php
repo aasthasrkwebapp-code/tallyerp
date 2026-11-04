@@ -214,6 +214,11 @@ class Company extends Model
         return $this->hasMany(BusinessDocument::class);
     }
 
+    public function priceLists(): HasMany
+    {
+        return $this->hasMany(PriceList::class);
+    }
+
     public function currencies(): HasMany
     {
         return $this->hasMany(Currency::class);

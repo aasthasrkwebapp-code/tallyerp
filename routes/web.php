@@ -15,6 +15,7 @@ use App\Http\Controllers\CostCentreController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\ForexController;
 use App\Http\Controllers\PayrollController;
+use App\Http\Controllers\PriceListController;
 use App\Http\Controllers\GstInvoiceController;
 use App\Http\Controllers\GstReportController;
 use App\Http\Controllers\InventoryController;
@@ -81,6 +82,9 @@ Route::middleware(['auth'])->group(function () {
             Route::get('gstr-1', 'gstr1')->name('gstr1');
             Route::get('gstr-3b', 'gstr3b')->name('gstr3b');
         });
+
+    Route::resource('companies.price-lists', PriceListController::class)
+        ->only(['index', 'store', 'edit', 'update', 'destroy']);
 
     Route::get('companies/{company}/stock-items/labels', [StockItemController::class, 'labels'])
         ->name('companies.stock-items.labels');

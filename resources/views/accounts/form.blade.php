@@ -101,6 +101,19 @@
                         </div>
                     @endif
 
+                    @if ($priceLists->isNotEmpty())
+                        <div class="col-6 col-md-3">
+                            <label class="form-label" for="f-price-list-id">Price list</label>
+                            <select id="f-price-list-id" name="price_list_id" class="form-select">
+                                <option value="">Normal prices</option>
+                                @foreach ($priceLists as $list)
+                                    <option value="{{ $list->id }}" @selected((string) old('price_list_id', $account->price_list_id) === (string) $list->id)>{{ $list->name }}</option>
+                                @endforeach
+                            </select>
+                            <div class="form-text">Bills for this party use these rates.</div>
+                        </div>
+                    @endif
+
                     <div class="col-12">
                         <h3 class="h6 mt-2 mb-0">GST details</h3>
                         <div class="form-text mt-0">For parties fill GSTIN/state; for sales or purchase ledgers fill HSN/SAC and rate.</div>

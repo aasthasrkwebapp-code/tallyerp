@@ -218,6 +218,14 @@
     const items = @json($itemData);
     const parties = @json($partyData);
     const stock = @json($stockData);
+    // Price list of the chosen party, else the item's normal price.
+    const priceLists = @json(\App\Http\Controllers\PriceListController::forForm($company));
+    const listPrice = (itemId, fallback) => {
+        const list = priceLists.parties[document.getElementById('party').value];
+        const price = list && priceLists.prices[list] ? priceLists.prices[list][itemId] : undefined;
+        return price !== undefined ? price : fallback;
+    };
+
     const companyState = @json($company->stateCode());
     const body = document.querySelector('#lines tbody');
     let next = body.rows.length;
@@ -289,7 +297,8 @@
             const row = e.target.closest('tr'), s = stock[e.target.value];
             if (s.hsn) row.querySelector('.js-hsn').value = s.hsn;
             if (s.rate !== null) row.querySelector('.js-rate').value = String(s.rate);
-            if (!row.querySelector('.js-price').value && s.price) row.querySelector('.js-price').value = s.price;
+            const price = {{ $inward ? 's.price' : 'listPrice(e.target.value, s.price)' }};
+            if (!row.querySelector('.js-price').value && price) row.querySelector('.js-price').value = price;
         }
         recalc();
     });

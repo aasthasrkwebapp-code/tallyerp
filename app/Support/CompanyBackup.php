@@ -23,12 +23,14 @@ class CompanyBackup
      */
     protected const TABLES = [
         'currencies' => ['refs' => []],
+        'price_lists' => ['refs' => []],
         'account_groups' => ['refs' => [], 'self' => 'parent_id'],
-        'chart_of_accounts' => ['refs' => ['account_group_id' => 'account_groups']],
+        'chart_of_accounts' => ['refs' => ['account_group_id' => 'account_groups', 'price_list_id' => 'price_lists']],
         'units' => ['refs' => []],
         'stock_groups' => ['refs' => [], 'self' => 'parent_id'],
         'stock_items' => ['refs' => ['stock_group_id' => 'stock_groups', 'unit_id' => 'units']],
         'stock_batches' => ['refs' => ['stock_item_id' => 'stock_items']],
+        'price_list_items' => ['refs' => ['price_list_id' => 'price_lists', 'stock_item_id' => 'stock_items'], 'via' => ['price_list_id', 'price_lists']],
         'cost_centres' => ['refs' => [], 'self' => 'parent_id'],
         'vouchers' => ['refs' => ['party_account_id' => 'chart_of_accounts']],
         'voucher_entries' => ['refs' => ['voucher_id' => 'vouchers', 'account_id' => 'chart_of_accounts', 'cost_centre_id' => 'cost_centres'], 'via' => ['voucher_id', 'vouchers']],

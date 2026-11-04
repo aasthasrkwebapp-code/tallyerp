@@ -49,6 +49,7 @@ class Access
         'gst-invoices.*' => 'invoices',
         'documents.*' => 'invoices',
         'stock-items.*' => 'inventory',
+        'price-lists.*' => 'inventory',
         'inventory.summary' => 'reports',
         'inventory.batches' => 'reports',
         'inventory.serials' => 'reports',

@@ -36,6 +36,7 @@ class AccountController extends Controller
             'account' => new Account(['opening_balance_type' => 'dr', 'is_active' => true]),
             'groups' => $company->accountGroups()->orderBy('name')->get(),
             'currencies' => $company->currencies()->orderBy('code')->get(),
+            'priceLists' => $company->priceLists()->orderBy('name')->get(),
         ]);
     }
 
@@ -59,6 +60,7 @@ class AccountController extends Controller
             'account' => $account,
             'groups' => $company->accountGroups()->orderBy('name')->get(),
             'currencies' => $company->currencies()->orderBy('code')->get(),
+            'priceLists' => $company->priceLists()->orderBy('name')->get(),
         ]);
     }
 
@@ -119,6 +121,7 @@ class AccountController extends Controller
             'opening_balance_type' => ['required', 'in:dr,cr'],
             'currency_code' => ['nullable', Rule::in($company->currencies()->pluck('code'))],
             'opening_foreign_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
+            'price_list_id' => ['nullable', Rule::exists('price_lists', 'id')->where('company_id', $company->id)],
             'is_active' => ['sometimes', 'boolean'],
             'gstin' => ['nullable', 'string', 'size:15', 'regex:/^[0-9]{2}[0-9A-Z]{13}$/'],
             'state_code' => ['nullable', Rule::in(array_keys(GstStates::STATES))],
