@@ -9,6 +9,7 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\GstInvoiceController;
 use App\Http\Controllers\GstReportController;
 use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\OutstandingController;
 use App\Http\Controllers\StockItemController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\VoucherController;
@@ -60,6 +61,10 @@ Route::middleware(['auth'])->group(function () {
         ->name('companies.banking.reconciliation');
     Route::put('companies/{company}/banking/reconciliation', [BankReconciliationController::class, 'update'])
         ->name('companies.banking.reconciliation.update');
+
+    Route::get('companies/{company}/outstanding/{kind}', [OutstandingController::class, 'show'])
+        ->whereIn('kind', ['receivables', 'payables'])
+        ->name('companies.outstanding');
 
     Route::controller(ReportController::class)
         ->prefix('companies/{company}/reports')
