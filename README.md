@@ -54,5 +54,5 @@ Feature tests cover each module with worked examples (see `tests/Feature`).
 - ITC reversal covers rule 42 (common inputs, 0% sales treated as exempt); rule 43 (capital goods) is not calculated.
 - Payroll uses common PF/ESI rules and a flat professional tax of 200 above 10,000; adjust `app/Support/Payroll.php` for your state.
 - GST invoices, TDS bills and payroll journals are deleted and re-entered rather than edited.
-- e-invoice JSON is generated for upload to the e-invoice portal; the app does not call the IRP API or store the IRN/QR code. E-way bill JSON is likewise uploaded on the portal; the EWB number is not fetched back.
+- e-invoice JSON is generated for upload to the e-invoice portal; the app does not call the IRP API or store the IRN/QR code. E-way bill JSON is likewise uploaded on the portal; the EWB number is then entered on the invoice (not fetched automatically).
 - Multi-currency: GST invoices are in rupees; an opening balance without a foreign amount is not revalued.

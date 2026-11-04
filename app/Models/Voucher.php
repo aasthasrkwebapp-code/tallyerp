@@ -33,12 +33,17 @@ class Voucher extends Model
         'amount',
         'party_account_id',
         'place_of_supply',
+        'eway_bill_no',
+        'eway_bill_date',
+        'eway_bill_valid_until',
     ];
 
     protected function casts(): array
     {
         return [
             'date' => 'date',
+            'eway_bill_date' => 'date',
+            'eway_bill_valid_until' => 'date',
             'amount' => 'decimal:2',
         ];
     }

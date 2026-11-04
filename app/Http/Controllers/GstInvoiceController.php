@@ -269,6 +269,32 @@ class GstInvoiceController extends Controller
         return response()->streamDownload(fn () => print($json), $filename, ['Content-Type' => 'application/json']);
     }
 
+    /**
+     * Save the e-way bill number, date and validity after generating it on the portal.
+     */
+    public function saveEWayBillNumber(Request $request, Company $company, Voucher $voucher)
+    {
+        $this->authorizeCompany($company);
+        abort_unless((int) $voucher->company_id === (int) $company->id && $voucher->gstLines()->exists(), 404);
+
+        $request->merge(['eway_bill_no' => preg_replace('/\D/', '', (string) $request->input('eway_bill_no'))]);
+        $data = $request->validate([
+            'eway_bill_no' => ['nullable', 'digits:12'],
+            'eway_bill_date' => ['nullable', 'required_with:eway_bill_no', 'date', 'after_or_equal:'.$voucher->date->toDateString()],
+            'eway_bill_valid_until' => ['nullable', 'date', 'after_or_equal:eway_bill_date'],
+        ], [
+            'eway_bill_no.digits' => 'The e-way bill number has 12 digits.',
+            'eway_bill_date.after_or_equal' => 'The e-way bill date can\'t be before the invoice date.',
+        ]);
+
+        // Clearing the number clears the rest.
+        $voucher->update(filled($data['eway_bill_no'])
+            ? $data
+            : ['eway_bill_no' => null, 'eway_bill_date' => null, 'eway_bill_valid_until' => null]);
+
+        return back()->with('success', filled($data['eway_bill_no']) ? 'E-way bill '.$data['eway_bill_no'].' saved.' : 'E-way bill details removed.');
+    }
+
     public function show(Company $company, Voucher $voucher)
     {
         $this->authorizeCompany($company);

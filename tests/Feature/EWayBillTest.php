@@ -112,6 +112,37 @@ class EWayBillTest extends TestCase
             ->assertSessionHas('ewaybill_problems', fn ($p) => in_array('Vehicle number looks wrong (e.g. MH12AB1234).', $p));
     }
 
+    public function test_e_way_bill_number_is_saved_and_printed(): void
+    {
+        $voucher = $this->invoice();
+        $save = fn (array $data) => $this->actingAs($this->company->user)
+            ->from(route('companies.gst-invoices.show', [$this->company, $voucher]))
+            ->put(route('companies.gst-invoices.e-way-bill.save', [$this->company, $voucher]), $data);
+
+        $save(['eway_bill_no' => '3410 1234 5678', 'eway_bill_date' => '2026-08-14', 'eway_bill_valid_until' => '2026-08-19'])
+            ->assertSessionHasNoErrors();
+
+        $voucher->refresh();
+        $this->assertSame(['341012345678', '2026-08-14', '2026-08-19'],
+            [$voucher->eway_bill_no, $voucher->eway_bill_date->toDateString(), $voucher->eway_bill_valid_until->toDateString()]);
+
+        $this->actingAs($this->company->user)
+            ->get(route('companies.gst-invoices.show', [$this->company, $voucher]))
+            ->assertSee('E-way bill: 3410 1234 5678')
+            ->assertSee('valid till 19-08-2026')
+            ->assertSee('EWB 341012345678');
+
+        // Wrong length, date before the invoice, and validity before generation are refused.
+        $save(['eway_bill_no' => '12345', 'eway_bill_date' => '2026-08-14'])->assertSessionHasErrors('eway_bill_no');
+        $save(['eway_bill_no' => '341012345678', 'eway_bill_date' => '2026-08-01'])->assertSessionHasErrors('eway_bill_date');
+        $save(['eway_bill_no' => '341012345678', 'eway_bill_date' => '2026-08-14', 'eway_bill_valid_until' => '2026-08-13'])
+            ->assertSessionHasErrors('eway_bill_valid_until');
+
+        // Clearing the number clears the details.
+        $save(['eway_bill_no' => ''])->assertSessionHasNoErrors();
+        $this->assertNull($voucher->fresh()->eway_bill_date);
+    }
+
     public function test_services_only_invoice_needs_no_e_way_bill(): void
     {
         $this->actingAs($this->company->user)

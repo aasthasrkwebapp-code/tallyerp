@@ -27,6 +27,15 @@
     @if (session('success'))
         <div class="alert alert-success d-print-none">{{ session('success') }}</div>
     @endif
+    @if ($errors->any())
+        <div class="alert alert-danger d-print-none">
+            <ul class="mb-0">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
     @if (session('ewaybill_problems'))
         <div class="alert alert-warning d-print-none">
             <div class="fw-semibold mb-1">Fix these before generating the e-way bill:</div>
@@ -72,6 +81,9 @@
                     @endif
                     @if ($voucher->party?->gstin)<div class="small">GSTIN: {{ $voucher->party->gstin }}</div>@endif
                     <div class="small">Place of supply: {{ \App\Support\GstStates::name($voucher->place_of_supply) }} ({{ $voucher->place_of_supply }})</div>
+                    @if ($voucher->eway_bill_no)
+                        <div class="small">E-way bill: {{ chunk_split($voucher->eway_bill_no, 4, ' ') }} · {{ $voucher->eway_bill_date?->format('d-m-Y') }}@if ($voucher->eway_bill_valid_until) · valid till {{ $voucher->eway_bill_valid_until->format('d-m-Y') }}@endif</div>
+                    @endif
                     <div class="small">No. {{ $voucher->number }}/{{ $voucher->financialYearLabel() }} ·{{ $voucher->date->format('d-m-Y') }}
                         @if ($voucher->reference) · Ref {{ $voucher->reference }} @endif
                     </div>
@@ -150,7 +162,9 @@
     <details class="card border-0 shadow-sm mt-3 d-print-none" @if (session('ewaybill_problems') || $ewbNeeded) open @endif>
         <summary class="card-header bg-white fw-semibold">
             e-Way Bill
-            @if ($ewbNeeded)
+            @if ($voucher->eway_bill_no)
+                <span class="badge text-bg-success ms-1">EWB {{ $voucher->eway_bill_no }}</span>
+            @elseif ($ewbNeeded)
                 <span class="badge text-bg-warning ms-1">Needed: value over ₹{{ inr(\App\Support\EWayBill::THRESHOLD, 0) }}</span>
             @endif
         </summary>
@@ -188,6 +202,24 @@
                 <small class="text-secondary">Downloads the bulk-upload JSON for the e-way bill portal (ewaybillgst.gov.in).</small>
                 <button class="btn btn-outline-primary">e-Way Bill JSON</button>
             </div>
+        </form>
+        <form method="POST" action="{{ route('companies.gst-invoices.e-way-bill.save', [$company, $voucher]) }}" class="card-body border-top row g-2 align-items-end">
+            @csrf
+            @method('PUT')
+            <div class="col-12 small text-secondary">After generating it on the portal, record the e-way bill here so it prints on the invoice.</div>
+            <div class="col-12 col-md-4">
+                <label class="form-label small" for="ewb-no">E-way bill no.</label>
+                <input id="ewb-no" name="eway_bill_no" value="{{ old('eway_bill_no', $voucher->eway_bill_no) }}" class="form-control" maxlength="14" inputmode="numeric" placeholder="12 digits">
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label small" for="ewb-date">Generated on</label>
+                <input id="ewb-date" type="date" name="eway_bill_date" value="{{ old('eway_bill_date', $voucher->eway_bill_date?->toDateString()) }}" class="form-control">
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label small" for="ewb-valid">Valid until</label>
+                <input id="ewb-valid" type="date" name="eway_bill_valid_until" value="{{ old('eway_bill_valid_until', $voucher->eway_bill_valid_until?->toDateString()) }}" class="form-control">
+            </div>
+            <div class="col-12 col-md-2 d-grid"><button class="btn btn-primary">Save</button></div>
         </form>
     </details>
     @endif
