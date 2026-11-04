@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Company;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -102,7 +103,7 @@ class CompanyController extends Controller
     {
         $this->authorizeCompany($company);
 
-        $company->delete();
+        DB::transaction(fn () => $company->delete());
 
         return redirect()
             ->route('companies.index')

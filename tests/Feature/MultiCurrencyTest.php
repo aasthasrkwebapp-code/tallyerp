@@ -139,6 +139,12 @@ class MultiCurrencyTest extends TestCase
             ->viewData('rows')->first();
         $this->assertSame([400.0, 34000.0, 0.0], [$after->foreign, $after->rupees, $after->difference]);
 
+        // The revaluation journal is deleted and re-posted, not edited.
+        $journal = $gainLedger->entries()->firstOrFail()->voucher;
+        $this->actingAs($this->company->user)
+            ->get(route('companies.vouchers.edit', [$this->company, $journal]))
+            ->assertSessionHas('error');
+
         // Gain shows in P&L.
         $pl = $this->actingAs($this->company->user)->get(route('companies.reports.profit-and-loss', $this->company));
         $this->assertSame(84400.0, $pl->viewData('netProfit'));

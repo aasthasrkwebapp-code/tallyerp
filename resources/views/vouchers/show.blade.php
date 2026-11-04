@@ -20,7 +20,7 @@
                     View Invoice
                 </a>
             @endif
-            @unless ($voucher->gstLines()->exists() || $voucher->tdsDeductions()->exists())
+            @unless ($voucher->gstLines()->exists() || $voucher->tdsDeductions()->exists() || $voucher->entries->contains(fn ($e) => $e->currency_code && (float) $e->foreign_amount == 0))
                 <a href="{{ route('companies.vouchers.edit', [$company, $voucher]) }}" class="btn btn-outline-primary">Edit</a>
             @endunless
             <form method="POST" action="{{ route('companies.vouchers.destroy', [$company, $voucher]) }}"

@@ -32,6 +32,12 @@ class User extends Authenticatable
         ];
     }
 
+    protected static function booted(): void
+    {
+        // Delete owned companies through the model so their books are cleared in order.
+        static::deleting(fn (User $user) => $user->companies()->get()->each->delete());
+    }
+
     public function companies(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(\App\Models\Company::class);

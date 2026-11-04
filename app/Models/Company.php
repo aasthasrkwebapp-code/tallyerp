@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\Audited;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -120,6 +121,24 @@ class Company extends Model
     {
         static::saving(function (Company $company) {
             $company->books_start_year ??= (int) substr($company->financial_year, 0, 4);
+        });
+
+        // Child records point at each other with restrictive foreign keys (an entry
+        // protects its ledger, a stock movement its item…), so clear them in order
+        // before the database cascade removes the rest.
+        static::deleting(function (Company $company) {
+            $vouchers = DB::table('vouchers')->where('company_id', $company->id)->pluck('id');
+            $runs = DB::table('payroll_runs')->where('company_id', $company->id)->pluck('id');
+
+            DB::table('voucher_entries')->whereIn('voucher_id', $vouchers)->delete();
+            DB::table('voucher_gst_lines')->whereIn('voucher_id', $vouchers)->delete();
+            DB::table('stock_movements')->where('company_id', $company->id)->delete();
+            DB::table('tds_deductions')->where('company_id', $company->id)->delete();
+            DB::table('payslips')->whereIn('payroll_run_id', $runs)->delete();
+            DB::table('payroll_runs')->where('company_id', $company->id)->delete();
+            DB::table('vouchers')->where('company_id', $company->id)->delete();
+            DB::table('employees')->where('company_id', $company->id)->delete();
+            DB::table('stock_items')->where('company_id', $company->id)->delete();
         });
 
         static::created(function (Company $company) {

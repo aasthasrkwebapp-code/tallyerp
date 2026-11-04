@@ -159,6 +159,8 @@ class VoucherController extends Controller
         $kind = match (true) {
             $voucher->gstLines()->exists() => 'GST invoices',
             $voucher->tdsDeductions()->exists() => 'Bills with TDS',
+            // Revaluation lines change rupees only (foreign amount 0).
+            $voucher->entries()->whereNotNull('currency_code')->where('foreign_amount', 0)->exists() => 'Forex revaluations',
             default => null,
         };
 
