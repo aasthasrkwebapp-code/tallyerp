@@ -15,6 +15,11 @@
             </p>
         </div>
         <div class="d-flex flex-wrap gap-2">
+            @if ($voucher->gstLines()->exists())
+                <a href="{{ route('companies.gst-invoices.show', [$company, $voucher]) }}" class="btn btn-outline-primary">
+                    View Invoice
+                </a>
+            @endif
             <form method="POST" action="{{ route('companies.vouchers.destroy', [$company, $voucher]) }}"
                 onsubmit="return confirm('Delete this voucher?');">
                 @csrf

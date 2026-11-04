@@ -76,14 +76,9 @@ class VoucherController extends Controller
         $this->checkVoucherRules($company, $data['type'], $entries);
 
         $voucher = DB::transaction(function () use ($company, $data, $entries) {
-            $number = (int) $company->vouchers()
-                ->where('type', $data['type'])
-                ->lockForUpdate()
-                ->max('number') + 1;
-
             $voucher = $company->vouchers()->create([
                 'type' => $data['type'],
-                'number' => $number,
+                'number' => Voucher::nextNumber($company, $data['type']),
                 'date' => $data['date'],
                 'reference' => $data['reference'] ?? null,
                 'narration' => $data['narration'] ?? null,

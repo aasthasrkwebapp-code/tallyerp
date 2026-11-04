@@ -11,6 +11,12 @@
             <a href="{{ route('companies.vouchers.create', $company) }}" class="btn btn-primary">
                 New Voucher
             </a>
+            <a href="{{ route('companies.gst-invoices.create', [$company, 'type' => 'sales']) }}" class="btn btn-outline-primary">
+                Sales Invoice
+            </a>
+            <a href="{{ route('companies.gst-invoices.create', [$company, 'type' => 'purchase']) }}" class="btn btn-outline-primary">
+                Purchase Invoice
+            </a>
             <a href="{{ route('companies.vouchers.index', $company) }}" class="btn btn-outline-primary">
                 Day Book
             </a>

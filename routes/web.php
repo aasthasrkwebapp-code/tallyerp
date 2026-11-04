@@ -5,6 +5,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AccountGroupController;
 use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\GstInvoiceController;
+use App\Http\Controllers\GstReportController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\VoucherController;
 
@@ -21,6 +23,19 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('companies.vouchers', VoucherController::class)
         ->only(['index', 'create', 'store', 'show', 'destroy'])
         ->scoped();
+
+    Route::resource('companies.gst-invoices', GstInvoiceController::class)
+        ->only(['create', 'store', 'show'])
+        ->parameters(['gst-invoices' => 'voucher'])
+        ->scoped();
+
+    Route::controller(GstReportController::class)
+        ->prefix('companies/{company}/gst')
+        ->name('companies.gst.')
+        ->group(function () {
+            Route::get('gstr-1', 'gstr1')->name('gstr1');
+            Route::get('gstr-3b', 'gstr3b')->name('gstr3b');
+        });
 
     Route::controller(ReportController::class)
         ->prefix('companies/{company}/reports')

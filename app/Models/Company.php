@@ -45,6 +45,29 @@ class Company extends Model
         return $this->hasMany(Voucher::class);
     }
 
+    public function stateCode(): ?string
+    {
+        return \App\Support\GstStates::codeFor($this->gstin, $this->state);
+    }
+
+    /**
+     * The ledger for one GST head, e.g. ("output", "cgst") → "Output CGST"
+     * under Duties & Taxes. Created on first use.
+     */
+    public function gstLedger(string $direction, string $head): Account
+    {
+        $group = $this->accountGroups()->where('code', 'DUTIES_TAXES')->firstOrFail();
+
+        return $this->accounts()->firstOrCreate(
+            ['code' => strtoupper("GST_{$direction}_{$head}")],
+            [
+                'name' => ucfirst($direction).' '.strtoupper($head),
+                'account_group_id' => $group->id,
+                'account_type' => $group->nature,
+            ],
+        );
+    }
+
     protected static function booted(): void
     {
         static::created(fn (Company $company) => $company->createDefaultGroups());

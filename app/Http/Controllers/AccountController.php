@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Account;
 use App\Models\AccountGroup;
 use App\Models\Company;
+use App\Support\GstStates;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -87,6 +88,10 @@ class AccountController extends Controller
 
     protected function validated(Request $request, Company $company, ?Account $account = null): array
     {
+        if ($request->filled('gstin')) {
+            $request->merge(['gstin' => strtoupper(trim($request->input('gstin')))]);
+        }
+
         $data = $request->validate([
             'name' => [
                 'required', 'string', 'max:255',
@@ -107,7 +112,14 @@ class AccountController extends Controller
             'opening_balance' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'opening_balance_type' => ['required', 'in:dr,cr'],
             'is_active' => ['sometimes', 'boolean'],
+            'gstin' => ['nullable', 'string', 'size:15', 'regex:/^[0-9]{2}[0-9A-Z]{13}$/'],
+            'state_code' => ['nullable', Rule::in(array_keys(GstStates::STATES))],
+            'hsn_sac' => ['nullable', 'string', 'max:10', 'regex:/^[0-9]+$/'],
+            'gst_rate' => ['nullable', Rule::in(GstInvoiceController::RATES)],
         ]);
+
+        // A party's state comes from its GSTIN when one is given.
+        $data['state_code'] = GstStates::codeFor($data['gstin'] ?? null) ?? ($data['state_code'] ?? null);
 
         $data['opening_balance'] = $data['opening_balance'] ?? 0;
         $data['is_active'] = $request->boolean('is_active');

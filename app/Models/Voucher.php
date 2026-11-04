@@ -27,6 +27,8 @@ class Voucher extends Model
         'reference',
         'narration',
         'amount',
+        'party_account_id',
+        'place_of_supply',
     ];
 
     protected function casts(): array
@@ -47,8 +49,29 @@ class Voucher extends Model
         return $this->hasMany(VoucherEntry::class);
     }
 
+    public function gstLines(): HasMany
+    {
+        return $this->hasMany(VoucherGstLine::class);
+    }
+
+    public function party(): BelongsTo
+    {
+        return $this->belongsTo(Account::class, 'party_account_id');
+    }
+
     public function typeLabel(): string
     {
         return self::TYPES[$this->type] ?? $this->type;
+    }
+
+    /**
+     * Next number for a voucher type. Call inside a transaction.
+     */
+    public static function nextNumber(Company $company, string $type): int
+    {
+        return (int) $company->vouchers()
+            ->where('type', $type)
+            ->lockForUpdate()
+            ->max('number') + 1;
     }
 }

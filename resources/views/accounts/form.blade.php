@@ -82,6 +82,48 @@
                     </div>
 
                     <div class="col-12">
+                        <h3 class="h6 mt-2 mb-0">GST details</h3>
+                        <div class="form-text mt-0">For parties fill GSTIN/state; for sales or purchase ledgers fill HSN/SAC and rate.</div>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">GSTIN</label>
+                        <input name="gstin" value="{{ old('gstin', $account->gstin) }}"
+                            class="form-control text-uppercase" maxlength="15">
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">State</label>
+                        <select name="state_code" class="form-select">
+                            <option value="">—</option>
+                            @foreach (\App\Support\GstStates::STATES as $code => $name)
+                                <option value="{{ $code }}" @selected(old('state_code', $account->state_code) === $code)>
+                                    {{ $code }} - {{ $name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <label class="form-label">HSN / SAC</label>
+                        <input name="hsn_sac" value="{{ old('hsn_sac', $account->hsn_sac) }}"
+                            class="form-control" maxlength="10" inputmode="numeric">
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <label class="form-label">GST Rate %</label>
+                        <select name="gst_rate" class="form-select">
+                            <option value="">—</option>
+                            @foreach (\App\Http\Controllers\GstInvoiceController::RATES as $rate)
+                                <option value="{{ $rate }}"
+                                    @selected((string) old('gst_rate', $account->gst_rate === null ? '' : (float) $account->gst_rate) === (string) $rate)>
+                                    {{ $rate }}%
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="col-12">
                         <input type="hidden" name="is_active" value="0">
                         <div class="form-check">
                             <input type="checkbox" class="form-check-input" id="is_active" name="is_active" value="1"

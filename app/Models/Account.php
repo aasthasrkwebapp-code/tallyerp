@@ -19,6 +19,10 @@ class Account extends Model
         'opening_balance',
         'opening_balance_type',
         'is_active',
+        'gstin',
+        'state_code',
+        'hsn_sac',
+        'gst_rate',
     ];
 
     protected function casts(): array
