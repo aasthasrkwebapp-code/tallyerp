@@ -97,6 +97,11 @@ class VoucherController extends Controller
             // Keep reconciliation details on lines that didn't change.
             $previous = $voucher->entries()->get()->groupBy(fn ($e) => $e->account_id.'|'.(float) $e->debit.'|'.(float) $e->credit);
 
+            // Moving to another financial year takes the next number in that year's series.
+            if (Voucher::fyStartYear($data['date']) !== (int) $voucher->fy_start_year) {
+                $voucher->number = Voucher::nextNumber($voucher->company, $voucher->type, $data['date']);
+            }
+
             $voucher->update([
                 'date' => $data['date'],
                 'reference' => $data['reference'] ?? null,
@@ -128,7 +133,7 @@ class VoucherController extends Controller
         $voucher = DB::transaction(function () use ($company, $data, $entries) {
             $voucher = $company->vouchers()->create([
                 'type' => $data['type'],
-                'number' => Voucher::nextNumber($company, $data['type']),
+                'number' => Voucher::nextNumber($company, $data['type'], $data['date']),
                 'date' => $data['date'],
                 'reference' => $data['reference'] ?? null,
                 'narration' => $data['narration'] ?? null,

@@ -105,7 +105,7 @@ class TdsController extends Controller
         $voucher = DB::transaction(function () use ($company, $data, $party, $amount, $rate, $tds) {
             $voucher = $company->vouchers()->create([
                 'type' => 'journal',
-                'number' => Voucher::nextNumber($company, 'journal'),
+                'number' => Voucher::nextNumber($company, 'journal', $data['date']),
                 'date' => $data['date'],
                 'reference' => $data['reference'] ?? null,
                 'narration' => $data['narration']

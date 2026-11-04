@@ -169,7 +169,7 @@ class GstInvoiceController extends Controller
 
             $voucher = $company->vouchers()->create([
                 'type' => $data['type'],
-                'number' => Voucher::nextNumber($company, $data['type']),
+                'number' => Voucher::nextNumber($company, $data['type'], $data['date']),
                 'date' => $data['date'],
                 'reference' => $data['reference'] ?? null,
                 'narration' => $data['narration'] ?? null,

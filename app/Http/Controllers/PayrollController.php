@@ -77,7 +77,7 @@ class PayrollController extends Controller
 
             $voucher = $company->vouchers()->create([
                 'type' => 'journal',
-                'number' => Voucher::nextNumber($company, 'journal'),
+                'number' => Voucher::nextNumber($company, 'journal', $postingDate),
                 'date' => $postingDate->toDateString(),
                 'reference' => 'Payroll '.$month->format('M Y'),
                 'narration' => 'Salary for '.$month->format('F Y'),

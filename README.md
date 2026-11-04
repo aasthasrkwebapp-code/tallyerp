@@ -51,4 +51,3 @@ Feature tests cover each module with worked examples (see `tests/Feature`).
 - GSTR-3B sets off input credit by the GST rules but does not carry credit forward between months automatically.
 - Payroll uses common PF/ESI rules and a flat professional tax of 200 above 10,000; adjust `app/Support/Payroll.php` for your state.
 - GST invoices, TDS bills and payroll journals are deleted and re-entered rather than edited.
-- Voucher numbers run continuously across financial years.

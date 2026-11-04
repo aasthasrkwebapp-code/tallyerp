@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\Audited;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -72,15 +73,41 @@ class Voucher extends Model
         return self::TYPES[$this->type] ?? $this->type;
     }
 
+    protected static function booted(): void
+    {
+        // Keep the financial year in step with the date; numbering is per year.
+        static::saving(function (Voucher $voucher) {
+            $voucher->fy_start_year = self::fyStartYear($voucher->date);
+        });
+    }
+
+    public static function fyStartYear(mixed $date): int
+    {
+        $date = CarbonImmutable::parse($date);
+
+        return $date->month >= 4 ? $date->year : $date->year - 1;
+    }
+
     /**
-     * Next number for a voucher type. Call inside a transaction.
+     * Next number for a voucher type in the financial year of $date. Call inside a transaction.
      */
-    public static function nextNumber(Company $company, string $type): int
+    public static function nextNumber(Company $company, string $type, mixed $date): int
     {
         return (int) $company->vouchers()
             ->where('type', $type)
+            ->where('fy_start_year', self::fyStartYear($date))
             ->lockForUpdate()
             ->max('number') + 1;
+    }
+
+    /**
+     * e.g. "2026-27" for the voucher's financial year.
+     */
+    public function financialYearLabel(): string
+    {
+        $start = $this->fy_start_year ?? self::fyStartYear($this->date);
+
+        return sprintf('%d-%02d', $start, ($start + 1) % 100);
     }
 
     public function auditLabel(): string

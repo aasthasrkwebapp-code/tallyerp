@@ -44,7 +44,7 @@
                     <div class="fw-semibold">{{ $voucher->party?->name }}</div>
                     @if ($voucher->party?->gstin)<div class="small">GSTIN: {{ $voucher->party->gstin }}</div>@endif
                     <div class="small">Place of supply: {{ \App\Support\GstStates::name($voucher->place_of_supply) }} ({{ $voucher->place_of_supply }})</div>
-                    <div class="small">Invoice no. {{ $voucher->number }} · {{ $voucher->date->format('d-m-Y') }}
+                    <div class="small">No. {{ $voucher->number }}/{{ $voucher->financialYearLabel() }} ·{{ $voucher->date->format('d-m-Y') }}
                         @if ($voucher->reference) · Ref {{ $voucher->reference }} @endif
                     </div>
                 </div>
