@@ -104,6 +104,21 @@
                         </select>
                     </div>
 
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Address</label>
+                        <input name="address" value="{{ old('address', $account->address) }}" class="form-control" maxlength="500">
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <label class="form-label">City</label>
+                        <input name="city" value="{{ old('city', $account->city) }}" class="form-control" maxlength="100">
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <label class="form-label">PIN code</label>
+                        <input name="pincode" value="{{ old('pincode', $account->pincode) }}" class="form-control" maxlength="6" inputmode="numeric">
+                    </div>
+
                     <div class="col-6 col-md-3">
                         <label class="form-label">HSN / SAC</label>
                         <input name="hsn_sac" value="{{ old('hsn_sac', $account->hsn_sac) }}"

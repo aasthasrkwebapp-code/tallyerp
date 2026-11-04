@@ -22,6 +22,8 @@ class Company extends Model
         'phone',
         'address',
         'state',
+        'city',
+        'pincode',
         'financial_year',
         'currency',
     ];

@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\Company;
 use App\Models\Voucher;
 use App\Support\Books;
+use App\Support\EInvoice;
 use App\Support\GstStates;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -218,6 +219,25 @@ class GstInvoiceController extends Controller
         return redirect()
             ->route('companies.gst-invoices.show', [$company, $voucher])
             ->with('success', $voucher->typeLabel().' #'.$voucher->number.' saved.');
+    }
+
+    /**
+     * Download the e-invoice JSON (NIC schema 1.1) for upload to the e-invoice portal.
+     */
+    public function eInvoice(Company $company, Voucher $voucher)
+    {
+        $this->authorizeCompany($company);
+        abort_unless((int) $voucher->company_id === (int) $company->id && $voucher->gstLines()->exists(), 404);
+
+        $voucher->load('gstLines', 'party', 'company');
+        if ($problems = EInvoice::problems($voucher)) {
+            return back()->with('einvoice_problems', $problems);
+        }
+
+        $json = json_encode([EInvoice::build($voucher)], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        $filename = 'einvoice-'.str_replace('/', '-', $voucher->number.'-'.$voucher->financialYearLabel()).'.json';
+
+        return response()->streamDownload(fn () => print($json), $filename, ['Content-Type' => 'application/json']);
     }
 
     public function show(Company $company, Voucher $voucher)

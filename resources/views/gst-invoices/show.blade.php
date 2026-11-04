@@ -16,6 +16,9 @@
         <h2 class="h4 mb-0">{{ $voucher->typeLabel() }} #{{ $voucher->number }}</h2>
         <div class="d-flex flex-wrap gap-2">
             <button type="button" class="btn btn-outline-secondary" onclick="window.print()">Print</button>
+            @if (in_array($voucher->type, array_keys(\App\Support\EInvoice::DOC_TYPES)))
+                <a href="{{ route('companies.gst-invoices.e-invoice', [$company, $voucher]) }}" class="btn btn-outline-primary">e-Invoice JSON</a>
+            @endif
             <a href="{{ route('companies.vouchers.show', [$company, $voucher]) }}" class="btn btn-outline-primary">Accounting entries</a>
             <a href="{{ route('companies.vouchers.index', $company) }}" class="btn btn-outline-secondary">Back to Day Book</a>
         </div>
@@ -23,6 +26,16 @@
 
     @if (session('success'))
         <div class="alert alert-success d-print-none">{{ session('success') }}</div>
+    @endif
+    @if (session('einvoice_problems'))
+        <div class="alert alert-warning d-print-none">
+            <div class="fw-semibold mb-1">Fix these before generating the e-invoice:</div>
+            <ul class="mb-0">
+                @foreach (session('einvoice_problems') as $problem)
+                    <li>{{ $problem }}</li>
+                @endforeach
+            </ul>
+        </div>
     @endif
 
     <div class="card border-0 shadow-sm">

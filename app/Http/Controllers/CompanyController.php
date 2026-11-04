@@ -133,6 +133,8 @@ class CompanyController extends Controller
             'phone' => ['nullable', 'string', 'max:20'],
             'address' => ['nullable', 'string', 'max:2000'],
             'state' => ['nullable', 'string', 'max:100'],
+            'city' => ['nullable', 'string', 'max:100'],
+            'pincode' => ['nullable', 'digits:6'],
             'financial_year' => [
                 'required',
                 'regex:/^\d{4}-\d{2}$/',

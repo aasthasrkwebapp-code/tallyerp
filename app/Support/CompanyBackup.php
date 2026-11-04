@@ -40,7 +40,7 @@ class CompanyBackup
     ];
 
     protected const COMPANY_FIELDS = [
-        'name', 'legal_name', 'gstin', 'pan', 'email', 'phone', 'address', 'state',
+        'name', 'legal_name', 'gstin', 'pan', 'email', 'phone', 'address', 'city', 'pincode', 'state',
         'financial_year', 'books_start_year', 'currency',
     ];
 

@@ -78,6 +78,16 @@
                             class="form-control">
                     </div>
 
+                    <div class="col-6 col-md-3">
+                        <label class="form-label">City</label>
+                        <input name="city" value="{{ old('city', $company->city) }}" class="form-control" maxlength="100">
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <label class="form-label">PIN code</label>
+                        <input name="pincode" value="{{ old('pincode', $company->pincode) }}" class="form-control" maxlength="6" inputmode="numeric">
+                    </div>
+
                     <div class="col-12 col-md-6">
                         <label class="form-label">Financial Year *</label>
                         <select name="financial_year" class="form-select" required>

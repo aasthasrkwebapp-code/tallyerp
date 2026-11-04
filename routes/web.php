@@ -46,6 +46,8 @@ Route::middleware(['auth'])->group(function () {
         ->except([])
         ->scoped();
 
+    Route::get('companies/{company}/gst-invoices/{voucher}/e-invoice', [GstInvoiceController::class, 'eInvoice'])
+        ->name('companies.gst-invoices.e-invoice');
     Route::resource('companies.gst-invoices', GstInvoiceController::class)
         ->only(['create', 'store', 'show'])
         ->parameters(['gst-invoices' => 'voucher'])
