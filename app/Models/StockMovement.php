@@ -13,6 +13,8 @@ class StockMovement extends Model
         'production_id',
         'stock_item_id',
         'stock_batch_id',
+        'godown_id',
+        'stock_transfer_id',
         'date',
         'quantity_in',
         'quantity_out',
@@ -34,6 +36,11 @@ class StockMovement extends Model
     public function voucher(): BelongsTo
     {
         return $this->belongsTo(Voucher::class);
+    }
+
+    public function godown(): BelongsTo
+    {
+        return $this->belongsTo(Godown::class);
     }
 
     public function batch(): BelongsTo

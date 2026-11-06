@@ -139,6 +139,8 @@ class Company extends Model
             DB::table('voucher_entries')->whereIn('voucher_id', $vouchers)->delete();
             DB::table('voucher_gst_lines')->whereIn('voucher_id', $vouchers)->delete();
             DB::table('stock_movements')->where('company_id', $company->id)->delete();
+            DB::table('stock_transfers')->where('company_id', $company->id)->delete();
+            DB::table('godowns')->where('company_id', $company->id)->delete();
             DB::table('tds_deductions')->where('company_id', $company->id)->delete();
             DB::table('payslips')->whereIn('payroll_run_id', $runs)->delete();
             DB::table('payroll_runs')->where('company_id', $company->id)->delete();
@@ -285,6 +287,16 @@ class Company extends Model
     public function stockBatches(): HasMany
     {
         return $this->hasMany(StockBatch::class);
+    }
+
+    public function godowns(): HasMany
+    {
+        return $this->hasMany(Godown::class);
+    }
+
+    public function stockTransfers(): HasMany
+    {
+        return $this->hasMany(StockTransfer::class);
     }
 
     public function stockMovements(): HasMany

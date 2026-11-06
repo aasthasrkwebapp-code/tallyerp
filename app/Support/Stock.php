@@ -27,6 +27,7 @@ class Stock
         $items = $this->company->stockItems()->with(['unit', 'group'])->orderBy('name')->get();
 
         $movements = $this->company->stockMovements()
+            ->whereNull('stock_transfer_id') // moves between godowns don't change the company's stock
             ->whereDate('date', '<=', $to->toDateString())
             ->get()
             ->groupBy('stock_item_id');

@@ -58,6 +58,7 @@ class Access
         'inventory.low-stock' => 'reports',
         'inventory.serials' => 'reports',
         'inventory.*' => 'inventory',
+        'godowns.*' => 'inventory',
         'banking.*' => 'banking',
         'loans.*' => 'banking',
         'cheques.*' => 'banking',

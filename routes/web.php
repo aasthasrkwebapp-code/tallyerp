@@ -19,6 +19,7 @@ use App\Http\Controllers\PriceListController;
 use App\Http\Controllers\GstInvoiceController;
 use App\Http\Controllers\GstReportController;
 use App\Http\Controllers\ChequeController;
+use App\Http\Controllers\GodownController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\ProfitController;
 use App\Http\Controllers\RegisterController;
@@ -135,6 +136,12 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('companies.stock-items', StockItemController::class)
         ->except('show')
         ->scoped();
+
+    Route::get('companies/{company}/godowns', [GodownController::class, 'index'])->name('companies.godowns.index');
+    Route::post('companies/{company}/godowns', [GodownController::class, 'store'])->name('companies.godowns.store');
+    Route::delete('companies/{company}/godowns/{godown}', [GodownController::class, 'destroy'])->name('companies.godowns.destroy');
+    Route::post('companies/{company}/stock-transfers', [GodownController::class, 'transfer'])->name('companies.godowns.transfer');
+    Route::delete('companies/{company}/stock-transfers/{transfer}', [GodownController::class, 'destroyTransfer'])->name('companies.godowns.transfer.destroy');
 
     Route::controller(InventoryController::class)
         ->prefix('companies/{company}/inventory')

@@ -94,6 +94,17 @@
                             @endforeach
                         </select>
                     </div>
+                    @if ($godowns->isNotEmpty())
+                        <div class="col-6 col-md-2">
+                            <label class="form-label" for="f-godown">Godown</label>
+                            <select name="godown_id" id="f-godown" class="form-select">
+                                <option value="">{{ \App\Models\Godown::MAIN }}</option>
+                                @foreach ($godowns as $g)
+                                    <option value="{{ $g->id }}" @selected((string) old('godown_id') === (string) $g->id)>{{ $g->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
                     <div class="col-6 col-md-2">
                         <label class="form-label" for="f-date">Date *</label>
                         <input id="f-date" type="date" name="date" class="form-control" required value="{{ old('date', now()->toDateString()) }}">

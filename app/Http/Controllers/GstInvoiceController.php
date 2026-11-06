@@ -90,6 +90,7 @@ class GstInvoiceController extends Controller
             ) && ! str_starts_with((string) $a->code, 'GST_')),
             'items' => $accounts->filter(fn (Account $a) => in_array($books->primaryGroup($a->account_group_id)->code, $itemGroups, true)),
             'stockItems' => $company->stockItems()->with('unit')->orderBy('name')->get(),
+            'godowns' => $company->godowns()->orderBy('name')->get(),
             'batches' => $company->stockBatches()->orderBy('expiry_date')->get()
                 ->map(fn ($b) => ['item' => $b->stock_item_id, 'no' => $b->batch_no, 'expiry' => $b->expiry_date?->format('d-m-Y'), 'left' => $b->balance()])
                 ->values(),
@@ -124,6 +125,7 @@ class GstInvoiceController extends Controller
             'lines.*.rate' => ['required', Rule::in(self::RATES)],
             'lines.*.discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'bill_discount_percent' => ['nullable', 'numeric', 'min:0', 'lt:100'],
+            'godown_id' => ['nullable', Rule::exists('godowns', 'id')->where('company_id', $company->id)],
             'lines.*.batch_no' => ['nullable', 'string', 'max:40'],
             'lines.*.expiry_date' => ['nullable', 'date'],
             'lines.*.serial_numbers' => ['nullable', 'string', 'max:5000'],
@@ -275,6 +277,7 @@ class GstInvoiceController extends Controller
                     'voucher_id' => $voucher->id,
                     'stock_item_id' => $line['stock_item_id'],
                     'stock_batch_id' => $batch?->id,
+                    'godown_id' => $data['godown_id'] ?? null,
                     'date' => $data['date'],
                     'quantity_in' => $kind['stockOut'] ? 0 : $line['quantity'],
                     'quantity_out' => $kind['stockOut'] ? $line['quantity'] : 0,
