@@ -40,6 +40,7 @@ class Account extends Model
         'price_list_id',
         'credit_days',
         'credit_limit',
+        'depreciation_rate',
     ];
 
     protected function casts(): array
@@ -47,6 +48,7 @@ class Account extends Model
         return [
             'opening_balance' => 'decimal:2',
             'credit_limit' => 'decimal:2',
+            'depreciation_rate' => 'decimal:2',
             'credit_days' => 'integer',
             'opening_foreign_amount' => 'decimal:2',
             'is_active' => 'boolean',

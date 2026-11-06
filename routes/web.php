@@ -19,6 +19,7 @@ use App\Http\Controllers\PriceListController;
 use App\Http\Controllers\GstInvoiceController;
 use App\Http\Controllers\GstReportController;
 use App\Http\Controllers\ChequeController;
+use App\Http\Controllers\DepreciationController;
 use App\Http\Controllers\GodownController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\ProfitController;
@@ -136,6 +137,10 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('companies.stock-items', StockItemController::class)
         ->except('show')
         ->scoped();
+
+    Route::get('companies/{company}/fixed-assets', [DepreciationController::class, 'index'])->name('companies.fixed-assets.index');
+    Route::put('companies/{company}/fixed-assets', [DepreciationController::class, 'update'])->name('companies.fixed-assets.update');
+    Route::post('companies/{company}/fixed-assets/depreciation', [DepreciationController::class, 'post'])->name('companies.fixed-assets.post');
 
     Route::get('companies/{company}/godowns', [GodownController::class, 'index'])->name('companies.godowns.index');
     Route::post('companies/{company}/godowns', [GodownController::class, 'store'])->name('companies.godowns.store');

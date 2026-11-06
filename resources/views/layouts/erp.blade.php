@@ -154,6 +154,7 @@
                     ['companies.banking.reconciliation', [$activeCompany], 'bank', 'Banking', 'companies.banking.*'],
                     ['companies.cheques.index', [$activeCompany], 'journal-check', 'Cheques', 'companies.cheques.*'],
                     ['companies.loans.index', [$activeCompany], 'cash-coin', 'Loans', 'companies.loans.*'],
+                    ['companies.fixed-assets.index', [$activeCompany], 'building', 'Fixed Assets', 'companies.fixed-assets.*'],
                     ['companies.payroll.index', [$activeCompany], 'people', 'Payroll', ['companies.payroll.*', 'companies.employees.*']],
                     ['companies.members.index', [$activeCompany], 'shield-lock', 'Users & Roles', 'companies.members.*'],
                     ['companies.audit', [$activeCompany], 'clock-history', 'Audit Log', 'companies.audit'],

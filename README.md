@@ -19,6 +19,7 @@ A Tally-style accounting app for Indian businesses, built with Laravel 12 and Bo
 | **Invoice printing** | Several invoice designs, amount in words, bank details, UPI payment QR code, terms; print or save as PDF; 80 mm thermal receipt |
 | **WhatsApp & SMS** | Share an invoice on WhatsApp with a secure public link; one-click payment reminders from Receivables; send the same invoice and reminder messages by SMS |
 | **Manufacturing** | Bills of materials and production entries: raw materials consumed, finished goods added at cost (materials + other costs) |
+| **Fixed assets** | Depreciation rate per fixed-asset ledger, written-down value schedule, one-click yearly depreciation journal (posted once per year) |
 | **Loans** | Loans taken with EMI calculation and a full repayment schedule; paying an EMI splits principal (reduces the loan) and interest (expense) |
 | **Mobile app** | Installable on phones and desktops as a Progressive Web App, with an offline page |
 | **Reports** | Trial Balance, Profit & Loss, Balance Sheet, Ledger statement, Sales/Purchase/Credit Note/Debit Note registers (month-wise with drill-down), Item-wise and party-wise profit (sale value less weighted average cost), Cash Flow (operating / investing / financing), Ratio Analysis (current and quick ratio, debt/equity, profit %, turnover days), Receivables/Payables with ageing, overdue amounts by party credit days and over-limit flags (credit limit warning when billing), Cost Centres, Budget vs Actual |

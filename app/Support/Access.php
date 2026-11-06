@@ -61,6 +61,7 @@ class Access
         'godowns.*' => 'inventory',
         'banking.*' => 'banking',
         'loans.*' => 'banking',
+        'fixed-assets.*' => 'vouchers',
         'cheques.*' => 'banking',
         'tds.*' => 'tds',
         'employees.*' => 'payroll',
