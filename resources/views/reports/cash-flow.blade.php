@@ -5,6 +5,7 @@
 @section('content')
 <div class="container-fluid py-3">
     @include('reports._header', ['title' => 'Cash Flow', 'subtitle' => $from->format('d-m-Y').' to '.$to->format('d-m-Y')])
+    @include('reports._statements-tabs')
 
     <form method="GET" class="d-flex flex-wrap gap-2 align-items-end mb-3 d-print-none">
         <div><label class="form-label small mb-0">From</label><input type="date" name="from" value="{{ $from->toDateString() }}" class="form-control form-control-sm"></div>

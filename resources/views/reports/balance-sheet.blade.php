@@ -5,6 +5,7 @@
 @section('content')
 <div class="container-fluid py-3">
     @include('reports._header', ['title' => 'Balance Sheet', 'subtitle' => 'As on '.$to->format('d-m-Y')])
+    @include('reports._statements-tabs')
     @include('reports._as-on')
 
     @if ($difference != 0)

@@ -14,12 +14,9 @@
 
     <div class="row g-3">
         @foreach ([
-            ['companies.reports.balance-sheet', 'Balance Sheet', 'Assets and liabilities on a date.'],
-            ['companies.reports.profit-and-loss', 'Profit & Loss', 'Gross and net profit for the year.'],
+            ['companies.reports.balance-sheet', 'Financial Statements', 'Balance Sheet, Profit & Loss, Cash Flow and Ratio Analysis.'],
             ['companies.reports.trial-balance', 'Trial Balance', 'Closing balance of every ledger.'],
             ['companies.reports.ledger', 'Ledger', 'All transactions of one ledger with running balance.'],
-            ['companies.reports.cash-flow', 'Cash Flow', 'Cash in and out: operating, investing and financing.'],
-            ['companies.reports.ratios', 'Ratio Analysis', 'Current ratio, profit %, debt/equity and turnover days.'],
             ['companies.vouchers.index', 'Day Book', 'All vouchers by date; pick a type for its month-wise register.'],
             [['companies.outstanding', 'receivables'], 'Receivables', 'What customers owe you, by age, with each customer\'s sales and profit.'],
             [['companies.outstanding', 'payables'], 'Payables', 'What you owe suppliers, by age.'],

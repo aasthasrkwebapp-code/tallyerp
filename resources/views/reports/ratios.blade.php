@@ -13,6 +13,7 @@
 @endphp
 <div class="container-fluid py-3">
     @include('reports._header', ['title' => 'Ratio Analysis', 'subtitle' => 'As on '.$to->format('d-m-Y')])
+    @include('reports._statements-tabs')
 
     <div class="row g-4">
         @foreach (['Principal groups' => $figures, 'Ratios' => $ratios] as $heading => $list)

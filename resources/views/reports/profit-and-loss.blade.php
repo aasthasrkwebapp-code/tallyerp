@@ -11,6 +11,7 @@
 @endphp
 <div class="container-fluid py-3">
     @include('reports._header', ['title' => 'Profit & Loss A/c', 'subtitle' => 'Up to '.$to->format('d-m-Y')])
+    @include('reports._statements-tabs')
     @include('reports._as-on')
 
     <div class="alert {{ $netProfit >= 0 ? 'alert-success' : 'alert-danger' }}">
