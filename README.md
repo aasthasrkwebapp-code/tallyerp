@@ -21,7 +21,7 @@ A Tally-style accounting app for Indian businesses, built with Laravel 12 and Bo
 | **Manufacturing** | Bills of materials and production entries: raw materials consumed, finished goods added at cost (materials + other costs) |
 | **Loans** | Loans taken with EMI calculation and a full repayment schedule; paying an EMI splits principal (reduces the loan) and interest (expense) |
 | **Mobile app** | Installable on phones and desktops as a Progressive Web App, with an offline page |
-| **Reports** | Trial Balance, Profit & Loss, Balance Sheet, Ledger statement, Receivables/Payables with ageing, Cost Centres, Budget vs Actual |
+| **Reports** | Trial Balance, Profit & Loss, Balance Sheet, Ledger statement, Sales/Purchase/Credit Note/Debit Note registers (month-wise with drill-down), Receivables/Payables with ageing, Cost Centres, Budget vs Actual |
 | **Banking** | Bank reconciliation with cheque/UTR numbers and cleared dates; import a bank statement CSV to match and clear entries automatically; cheque register (issued/received, pending/cleared/bounced) where a bounced cheque is reversed by a journal |
 | **TDS** | TDS sections on suppliers (194C/H/I/J/Q, 20% without PAN), bills booked net of TDS, TDS report and balance payable |
 | **Payroll** | Employees, monthly runs with PF/ESI/professional tax, salary journal posted automatically, payslips and register |

@@ -19,6 +19,8 @@
             ['companies.reports.trial-balance', 'Trial Balance', 'Closing balance of every ledger.'],
             ['companies.reports.ledger', 'Ledger', 'All transactions of one ledger with running balance.'],
             ['companies.vouchers.index', 'Day Book', 'All vouchers by date.'],
+            [['companies.reports.register', 'sales'], 'Sales Register', 'Sales month by month, with taxable value and GST.'],
+            [['companies.reports.register', 'purchase'], 'Purchase Register', 'Purchases month by month, with taxable value and GST.'],
             [['companies.outstanding', 'receivables'], 'Receivables', 'What customers owe you, by age.'],
             [['companies.outstanding', 'payables'], 'Payables', 'What you owe suppliers, by age.'],
             ['companies.forex.revaluation', 'Forex Revaluation', 'Foreign-currency balances at today\'s rates.'],
