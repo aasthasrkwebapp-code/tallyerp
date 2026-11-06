@@ -18,6 +18,8 @@
             ['companies.reports.profit-and-loss', 'Profit & Loss', 'Gross and net profit for the year.'],
             ['companies.reports.trial-balance', 'Trial Balance', 'Closing balance of every ledger.'],
             ['companies.reports.ledger', 'Ledger', 'All transactions of one ledger with running balance.'],
+            ['companies.reports.cash-flow', 'Cash Flow', 'Cash in and out: operating, investing and financing.'],
+            ['companies.reports.ratios', 'Ratio Analysis', 'Current ratio, profit %, debt/equity and turnover days.'],
             ['companies.vouchers.index', 'Day Book', 'All vouchers by date.'],
             [['companies.reports.register', 'sales'], 'Sales Register', 'Sales month by month, with taxable value and GST.'],
             [['companies.reports.register', 'purchase'], 'Purchase Register', 'Purchases month by month, with taxable value and GST.'],

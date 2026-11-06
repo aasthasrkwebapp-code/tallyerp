@@ -195,6 +195,8 @@ Route::middleware(['auth'])->group(function () {
             Route::get('profit-and-loss', 'profitAndLoss')->name('profit-and-loss');
             Route::get('balance-sheet', 'balanceSheet')->name('balance-sheet');
             Route::get('ledger', 'ledger')->name('ledger');
+            Route::get('cash-flow', 'cashFlow')->name('cash-flow');
+            Route::get('ratios', 'ratios')->name('ratios');
         });
     Route::get('companies/{company}/reports/register/{type}', [RegisterController::class, 'show'])
         ->name('companies.reports.register');

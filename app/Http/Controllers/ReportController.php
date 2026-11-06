@@ -104,6 +104,131 @@ class ReportController extends Controller
         ]);
     }
 
+    /** Cash and cash equivalents. */
+    public const CASH_GROUPS = ['CASH_IN_HAND', 'BANK_ACCOUNTS', 'BANK_OD'];
+
+    public const INVESTING_GROUPS = ['FIXED_ASSETS', 'INVESTMENTS'];
+
+    public const FINANCING_GROUPS = ['CAPITAL_ACCOUNT', 'SECURED_LOANS', 'UNSECURED_LOANS'];
+
+    /**
+     * Cash Flow: every movement in cash/bank ledgers, attributed to the other
+     * ledgers of the same voucher and grouped as operating, investing or financing.
+     */
+    public function cashFlow(Request $request, Company $company)
+    {
+        $this->authorizeCompany($company);
+
+        $books = new Books($company);
+        [$fyStart, $fyEnd] = $books->financialYear();
+        $from = $this->dateParam($request, 'from', $fyStart);
+        $to = $this->dateParam($request, 'to', $fyEnd);
+
+        $accounts = $company->accounts()->get()->keyBy('id');
+        $isCash = $accounts->map(fn (Account $a) => $books->isUnder($a, self::CASH_GROUPS));
+        $cashIds = $isCash->filter()->keys();
+
+        $cashOn = fn (CarbonImmutable $date) => round($books->closingBalances($date)->whereIn('id', $cashIds)->sum('balance'), 2);
+        $opening = $cashOn($from->subDay());
+        $closing = $cashOn($to);
+
+        $voucherIds = \App\Models\VoucherEntry::query()
+            ->join('vouchers', 'vouchers.id', '=', 'voucher_entries.voucher_id')
+            ->where('vouchers.company_id', $company->id)
+            ->whereDate('vouchers.date', '>=', $from->toDateString())
+            ->whereDate('vouchers.date', '<=', $to->toDateString())
+            ->whereIn('voucher_entries.account_id', $cashIds)
+            ->distinct()->pluck('voucher_entries.voucher_id');
+
+        // Non-cash side of those vouchers: a credit brought cash in, a debit took it out.
+        $lines = \App\Models\VoucherEntry::whereIn('voucher_id', $voucherIds)
+            ->whereNotIn('account_id', $cashIds)
+            ->get()
+            ->groupBy('account_id')
+            ->map(function ($entries, $accountId) use ($accounts, $books) {
+                $account = $accounts[$accountId];
+
+                return (object) [
+                    'account' => $account,
+                    'section' => $books->isUnder($account, self::INVESTING_GROUPS) ? 'investing'
+                        : ($books->isUnder($account, self::FINANCING_GROUPS) ? 'financing' : 'operating'),
+                    'inflow' => round((float) $entries->sum('credit'), 2),
+                    'outflow' => round((float) $entries->sum('debit'), 2),
+                ];
+            })
+            ->sortBy(fn ($l) => $l->account->name)
+            ->values();
+
+        $sections = collect(['operating' => 'Operating activities', 'investing' => 'Investing activities', 'financing' => 'Financing activities'])
+            ->map(fn ($label, $key) => (object) [
+                'label' => $label,
+                'lines' => $in = $lines->where('section', $key)->values(),
+                'inflow' => round($in->sum('inflow'), 2),
+                'outflow' => round($in->sum('outflow'), 2),
+                'net' => round($in->sum('inflow') - $in->sum('outflow'), 2),
+            ]);
+
+        $net = round($sections->sum('net'), 2);
+
+        return view('reports.cash-flow', compact('company', 'from', 'to', 'opening', 'closing', 'sections', 'net'));
+    }
+
+    /**
+     * Ratio Analysis, as in TallyPrime: liquidity, leverage, profitability and turnover.
+     */
+    public function ratios(Request $request, Company $company)
+    {
+        $this->authorizeCompany($company);
+
+        $books = new Books($company);
+        $to = $this->dateParam($request, 'to', $books->financialYear()[1]);
+        $yearStart = Books::yearStartFor($to);
+        $accounts = $books->closingBalances($to);
+
+        // Debit-positive total of ledgers under these groups.
+        $sum = fn (array $codes) => round($accounts->filter(fn (Account $a) => $books->isUnder($a, $codes))->sum('balance'), 2);
+
+        $stock = (new Stock($company))->closingValue($to);
+        $pl = $this->profitAndLossFigures($books, $to);
+        $sales = round(-$sum(['SALES_ACCOUNTS']), 2);
+        $purchases = $sum(['PURCHASE_ACCOUNTS']);
+        $netProfit = (float) $pl['netProfit'];
+        $equity = round(-$sum(['CAPITAL_ACCOUNT']) + $this->retainedProfit($books, $yearStart) + $netProfit, 2);
+
+        $currentAssets = round($sum(['CURRENT_ASSETS']) + $stock, 2);
+        $currentLiabilities = round(-$sum(['CURRENT_LIABILITIES']), 2);
+        $debtors = $sum(['SUNDRY_DEBTORS']);
+        $creditors = round(-$sum(['SUNDRY_CREDITORS']), 2);
+        $loans = round(-$sum(['LOANS_LIABILITY']), 2);
+        $days = max(1, $yearStart->diffInDays($to) + 1);
+
+        $div = fn (float $a, float $b) => $b == 0.0 ? null : $a / $b;
+
+        $figures = [
+            'Working capital' => ['₹', round($currentAssets - $currentLiabilities, 2), 'Current assets − current liabilities'],
+            'Cash & bank' => ['₹', $sum(self::CASH_GROUPS), 'Cash-in-hand, bank and OD balances'],
+            'Sundry debtors' => ['₹', $debtors, 'Owed by customers'],
+            'Sundry creditors' => ['₹', $creditors, 'Owed to suppliers'],
+            'Sales' => ['₹', $sales, 'Sales accounts for the year'],
+            'Purchases' => ['₹', $purchases, 'Purchase accounts for the year'],
+            'Closing stock' => ['₹', $stock, 'At weighted average cost'],
+            'Net profit' => ['₹', $netProfit, 'From the Profit & Loss'],
+        ];
+        $ratios = [
+            'Current ratio' => ['x', $div($currentAssets, $currentLiabilities), 'Current assets ÷ current liabilities (healthy above 1.33)'],
+            'Quick ratio' => ['x', $div($currentAssets - $stock, $currentLiabilities), '(Current assets − stock) ÷ current liabilities'],
+            'Debt / equity' => ['x', $div($loans, $equity), 'Loans ÷ (capital + reserves + profit)'],
+            'Gross profit %' => ['%', $div((float) $pl['grossProfit'] * 100, $sales), 'Gross profit ÷ sales'],
+            'Net profit %' => ['%', $div($netProfit * 100, $sales), 'Net profit ÷ sales'],
+            'Return on investment %' => ['%', $div($netProfit * 100, $equity), 'Net profit ÷ (capital + reserves + profit)'],
+            'Receivable turnover (days)' => ['days', $div($debtors * $days, $sales), 'Debtors ÷ sales × days in the period'],
+            'Payable turnover (days)' => ['days', $div($creditors * $days, $purchases), 'Creditors ÷ purchases × days in the period'],
+            'Inventory turnover' => ['x', $div($sales, $stock), 'Sales ÷ closing stock'],
+        ];
+
+        return view('reports.ratios', compact('company', 'to', 'figures', 'ratios'));
+    }
+
     public function ledger(Request $request, Company $company)
     {
         $this->authorizeCompany($company);

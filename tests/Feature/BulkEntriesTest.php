@@ -68,7 +68,16 @@ class BulkEntriesTest extends TestCase
         $this->assertGreaterThan(0, $bounced);
         $this->actingAs($user)->get(route('companies.cheques.index', [$company, 'status' => 'bounced']))->assertOk();
 
-        foreach (['profit-and-loss', 'balance-sheet', 'day-book'] as $report) {
+        // Cash flow reconciles: opening + net flow = closing.
+        $cf = $this->actingAs($user)->get(route('companies.reports.cash-flow', $company))->assertOk();
+        $this->assertEqualsWithDelta($cf->viewData('closing'), $cf->viewData('opening') + $cf->viewData('net'), 0.005);
+
+        foreach (['profit-and-loss', 'balance-sheet', 'ratios', 'register'] as $report) {
+            if ($report === 'register') {
+                $this->actingAs($user)->get(route('companies.reports.register', [$company, 'sales']))->assertOk();
+
+                continue;
+            }
             if (\Route::has("companies.reports.$report")) {
                 $this->actingAs($user)->get(route("companies.reports.$report", $company))->assertOk();
             }
