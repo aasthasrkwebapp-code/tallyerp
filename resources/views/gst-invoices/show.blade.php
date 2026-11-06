@@ -17,6 +17,12 @@
                     <i class="bi bi-send"></i> Send via API
                 </button>
             </form>
+            <form method="POST" action="{{ route('companies.gst-invoices.sms', [$company, $voucher]) }}">
+                @csrf
+                <button class="btn btn-outline-secondary" title="Send by SMS{{ \App\Support\Sms::isLogMode() ? ' (test mode: dummy keys, logged only)' : '' }}">
+                    <i class="bi bi-chat-text"></i> SMS
+                </button>
+            </form>
             <button type="button" class="btn btn-outline-secondary" data-link="{{ \App\Support\WhatsApp::invoiceUrl($voucher) }}"
                 onclick="navigator.clipboard.writeText(this.dataset.link).then(() => this.textContent = 'Link copied')">Copy link</button>
             <button type="button" class="btn btn-outline-secondary" onclick="window.print()">Print</button>

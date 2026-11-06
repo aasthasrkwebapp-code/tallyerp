@@ -17,7 +17,7 @@ A Tally-style accounting app for Indian businesses, built with Laravel 12 and Bo
 | **Batches & serials** | Batch numbers with manufacturing/expiry dates and a batch-wise stock report; serial/IMEI numbers tracked from purchase to sale with a lookup page |
 | **Price lists** | Wholesale, retail, dealer (any number of) rate lists; assign one to a party and its rates fill in on invoices |
 | **Invoice printing** | Several invoice designs, amount in words, bank details, UPI payment QR code, terms; print or save as PDF; 80 mm thermal receipt |
-| **WhatsApp** | Share an invoice on WhatsApp with a secure public link; one-click payment reminders from Receivables |
+| **WhatsApp & SMS** | Share an invoice on WhatsApp with a secure public link; one-click payment reminders from Receivables; send the same invoice and reminder messages by SMS |
 | **Manufacturing** | Bills of materials and production entries: raw materials consumed, finished goods added at cost (materials + other costs) |
 | **Loans** | Loans taken with EMI calculation and a full repayment schedule; paying an EMI splits principal (reduces the loan) and interest (expense) |
 | **Mobile app** | Installable on phones and desktops as a Progressive Web App, with an offline page |
@@ -67,4 +67,5 @@ Feature tests cover each module with worked examples (see `tests/Feature`).
 - e-invoice JSON is generated for upload to the e-invoice portal; the app does not call the IRP API or store the IRN/QR code. E-way bill JSON is likewise uploaded on the portal; the EWB number is then entered on the invoice (not fetched automatically).
 - Multi-currency: GST invoices are in rupees; an opening balance without a foreign amount is not revalued.
 - WhatsApp: "Send on WhatsApp" opens wa.me with the message ready; "Send via API" uses the WhatsApp Business (Cloud) API configured by `WHATSAPP_*` in `.env`. With the dummy keys in `.env.example` messages are only written to `storage/logs` (test mode); set `WHATSAPP_DRIVER=cloud` with a real token and phone number ID to send. Messages to customers who haven't written in the last 24 hours need an approved template (`WHATSAPP_TEMPLATE`).
+- SMS: sent through an HTTP SMS gateway configured by `SMS_*` in `.env` (bearer API key; JSON `sender`, `to`, `message`, `template_id`). Dummy keys = test mode, messages go to `storage/logs`. Set `SMS_DRIVER=http` with your gateway's URL and key; Indian SMS also needs a DLT-registered sender ID and template (`SMS_DLT_TEMPLATE_ID`). Adjust `app/Support/Sms.php` if your gateway expects different fields.
 - Loans: interest on an EMI is entered as paid (pre-filled from the outstanding balance); prepayments simply reduce the outstanding, the schedule stays on the original terms.

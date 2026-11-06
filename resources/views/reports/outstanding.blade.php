@@ -62,6 +62,11 @@
                                             <input type="hidden" name="amount" value="{{ $row->total }}">
                                             <button class="btn btn-sm btn-outline-success" title="Send via WhatsApp Business API"><i class="bi bi-send"></i></button>
                                         </form>
+                                        <form method="POST" action="{{ route('companies.sms.reminder', [$company, $row->party]) }}" class="d-inline">
+                                            @csrf
+                                            <input type="hidden" name="amount" value="{{ $row->total }}">
+                                            <button class="btn btn-sm btn-outline-secondary" title="Send reminder by SMS"><i class="bi bi-chat-text"></i></button>
+                                        </form>
                                     @endif
                                 </td>
                             @endif

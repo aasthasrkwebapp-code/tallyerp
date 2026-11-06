@@ -48,6 +48,7 @@ class Access
         'vouchers.*' => 'vouchers',
         'gst-invoices.*' => 'invoices',
         'whatsapp.*' => 'invoices',
+        'sms.*' => 'invoices',
         'documents.*' => 'invoices',
         'stock-items.*' => 'inventory',
         'price-lists.*' => 'inventory',

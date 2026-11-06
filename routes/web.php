@@ -20,6 +20,7 @@ use App\Http\Controllers\GstInvoiceController;
 use App\Http\Controllers\GstReportController;
 use App\Http\Controllers\ChequeController;
 use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\SmsController;
 use App\Http\Controllers\WhatsAppController;
 use App\Http\Controllers\LoanController;
 use App\Http\Controllers\ManufacturingController;
@@ -93,6 +94,11 @@ Route::middleware(['auth'])->group(function () {
         ->name('companies.gst-invoices.whatsapp');
     Route::post('companies/{company}/whatsapp/reminder/{account}', [WhatsAppController::class, 'reminder'])
         ->name('companies.whatsapp.reminder');
+
+    Route::post('companies/{company}/gst-invoices/{voucher}/sms', [SmsController::class, 'invoice'])
+        ->name('companies.gst-invoices.sms');
+    Route::post('companies/{company}/sms/reminder/{account}', [SmsController::class, 'reminder'])
+        ->name('companies.sms.reminder');
 
     Route::get('companies/{company}/cheques', [ChequeController::class, 'index'])
         ->name('companies.cheques.index');

@@ -43,6 +43,17 @@ return [
         'template_language' => env('WHATSAPP_TEMPLATE_LANGUAGE', 'en'),
     ],
 
+    // SMS gateway (MSG91 / Fast2SMS / Textlocal style HTTP API). Dummy key = log mode.
+    'sms' => [
+        'driver' => env('SMS_DRIVER', 'log'), // log | http
+        'url' => env('SMS_API_URL', 'https://sms-gateway.example.com/api/send'),
+        'api_key' => env('SMS_API_KEY', 'dummy-sms-api-key'),
+        'sender_id' => env('SMS_SENDER_ID', 'TLYERP'),
+        'dlt_template_id' => env('SMS_DLT_TEMPLATE_ID'),
+        // Test mode only: used when the party ledger has no mobile number.
+        'test_to' => env('SMS_TEST_TO', '+919660533307'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
