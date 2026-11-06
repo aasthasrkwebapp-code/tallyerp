@@ -36,7 +36,8 @@ class WhatsAppController extends Controller
 
     protected function deliver(?string $phone, string $text, string $name)
     {
-        $number = WhatsApp::number($phone);
+        $number = WhatsApp::number($phone)
+            ?? (WhatsAppCloud::isLogMode() ? WhatsApp::number(WhatsAppCloud::config()['test_to'] ?? null) : null);
         if (! $number) {
             return back()->with('error', 'Add a mobile number to '.$name.'\'s ledger to send by WhatsApp API.');
         }

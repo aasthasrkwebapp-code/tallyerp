@@ -79,6 +79,15 @@ class WhatsAppApiTest extends TestCase
             ->assertSessionHas('error');
     }
 
+    public function test_test_mode_uses_the_test_number_when_party_has_none(): void
+    {
+        $this->party->update(['phone' => null]);
+
+        $this->actingAs($this->company->user)
+            ->post(route('companies.gst-invoices.whatsapp', [$this->company, $this->voucher]))
+            ->assertSessionHas('success', 'WhatsApp test mode (dummy keys): message to +919660533307 written to the log, not sent.');
+    }
+
     public function test_other_users_are_blocked(): void
     {
         $this->actingAs(User::factory()->create())

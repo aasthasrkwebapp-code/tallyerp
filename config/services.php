@@ -36,6 +36,9 @@ return [
         'business_account_id' => env('WHATSAPP_BUSINESS_ACCOUNT_ID', '000000000000000'),
         'api_version' => env('WHATSAPP_API_VERSION', 'v21.0'),
         'base_url' => env('WHATSAPP_BASE_URL', 'https://graph.facebook.com'),
+        'business_number' => env('WHATSAPP_BUSINESS_NUMBER', '+919660533307'),
+        // Test mode only: used when the party ledger has no mobile number.
+        'test_to' => env('WHATSAPP_TEST_TO', '+919660533307'),
         'template' => env('WHATSAPP_TEMPLATE'),
         'template_language' => env('WHATSAPP_TEMPLATE_LANGUAGE', 'en'),
     ],
