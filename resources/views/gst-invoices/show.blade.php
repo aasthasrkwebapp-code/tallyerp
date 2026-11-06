@@ -11,6 +11,12 @@
                 target="_blank" rel="noopener" class="btn btn-success">
                 <i class="bi bi-whatsapp"></i> Send on WhatsApp
             </a>
+            <form method="POST" action="{{ route('companies.gst-invoices.whatsapp', [$company, $voucher]) }}">
+                @csrf
+                <button class="btn btn-outline-success" title="Send from the server through the WhatsApp Business API{{ \App\Support\WhatsAppCloud::isLogMode() ? ' (test mode: dummy keys, logged only)' : '' }}">
+                    <i class="bi bi-send"></i> Send via API
+                </button>
+            </form>
             <button type="button" class="btn btn-outline-secondary" data-link="{{ \App\Support\WhatsApp::invoiceUrl($voucher) }}"
                 onclick="navigator.clipboard.writeText(this.dataset.link).then(() => this.textContent = 'Link copied')">Copy link</button>
             <button type="button" class="btn btn-outline-secondary" onclick="window.print()">Print</button>
@@ -30,6 +36,9 @@
 
     @if (session('success'))
         <div class="alert alert-success d-print-none">{{ session('success') }}</div>
+    @endif
+    @if (session('error'))
+        <div class="alert alert-danger d-print-none">{{ session('error') }}</div>
     @endif
     @if ($errors->any())
         <div class="alert alert-danger d-print-none">

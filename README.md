@@ -66,5 +66,5 @@ Feature tests cover each module with worked examples (see `tests/Feature`).
 - GST invoices, TDS bills and payroll journals are deleted and re-entered rather than edited.
 - e-invoice JSON is generated for upload to the e-invoice portal; the app does not call the IRP API or store the IRN/QR code. E-way bill JSON is likewise uploaded on the portal; the EWB number is then entered on the invoice (not fetched automatically).
 - Multi-currency: GST invoices are in rupees; an opening balance without a foreign amount is not revalued.
-- WhatsApp sharing opens WhatsApp (wa.me) with the message ready to send; it does not use the WhatsApp Business API.
+- WhatsApp: "Send on WhatsApp" opens wa.me with the message ready; "Send via API" uses the WhatsApp Business (Cloud) API configured by `WHATSAPP_*` in `.env`. With the dummy keys in `.env.example` messages are only written to `storage/logs` (test mode); set `WHATSAPP_DRIVER=cloud` with a real token and phone number ID to send. Messages to customers who haven't written in the last 24 hours need an approved template (`WHATSAPP_TEMPLATE`).
 - Loans: interest on an EMI is entered as paid (pre-filled from the outstanding balance); prepayments simply reduce the outstanding, the schedule stays on the original terms.

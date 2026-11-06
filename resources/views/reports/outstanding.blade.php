@@ -10,6 +10,9 @@
 <div class="container-fluid py-3">
     @include('reports._header', ['title' => $title, 'subtitle' => 'As on '.$to->format('d-m-Y')])
 
+    @if (session('success'))<div class="alert alert-success d-print-none">{{ session('success') }}</div>@endif
+    @if (session('error'))<div class="alert alert-danger d-print-none">{{ session('error') }}</div>@endif
+
     <div class="d-flex flex-wrap gap-2 mb-3 d-print-none">
         <a href="{{ route('companies.outstanding', [$company, 'receivables', 'to' => $to->toDateString()]) }}"
             class="btn btn-sm {{ $kind === 'receivables' ? 'btn-primary' : 'btn-outline-primary' }}">Receivables</a>
@@ -54,6 +57,11 @@
                                             title="{{ $row->party->phone ? 'WhatsApp '.$row->party->phone : 'No mobile number on this ledger: you can pick the contact in WhatsApp' }}">
                                             <i class="bi bi-whatsapp"></i> Remind
                                         </a>
+                                        <form method="POST" action="{{ route('companies.whatsapp.reminder', [$company, $row->party]) }}" class="d-inline">
+                                            @csrf
+                                            <input type="hidden" name="amount" value="{{ $row->total }}">
+                                            <button class="btn btn-sm btn-outline-success" title="Send via WhatsApp Business API"><i class="bi bi-send"></i></button>
+                                        </form>
                                     @endif
                                 </td>
                             @endif
