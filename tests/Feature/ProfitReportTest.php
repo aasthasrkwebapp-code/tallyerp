@@ -40,17 +40,18 @@ class ProfitReportTest extends TestCase
         // Returned pens come back into stock at ₹15, so the average is (1,000 + 30) / 102.
         $avg = round(1030 / 102, 2);
 
-        $items = $this->actingAs($user)->get(route('companies.reports.profit', [$company, 'items']))->assertOk()->viewData('rows')->keyBy('name');
-        $this->assertSame(13.0, $items['Pen']->quantity);
-        $this->assertSame(220.0, $items['Pen']->value);
-        $this->assertSame(round(13 * $avg, 2), $items['Pen']->cost);
-        $this->assertSame(500.0, $items['Services / other']->profit);
+        // Item-wise profit on the Stock Summary.
+        $pen = $this->actingAs($user)->get(route('companies.inventory.summary', $company))->assertOk()->viewData('rows')->first();
+        $this->assertSame(220.0, $pen->sold_value);
+        $this->assertSame(round(13 * $avg, 2), $pen->cost);
+        $this->assertSame(round(220 - 13 * $avg, 2), $pen->profit);
 
-        $parties = $this->actingAs($user)->get(route('companies.reports.profit', [$company, 'parties']))->assertOk()->viewData('rows')->keyBy('name');
-        $this->assertSame(120.0, $parties['Shop A']->value);            // 150 − 30
-        $this->assertSame(600.0, $parties['Shop B']->value);            // 100 + 500
+        // Party-wise sales and profit on Receivables (services have no cost).
+        $parties = $this->actingAs($user)->get(route('companies.outstanding', [$company, 'receivables', 'to' => '2026-06-30']))
+            ->assertOk()->assertSee('Sales / profit (year)')
+            ->viewData('parties')->keyBy(fn ($r) => $r->party->name);
+        $this->assertSame(120.0, $parties['Shop A']->sold_value);       // 150 − 30
+        $this->assertSame(600.0, $parties['Shop B']->sold_value);       // 100 + 500
         $this->assertSame(round(600 - 5 * $avg, 2), $parties['Shop B']->profit);
-
-        $this->actingAs($user)->get(route('companies.reports.profit', [$company, 'nope']))->assertNotFound();
     }
 }

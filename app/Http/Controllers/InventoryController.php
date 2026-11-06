@@ -137,19 +137,21 @@ class InventoryController extends Controller
         $from = $request->filled('from') ? CarbonImmutable::parse($request->input('from')) : $fyStart;
         $to = $request->filled('to') ? CarbonImmutable::parse($request->input('to')) : $fyEnd;
 
-        $rows = (new Stock($company))->summary($from, $to);
+        $lowOnly = $request->query('filter') === 'low';
 
-        return view('inventory.summary', compact('company', 'from', 'to', 'rows'));
-    }
+        // Item-wise profit for the period: sale value (net of returns) less cost at average rate.
+        $sold = \App\Support\Profit::lines($company, $from, $to)->whereNotNull('stock_item_id')->groupBy('stock_item_id');
 
-    public function lowStock(Company $company)
-    {
-        $this->authorizeCompany($company);
+        $rows = (new Stock($company))->summary($from, $to)
+            ->map(function ($r) use ($sold) {
+                ['value' => $r->sold_value, 'cost' => $r->cost, 'profit' => $r->profit] = \App\Support\Profit::totals($sold->get($r->item->id, collect()));
+                $r->low = $r->item->reorder_level !== null && $r->closing_qty <= (float) $r->item->reorder_level;
 
-        $on = self::stockDate($company);
-        $rows = self::lowStockRows($company, $on);
+                return $r;
+            })
+            ->when($lowOnly, fn ($rows) => $rows->filter->low->values());
 
-        return view('inventory.low-stock', compact('company', 'on', 'rows'));
+        return view('inventory.summary', compact('company', 'from', 'to', 'rows', 'lowOnly'));
     }
 
     /**

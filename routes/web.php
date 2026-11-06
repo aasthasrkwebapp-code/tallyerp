@@ -22,7 +22,6 @@ use App\Http\Controllers\ChequeController;
 use App\Http\Controllers\DepreciationController;
 use App\Http\Controllers\GodownController;
 use App\Http\Controllers\InventoryController;
-use App\Http\Controllers\ProfitController;
 use App\Http\Controllers\RegisterController;
 use App\Http\Controllers\SmsController;
 use App\Http\Controllers\WhatsAppController;
@@ -159,7 +158,6 @@ Route::middleware(['auth'])->group(function () {
             Route::delete('groups/{stockGroup}', 'destroyGroup')->name('groups.destroy');
             Route::get('summary', 'summary')->name('summary');
             Route::get('batches', 'batches')->name('batches');
-            Route::get('low-stock', 'lowStock')->name('low-stock');
             Route::get('serials', 'serials')->name('serials');
         });
 
@@ -211,8 +209,6 @@ Route::middleware(['auth'])->group(function () {
             Route::get('cash-flow', 'cashFlow')->name('cash-flow');
             Route::get('ratios', 'ratios')->name('ratios');
         });
-    Route::get('companies/{company}/reports/profit/{by}', [ProfitController::class, 'show'])
-        ->name('companies.reports.profit');
     Route::get('companies/{company}/reports/register/{type}', [RegisterController::class, 'show'])
         ->name('companies.reports.register');
 });

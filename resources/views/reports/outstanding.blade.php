@@ -34,6 +34,7 @@
                         <th class="text-end">Advance</th>
                         <th class="text-end">Overdue</th>
                         <th class="text-end">Total</th>
+                        @if ($kind === 'receivables')<th class="text-end" title="Sales this year (before GST, net of returns) less cost of goods">Sales / profit (year)</th>@endif
                         @if ($kind === 'receivables')<th class="d-print-none"></th>@endif
                     </tr>
                 </thead>
@@ -56,6 +57,14 @@
                                     <div><span class="badge text-bg-danger" title="Credit limit ₹ {{ inr($row->party->credit_limit) }}">Over limit</span></div>
                                 @endif
                             </td>
+                            @if ($kind === 'receivables')
+                                <td class="text-end">
+                                    @if ($row->sold_value)
+                                        {{ inr($row->sold_value, 2) }}
+                                        <div class="small {{ $row->profit < 0 ? 'text-danger' : 'text-success' }}">profit {{ inr($row->profit, 2) }}</div>
+                                    @endif
+                                </td>
+                            @endif
                             @if ($kind === 'receivables')
                                 <td class="text-end d-print-none">
                                     @if ($row->total > 0)
@@ -80,7 +89,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="text-center text-secondary py-4">Nothing outstanding.</td>
+                            <td colspan="10" class="text-center text-secondary py-4">Nothing outstanding.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -93,6 +102,7 @@
                         <td></td>
                         <td class="text-end text-danger">{{ inr($parties->sum('overdue'), 2) }}</td>
                         <td class="text-end">{{ inr($grandTotal, 2) }}</td>
+                        @if ($kind === 'receivables')<td class="text-end">{{ inr($parties->sum('sold_value'), 2) }}<div class="small">profit {{ inr($parties->sum('profit'), 2) }}</div></td>@endif
                         @if ($kind === 'receivables')<td class="d-print-none"></td>@endif
                     </tr>
                 </tfoot>

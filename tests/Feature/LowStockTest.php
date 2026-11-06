@@ -31,12 +31,21 @@ class LowStockTest extends TestCase
     {
         $user = $this->company->user;
 
-        $rows = $this->actingAs($user)->get(route('companies.inventory.low-stock', $this->company))
+        // Stock Summary, filtered to items at or below their reorder level.
+        $rows = $this->actingAs($user)->get(route('companies.inventory.summary', [$this->company, 'filter' => 'low']))
             ->assertOk()->assertSee('Soap')->assertDontSee('Shampoo')
             ->viewData('rows');
         $this->assertCount(1, $rows);
-        $this->assertSame(6.0, $rows[0]->short);
-        $this->assertSame(25.0, $rows[0]->rate);
+        $this->assertTrue($rows[0]->low);
+
+        // Unfiltered, every item is listed and Soap is flagged.
+        $all = $this->actingAs($user)->get(route('companies.inventory.summary', $this->company))->viewData('rows')->keyBy(fn ($r) => $r->item->name);
+        $this->assertCount(3, $all);
+        $this->assertSame([true, false], [$all['Soap']->low, $all['Shampoo']->low]);
+
+        // The dashboard helper still reports the shortfall.
+        $low = \App\Http\Controllers\InventoryController::lowStockRows($this->company, \App\Http\Controllers\InventoryController::stockDate($this->company));
+        $this->assertSame([6.0, 25.0], [$low[0]->short, $low[0]->rate]);
 
         $this->actingAs($user)->get(route('companies.show', $this->company))
             ->assertOk()->assertSee('1 item at or below reorder level: Soap');
@@ -53,6 +62,6 @@ class LowStockTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertSame('5.000', $item->fresh()->reorder_level);
-        $this->actingAs($this->company->user)->get(route('companies.inventory.low-stock', $this->company))->assertSee('Comb');
+        $this->actingAs($this->company->user)->get(route('companies.inventory.summary', [$this->company, 'filter' => 'low']))->assertSee('Comb');
     }
 }

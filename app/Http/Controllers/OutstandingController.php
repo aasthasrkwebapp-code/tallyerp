@@ -35,9 +35,17 @@ class OutstandingController extends Controller
         // Receivables are debit balances; payables credit balances.
         $sign = $kind === 'receivables' ? 1 : -1;
 
+        // Receivables also show what each customer earned you this year.
+        $sold = $kind === 'receivables' ? \App\Support\Profit::lines($company, $fyStart, $to)->groupBy('party_id') : collect();
+
         $parties = $this->partiesUnder($company, $books, $groupCode)
-            ->map(fn (Account $party) => $this->age($party, $sign, $fyStart, $to))
-            ->filter(fn (object $row) => $row->total != 0)
+            ->map(function (Account $party) use ($sign, $fyStart, $to, $sold) {
+                $row = $this->age($party, $sign, $fyStart, $to);
+                ['value' => $row->sold_value, 'profit' => $row->profit] = \App\Support\Profit::totals($sold->get($party->id, collect()));
+
+                return $row;
+            })
+            ->filter(fn (object $row) => $row->total != 0 || $row->sold_value != 0)
             ->sortByDesc('total')
             ->values();
 

@@ -17,7 +17,7 @@
 @if ($lowStock->isNotEmpty())
     <div class="alert alert-warning d-flex justify-content-between align-items-center">
         <span><i class="bi bi-exclamation-triangle"></i> {{ $lowStock->count() }} {{ Str::plural('item', $lowStock->count()) }} at or below reorder level: {{ $lowStock->take(5)->map(fn ($r) => $r->item->name)->join(', ') }}{{ $lowStock->count() > 5 ? '…' : '' }}</span>
-        <a href="{{ route('companies.inventory.low-stock', $company) }}" class="btn btn-sm btn-warning">View</a>
+        <a href="{{ route('companies.inventory.summary', [$company, 'filter' => 'low']) }}" class="btn btn-sm btn-warning">View</a>
     </div>
 @endif
 <div class="row g-3 mb-3">

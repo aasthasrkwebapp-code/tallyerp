@@ -19,7 +19,14 @@
             <label class="form-label small text-secondary mb-1" for="to">To</label>
             <input type="date" id="to" name="to" value="{{ $to->toDateString() }}" class="form-control">
         </div>
-        <div class="col-12 col-md-2 d-grid align-items-end">
+        <div class="col-6 col-md-2">
+            <label class="form-label small text-secondary mb-1" for="filter">Show</label>
+            <select id="filter" name="filter" class="form-select">
+                <option value="">All items</option>
+                <option value="low" @selected($lowOnly)>At or below reorder level</option>
+            </select>
+        </div>
+        <div class="col-6 col-md-2 d-grid align-items-end">
             <button class="btn btn-outline-primary">Show</button>
         </div>
     </form>
@@ -36,11 +43,14 @@
                         <th class="text-end">Closing qty</th>
                         <th class="text-end">Avg. rate</th>
                         <th class="text-end">Closing value</th>
+                        <th class="text-end">Reorder at</th>
+                        <th class="text-end">Sold value</th>
+                        <th class="text-end">Profit</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($rows as $row)
-                        <tr class="{{ $row->closing_qty < 0 ? 'table-danger' : '' }}">
+                        <tr class="{{ $row->closing_qty < 0 ? 'table-danger' : ($row->low ? 'table-warning' : '') }}">
                             <td>
                                 <div class="fw-semibold">{{ $row->item->name }}</div>
                                 <small class="text-secondary">{{ $row->item->group?->name ?? 'Primary' }}</small>
@@ -51,20 +61,26 @@
                             <td class="text-end fw-semibold">{{ $q($row->closing_qty) }} {{ $row->item->unit->symbol }}</td>
                             <td class="text-end">{{ $m($row->rate) }}</td>
                             <td class="text-end">{{ $m($row->closing_value) }}</td>
+                            <td class="text-end">{{ $row->item->reorder_level !== null ? $q($row->item->reorder_level) : '' }}</td>
+                            <td class="text-end">{{ $row->sold_value ? $m($row->sold_value) : '' }}</td>
+                            <td class="text-end {{ $row->profit < 0 ? 'text-danger' : '' }}" title="{{ $row->sold_value ? 'Cost '.$m($row->cost).' · margin '.number_format($row->profit * 100 / $row->sold_value, 1).'%' : '' }}">{{ $row->sold_value ? $m($row->profit) : '' }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="text-center text-secondary py-4">No stock items yet.</td></tr>
+                        <tr><td colspan="10" class="text-center text-secondary py-4">{{ $lowOnly ? 'No items at or below their reorder level.' : 'No stock items yet.' }}</td></tr>
                     @endforelse
                 </tbody>
                 <tfoot class="fw-semibold">
                     <tr>
                         <td colspan="6">Grand Total</td>
                         <td class="text-end">{{ $m($rows->sum('closing_value')) }}</td>
+                        <td></td>
+                        <td class="text-end">{{ $m($rows->sum('sold_value')) }}</td>
+                        <td class="text-end">{{ $m($rows->sum('profit')) }}</td>
                     </tr>
                 </tfoot>
             </table>
         </div>
     </div>
-    <p class="small text-secondary mt-2">Valued at weighted average cost. Rows in red have negative stock.</p>
+    <p class="small text-secondary mt-2">Valued at weighted average cost. Rows in red have negative stock; yellow rows are at or below their reorder level. Profit = sale value (net of returns, before GST) less cost at average rate.</p>
 </div>
 @endsection
