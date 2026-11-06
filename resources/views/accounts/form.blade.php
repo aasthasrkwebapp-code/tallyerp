@@ -101,6 +101,17 @@
                         </div>
                     @endif
 
+                    <div class="col-6 col-md-3">
+                        <label class="form-label" for="f-credit-days">Credit days</label>
+                        <input id="f-credit-days" type="number" min="0" max="3650" name="credit_days" value="{{ old('credit_days', $account->credit_days) }}" class="form-control">
+                        <div class="form-text">Bills fall due after these days.</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label" for="f-credit-limit">Credit limit (₹)</label>
+                        <input id="f-credit-limit" type="number" step="0.01" min="0" name="credit_limit" value="{{ old('credit_limit', $account->credit_limit !== null ? (float) $account->credit_limit : '') }}" class="form-control">
+                        <div class="form-text">Warn when a bill takes the party above this.</div>
+                    </div>
+
                     @if ($priceLists->isNotEmpty())
                         <div class="col-6 col-md-3">
                             <label class="form-label" for="f-price-list-id">Price list</label>

@@ -122,6 +122,8 @@ class AccountController extends Controller
             'currency_code' => ['nullable', Rule::in($company->currencies()->pluck('code'))],
             'opening_foreign_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'price_list_id' => ['nullable', Rule::exists('price_lists', 'id')->where('company_id', $company->id)],
+            'credit_days' => ['nullable', 'integer', 'min:0', 'max:3650'],
+            'credit_limit' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'is_active' => ['sometimes', 'boolean'],
             'gstin' => ['nullable', 'string', 'size:15', 'regex:/^[0-9]{2}[0-9A-Z]{13}$/'],
             'state_code' => ['nullable', Rule::in(array_keys(GstStates::STATES))],

@@ -38,12 +38,16 @@ class Account extends Model
         'pan',
         'tds_section',
         'price_list_id',
+        'credit_days',
+        'credit_limit',
     ];
 
     protected function casts(): array
     {
         return [
             'opening_balance' => 'decimal:2',
+            'credit_limit' => 'decimal:2',
+            'credit_days' => 'integer',
             'opening_foreign_amount' => 'decimal:2',
             'is_active' => 'boolean',
             'itc_blocked' => 'boolean',

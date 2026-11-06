@@ -32,6 +32,7 @@
                             <th class="text-end">{{ $bucket }} days</th>
                         @endforeach
                         <th class="text-end">Advance</th>
+                        <th class="text-end">Overdue</th>
                         <th class="text-end">Total</th>
                         @if ($kind === 'receivables')<th class="d-print-none"></th>@endif
                     </tr>
@@ -48,7 +49,13 @@
                                 <td class="text-end {{ $bucket === '90+' && $amount > 0 ? 'text-danger' : '' }}">{{ $m($amount) }}</td>
                             @endforeach
                             <td class="text-end text-secondary">{{ $row->advance ? '('.inr($row->advance, 2).')' : '' }}</td>
-                            <td class="text-end fw-semibold">{{ inr($row->total, 2) }}</td>
+                            <td class="text-end text-danger" title="{{ $row->party->credit_days !== null ? 'Credit '.$row->party->credit_days.' days' : 'Set credit days on the ledger' }}">{{ $row->overdue ? inr($row->overdue, 2) : '' }}</td>
+                            <td class="text-end fw-semibold">
+                                {{ inr($row->total, 2) }}
+                                @if ($row->over_limit)
+                                    <div><span class="badge text-bg-danger" title="Credit limit ₹ {{ inr($row->party->credit_limit) }}">Over limit</span></div>
+                                @endif
+                            </td>
                             @if ($kind === 'receivables')
                                 <td class="text-end d-print-none">
                                     @if ($row->total > 0)
@@ -73,7 +80,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="text-center text-secondary py-4">Nothing outstanding.</td>
+                            <td colspan="8" class="text-center text-secondary py-4">Nothing outstanding.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -84,6 +91,7 @@
                             <td class="text-end">{{ inr($amount, 2) }}</td>
                         @endforeach
                         <td></td>
+                        <td class="text-end text-danger">{{ inr($parties->sum('overdue'), 2) }}</td>
                         <td class="text-end">{{ inr($grandTotal, 2) }}</td>
                         @if ($kind === 'receivables')<td class="d-print-none"></td>@endif
                     </tr>

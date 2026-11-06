@@ -286,9 +286,19 @@ class GstInvoiceController extends Controller
             return $voucher;
         });
 
-        return redirect()
+        $redirect = redirect()
             ->route('companies.gst-invoices.show', [$company, $voucher])
             ->with('success', $voucher->typeLabel().' #'.$voucher->number.' saved.');
+
+        // Credit limit: a warning, not a block (the bill is already saved).
+        if ($voucher->type === 'sales' && $party->credit_limit !== null) {
+            $balance = round($party->signedOpeningBalance() + (float) $party->entries()->sum('debit') - (float) $party->entries()->sum('credit'), 2);
+            if ($balance > (float) $party->credit_limit) {
+                $redirect->with('warning', $party->name.' now owes ₹ '.inr($balance).', above the credit limit of ₹ '.inr($party->credit_limit).'.');
+            }
+        }
+
+        return $redirect;
     }
 
     /**

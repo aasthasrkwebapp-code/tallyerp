@@ -86,6 +86,7 @@ class OutstandingController extends Controller
         }
 
         $buckets = array_fill_keys(array_keys(self::BUCKETS), 0.0);
+        $overdue = 0.0;
         $remaining = $bills->map(function (array $bill) use (&$settled) {
             $used = min($bill['amount'], $settled);
             $settled -= $used;
@@ -98,6 +99,9 @@ class OutstandingController extends Controller
                 continue;
             }
             $days = (int) $bill['date']->diffInDays($to);
+            if ($party->credit_days !== null && $days > $party->credit_days) {
+                $overdue += $bill['amount'];
+            }
             foreach (self::BUCKETS as $name => $limit) {
                 if ($days <= $limit) {
                     $buckets[$name] += $bill['amount'];
@@ -113,7 +117,10 @@ class OutstandingController extends Controller
             'party' => $party,
             'buckets' => $buckets,
             'advance' => $advance,
-            'total' => round(array_sum($buckets) - $advance, 2),
+            'total' => $total = round(array_sum($buckets) - $advance, 2),
+            // Bills older than the party's credit days, less any advance.
+            'overdue' => max(0.0, round($overdue - $advance, 2)),
+            'over_limit' => $party->credit_limit !== null && $total > (float) $party->credit_limit,
         ];
     }
 
