@@ -59,6 +59,23 @@ php artisan test
 
 Feature tests cover each module with worked examples (see `tests/Feature`).
 
+`tests/Feature/BulkEntriesTest.php` is a load test: it posts 5,000 entries (sales and purchase invoices with line and bill discounts, receipts, cheques and bounces, payments, contras, journals, loan EMIs) through the real controllers, then checks that every voucher balances, invoice totals match their lines, the trial balance agrees, stock never goes negative and every report opens. It takes about 2–3 minutes.
+
+```bash
+php artisan test --exclude-group=bulk   # everything except the load test (fast)
+php artisan test --group=bulk           # only the 5,000-entry load test
+```
+
+### Test data
+
+```bash
+php artisan db:seed --class=DemoSeeder        # small demo company
+php artisan db:seed --class=BulkDataSeeder    # "Bulk Test Traders" with 5,000 entries
+BULK_ENTRIES=20000 php artisan db:seed --class=BulkDataSeeder   # any size
+```
+
+Log in as `demo@example.com` / `password`. Bulk data has 60 customers (Customer 01 uses the test number +919660533307), 20 suppliers, 40 barcoded items, two loans and cheques. WhatsApp and SMS stay in test mode (dummy keys), so nothing is sent.
+
 ## Simplifications
 
 - ITC reversal covers rules 42 and 43 (common inputs and capital goods, 0% sales treated as exempt), month by month.
