@@ -242,6 +242,11 @@ class Company extends Model
         ], '', '&', PHP_QUERY_RFC3986);
     }
 
+    public function loans(): HasMany
+    {
+        return $this->hasMany(Loan::class);
+    }
+
     public function boms(): HasMany
     {
         return $this->hasMany(Bom::class);

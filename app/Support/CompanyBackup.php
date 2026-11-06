@@ -44,6 +44,7 @@ class CompanyBackup
         'payroll_runs' => ['refs' => ['voucher_id' => 'vouchers']],
         'payslips' => ['refs' => ['payroll_run_id' => 'payroll_runs', 'employee_id' => 'employees'], 'via' => ['payroll_run_id', 'payroll_runs']],
         'budgets' => ['refs' => ['account_id' => 'chart_of_accounts']],
+        'loans' => ['refs' => ['account_id' => 'chart_of_accounts']],
         'serial_numbers' => ['refs' => ['stock_item_id' => 'stock_items', 'in_voucher_id' => 'vouchers', 'out_voucher_id' => 'vouchers']],
         'business_documents' => ['refs' => ['party_account_id' => 'chart_of_accounts', 'voucher_id' => 'vouchers']],
         'business_document_lines' => ['refs' => ['business_document_id' => 'business_documents', 'account_id' => 'chart_of_accounts', 'stock_item_id' => 'stock_items'], 'via' => ['business_document_id', 'business_documents']],

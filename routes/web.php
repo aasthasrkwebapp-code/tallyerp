@@ -19,6 +19,7 @@ use App\Http\Controllers\PriceListController;
 use App\Http\Controllers\GstInvoiceController;
 use App\Http\Controllers\GstReportController;
 use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\LoanController;
 use App\Http\Controllers\ManufacturingController;
 use App\Http\Controllers\OutstandingController;
 use App\Http\Controllers\StockItemController;
@@ -85,6 +86,11 @@ Route::middleware(['auth'])->group(function () {
             Route::get('gstr-1', 'gstr1')->name('gstr1');
             Route::get('gstr-3b', 'gstr3b')->name('gstr3b');
         });
+
+    Route::resource('companies.loans', LoanController::class)
+        ->only(['index', 'create', 'store', 'show', 'destroy']);
+    Route::post('companies/{company}/loans/{loan}/pay', [LoanController::class, 'pay'])
+        ->name('companies.loans.pay');
 
     Route::controller(ManufacturingController::class)
         ->prefix('companies/{company}/manufacturing')

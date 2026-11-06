@@ -56,6 +56,7 @@ class Access
         'inventory.serials' => 'reports',
         'inventory.*' => 'inventory',
         'banking.*' => 'banking',
+        'loans.*' => 'banking',
         'tds.*' => 'tds',
         'employees.*' => 'payroll',
         'payroll.*' => 'payroll',
