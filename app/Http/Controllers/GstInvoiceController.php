@@ -123,6 +123,7 @@ class GstInvoiceController extends Controller
             'lines.*.taxable' => ['nullable', 'numeric', 'gt:0', 'max:9999999999999.99'],
             'lines.*.rate' => ['required', Rule::in(self::RATES)],
             'lines.*.discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'bill_discount_percent' => ['nullable', 'numeric', 'min:0', 'lt:100'],
             'lines.*.batch_no' => ['nullable', 'string', 'max:40'],
             'lines.*.expiry_date' => ['nullable', 'date'],
             'lines.*.serial_numbers' => ['nullable', 'string', 'max:5000'],
@@ -175,15 +176,16 @@ class GstInvoiceController extends Controller
         $batchExpiry = $company->stockBatches()->whereNotNull('expiry_date')->get()
             ->mapWithKeys(fn ($b) => [$b->stock_item_id.'|'.$b->batch_no => $b->expiry_date->toDateString()]);
 
-        $lines = collect($data['lines'])->map(function (array $line) use ($interState, $blocked, $kind, $batchExpiry) {
+        $billDiscount = round((float) ($data['bill_discount_percent'] ?? 0), 2);
+        $lines = collect($data['lines'])->map(function (array $line) use ($interState, $blocked, $kind, $batchExpiry, $billDiscount) {
             $stockItemId = ! empty($line['stock_item_id']) ? (int) $line['stock_item_id'] : null;
             $quantity = $stockItemId ? round((float) $line['quantity'], 3) : null;
             $itemRate = $stockItemId ? round((float) $line['item_rate'], 2) : null;
 
-            // Line value (qty × rate, or the amount entered), less any discount, is the taxable value.
+            // Line value (qty × rate, or the amount entered), less the line and bill discounts, is the taxable value.
             $gross = $stockItemId ? round($quantity * $itemRate, 2) : round((float) $line['taxable'], 2);
             $discount = round((float) ($line['discount_percent'] ?? 0), 2);
-            $taxable = round($gross * (1 - $discount / 100), 2);
+            $taxable = round($gross * (1 - $discount / 100) * (1 - $billDiscount / 100), 2);
             $rate = (float) $line['rate'];
             $half = round($taxable * $rate / 200, 2);
 
@@ -209,7 +211,7 @@ class GstInvoiceController extends Controller
             ];
         });
 
-        $voucher = DB::transaction(function () use ($company, $data, $kind, $party, $placeOfSupply, $lines, $serials) {
+        $voucher = DB::transaction(function () use ($company, $data, $kind, $party, $placeOfSupply, $lines, $serials, $billDiscount) {
             $partyDebit = $kind['partyDebit'];
             $total = round($lines->sum(fn ($l) => $l['taxable'] + $l['cgst'] + $l['sgst'] + $l['igst']), 2);
 
@@ -245,6 +247,7 @@ class GstInvoiceController extends Controller
                 'amount' => $total,
                 'party_account_id' => $party->id,
                 'place_of_supply' => $placeOfSupply,
+                'bill_discount_percent' => $billDiscount,
             ]);
 
             $voucher->entries()->createMany($entries);

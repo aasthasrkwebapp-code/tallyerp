@@ -194,6 +194,13 @@
                                 <td class="text-end" id="total-tax">0.00</td>
                                 <td></td>
                             </tr>
+                            <tr>
+                                <td colspan="{{ 9 + $extraCols }}" class="text-end">
+                                    <label for="f-bill-disc" class="small">Discount on whole bill %</label>
+                                </td>
+                                <td><input type="number" step="0.01" min="0" max="99.99" id="f-bill-disc" name="bill_discount_percent" value="{{ old('bill_discount_percent') }}" class="form-control form-control-sm text-end"></td>
+                                <td></td>
+                            </tr>
                             <tr class="fw-semibold">
                                 <td colspan="{{ 9 + $extraCols }}" class="text-end">Invoice total <span class="text-secondary small" id="split"></span></td>
                                 <td class="text-end" id="grand-total">0.00</td>
@@ -251,7 +258,8 @@
             // Discount comes off before GST.
             const gross = parseFloat(row.querySelector('.js-taxable').value) || 0;
             const disc = parseFloat(row.querySelector('.js-disc').value) || 0;
-            const t = Math.round(gross * (1 - disc / 100) * 100) / 100;
+            const bill = parseFloat(document.getElementById('f-bill-disc').value) || 0;
+            const t = Math.round(gross * (1 - disc / 100) * (1 - bill / 100) * 100) / 100;
             const r = parseFloat(row.querySelector('.js-rate').value) || 0;
             const lineTax = interState() ? Math.round(t * r) / 100 : 2 * Math.round(t * r / 2) / 100;
             row.querySelector('.js-tax').textContent = fmt(lineTax);
@@ -306,6 +314,7 @@
     body.addEventListener('input', recalc);
     document.getElementById('party').addEventListener('change', recalc);
     document.getElementById('pos').addEventListener('change', recalc);
+    document.getElementById('f-bill-disc').addEventListener('input', recalc);
     recalc();
 })();
 </script>

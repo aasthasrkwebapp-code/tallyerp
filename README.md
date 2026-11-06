@@ -12,7 +12,7 @@ A Tally-style accounting app for Indian businesses, built with Laravel 12 and Bo
 | **GST** | GSTIN/state/HSN/rate on ledgers; sales and purchase invoices, credit and debit notes, split into CGST+SGST or IGST by place of supply; printable tax invoice; GSTR-1 (B2B, B2C, credit notes, HSN), GSTR-3B with ITC set-off, blocked credit and rule 42/43 reversal; e-invoice JSON (NIC schema 1.1) for B2B invoices and credit notes; e-way bill JSON for the portal's bulk upload |
 | **Inventory** | Units, stock groups, stock items; invoice lines move stock; Stock Summary at weighted average cost; opening/closing stock in P&L and Balance Sheet |
 | **Estimates & orders** | Estimates/quotations, sale orders, purchase orders and delivery challans; convert any of them into a GST invoice in one click |
-| **Discounts** | Line discount % on invoices, notes, estimates, orders and challans |
+| **Discounts** | Line discount % on invoices, notes, estimates, orders and challans; a discount % on the whole invoice, taken off every line before GST |
 | **Barcodes** | Item barcodes, scan-to-bill with a USB scanner or keyboard, printable Code 128 label sheets |
 | **Batches & serials** | Batch numbers with manufacturing/expiry dates and a batch-wise stock report; serial/IMEI numbers tracked from purchase to sale with a lookup page |
 | **Price lists** | Wholesale, retail, dealer (any number of) rate lists; assign one to a party and its rates fill in on invoices |

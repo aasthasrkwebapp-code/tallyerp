@@ -72,6 +72,40 @@ class DiscountTest extends TestCase
             ->assertSee('1,00,000.00 less 10% discount');
     }
 
+    public function test_bill_discount_comes_off_every_line_before_gst(): void
+    {
+        $this->actingAs($this->company->user)
+            ->post(route('companies.gst-invoices.store', $this->company), [
+                'type' => 'sales', 'date' => '2026-07-01', 'party_account_id' => $this->customer->id, 'bill_discount_percent' => 5,
+                'lines' => [
+                    ['account_id' => $this->sales->id, 'stock_item_id' => $this->laptop->id, 'quantity' => 2, 'item_rate' => 50000, 'discount_percent' => 10, 'hsn_sac' => '8471', 'rate' => 18],
+                    ['account_id' => $this->sales->id, 'taxable' => 2000, 'hsn_sac' => '998314', 'rate' => 12],
+                ],
+            ])
+            ->assertSessionHasNoErrors();
+
+        $voucher = $this->company->vouchers()->firstOrFail();
+        [$goods, $service] = $voucher->gstLines()->orderBy('id')->get()->all();
+
+        // 1,00,000 less 10% = 90,000, less 5% = 85,500; 2,000 less 5% = 1,900.
+        $this->assertSame(['85500.00', '7695.00', '1900.00', '114.00'], [$goods->taxable, $goods->cgst, $service->taxable, $service->cgst]);
+        $this->assertSame('5.00', $voucher->bill_discount_percent);
+        // 85,500 × 1.18 + 1,900 × 1.12 = 1,00,890 + 2,128
+        $this->assertSame('103018.00', $voucher->amount);
+        $this->assertEquals(14500, EInvoice::build($voucher->load('gstLines', 'party', 'company'))['ItemList'][0]['Discount']);
+
+        $this->actingAs($this->company->user)
+            ->get(route('companies.gst-invoices.show', [$this->company, $voucher]))
+            ->assertSee('after a 5% discount on the whole bill');
+
+        $this->actingAs($this->company->user)
+            ->post(route('companies.gst-invoices.store', $this->company), [
+                'type' => 'sales', 'date' => '2026-07-01', 'party_account_id' => $this->customer->id, 'bill_discount_percent' => 100,
+                'lines' => [['account_id' => $this->sales->id, 'taxable' => 100, 'rate' => 18]],
+            ])
+            ->assertSessionHasErrors('bill_discount_percent');
+    }
+
     public function test_e_invoice_reports_gross_and_discount(): void
     {
         $this->invoice([

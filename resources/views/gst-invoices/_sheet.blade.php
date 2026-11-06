@@ -122,6 +122,11 @@
                             @endif
                             <td class="text-end">{{ $money($voucher->amount) }}</td>
                         </tr>
+                        @if ((float) $voucher->bill_discount_percent > 0)
+                            <tr class="fw-normal small text-secondary">
+                                <td colspan="99">Taxable values are after a {{ (float) $voucher->bill_discount_percent }}% discount on the whole bill.</td>
+                            </tr>
+                        @endif
                     </tfoot>
                 </table>
             </div>
