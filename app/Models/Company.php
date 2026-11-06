@@ -144,6 +144,8 @@ class Company extends Model
             DB::table('payroll_runs')->where('company_id', $company->id)->delete();
             DB::table('vouchers')->where('company_id', $company->id)->delete();
             DB::table('employees')->where('company_id', $company->id)->delete();
+            DB::table('productions')->where('company_id', $company->id)->delete();
+            DB::table('boms')->where('company_id', $company->id)->delete();
             DB::table('stock_items')->where('company_id', $company->id)->delete();
             DB::table('business_documents')->where('company_id', $company->id)->delete();
         });
@@ -238,6 +240,16 @@ class Company extends Model
             'cu' => 'INR',
             'tn' => $note,
         ], '', '&', PHP_QUERY_RFC3986);
+    }
+
+    public function boms(): HasMany
+    {
+        return $this->hasMany(Bom::class);
+    }
+
+    public function productions(): HasMany
+    {
+        return $this->hasMany(Production::class);
     }
 
     public function priceLists(): HasMany

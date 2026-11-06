@@ -50,6 +50,7 @@ class Access
         'documents.*' => 'invoices',
         'stock-items.*' => 'inventory',
         'price-lists.*' => 'inventory',
+        'manufacturing.*' => 'inventory',
         'inventory.summary' => 'reports',
         'inventory.batches' => 'reports',
         'inventory.serials' => 'reports',

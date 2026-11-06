@@ -12,6 +12,7 @@
         <div class="d-flex flex-wrap gap-2">
             <a href="{{ route('companies.stock-items.create', $company) }}" class="btn btn-primary">+ Create Item</a>
             <a href="{{ route('companies.inventory.setup', $company) }}" class="btn btn-outline-primary">Units &amp; Groups</a>
+            <a href="{{ route('companies.manufacturing.index', $company) }}" class="btn btn-outline-primary">Manufacturing</a>
             <a href="{{ route('companies.price-lists.index', $company) }}" class="btn btn-outline-primary">Price Lists</a>
             <a href="{{ route('companies.stock-items.labels', $company) }}" class="btn btn-outline-primary">Barcode Labels</a>
             <a href="{{ route('companies.inventory.batches', $company) }}" class="btn btn-outline-primary">Batches &amp; Expiry</a>
