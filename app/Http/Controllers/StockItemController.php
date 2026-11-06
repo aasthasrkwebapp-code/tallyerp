@@ -14,8 +14,18 @@ class StockItemController extends Controller
         $this->authorizeCompany($company);
 
         $items = $company->stockItems()->with(['unit', 'group'])->orderBy('name')->get();
+        $godowns = $company->godowns()->orderBy('name')->get();
 
-        return view('stock-items.index', compact('company', 'items'));
+        return view('stock-items.index', [
+            'company' => $company,
+            'items' => $items,
+            'godowns' => $godowns,
+            // Only needed once the company keeps stock in more than one place.
+            'godownStock' => $godowns->isNotEmpty() ? GodownController::stockByGodown($company, GodownController::stockDate($company)) : [],
+            'transfers' => $godowns->isNotEmpty()
+                ? $company->stockTransfers()->with('movements.stockItem.unit', 'movements.godown')->latest('date')->latest('id')->limit(10)->get()
+                : collect(),
+        ]);
     }
 
     public function create(Company $company)

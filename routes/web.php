@@ -140,7 +140,6 @@ Route::middleware(['auth'])->group(function () {
     Route::put('companies/{company}/fixed-assets', [DepreciationController::class, 'update'])->name('companies.fixed-assets.update');
     Route::post('companies/{company}/fixed-assets/depreciation', [DepreciationController::class, 'post'])->name('companies.fixed-assets.post');
 
-    Route::get('companies/{company}/godowns', [GodownController::class, 'index'])->name('companies.godowns.index');
     Route::post('companies/{company}/godowns', [GodownController::class, 'store'])->name('companies.godowns.store');
     Route::delete('companies/{company}/godowns/{godown}', [GodownController::class, 'destroy'])->name('companies.godowns.destroy');
     Route::post('companies/{company}/stock-transfers', [GodownController::class, 'transfer'])->name('companies.godowns.transfer');

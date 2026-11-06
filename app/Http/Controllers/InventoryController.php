@@ -24,6 +24,7 @@ class InventoryController extends Controller
             'company' => $company,
             'units' => $company->units()->withCount('stockItems')->orderBy('symbol')->get(),
             'groups' => $company->stockGroups()->with('parent')->withCount('stockItems')->orderBy('name')->get(),
+            'godowns' => $company->godowns()->withCount('movements')->orderBy('name')->get(),
         ]);
     }
 

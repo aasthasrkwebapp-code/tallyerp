@@ -1,12 +1,12 @@
 @extends('layouts.erp')
 
-@section('title', 'Units & Stock Groups')
+@section('title', 'Units, Groups & Godowns')
 
 @section('content')
 <div class="container-fluid py-3">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
         <div>
-            <h2 class="h4 mb-1">Units &amp; Stock Groups</h2>
+            <h2 class="h4 mb-1">Units, Stock Groups &amp; Godowns</h2>
             <p class="text-secondary mb-0">{{ $company->name }}</p>
         </div>
         <a href="{{ route('companies.stock-items.index', $company) }}" class="btn btn-outline-secondary">Back to Stock Items</a>
@@ -107,6 +107,38 @@
                                 </tr>
                             @empty
                                 <tr><td colspan="4" class="text-secondary">No stock groups yet.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h3 class="h6">Godowns</h3>
+                    <p class="small text-secondary">Storage locations. Opening stock and anything without a godown is in "{{ \App\Models\Godown::MAIN }}".</p>
+                    <form method="POST" action="{{ route('companies.godowns.store', $company) }}" class="row g-2 mb-3">
+                        @csrf
+                        <div class="col-8"><input name="name" class="form-control" placeholder="e.g. Warehouse 2" required></div>
+                        <div class="col-4 d-grid"><button class="btn btn-primary">Add</button></div>
+                    </form>
+                    <table class="table table-sm align-middle mb-0">
+                        <tbody>
+                            @forelse ($godowns as $g)
+                                <tr>
+                                    <td>{{ $g->name }}</td>
+                                    <td class="text-end">
+                                        @if ($g->movements_count === 0)
+                                            <form method="POST" action="{{ route('companies.godowns.destroy', [$company, $g]) }}" onsubmit="return confirm('Delete {{ $g->name }}?')">@csrf @method('DELETE')<button class="btn btn-sm btn-outline-danger">Delete</button></form>
+                                        @else
+                                            <span class="small text-secondary">in use</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td class="text-secondary">No godowns yet.</td></tr>
                             @endforelse
                         </tbody>
                     </table>

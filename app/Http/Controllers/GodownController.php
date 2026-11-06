@@ -15,27 +15,19 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Godowns (storage locations), stock by location, and the stock journal
- * that moves stock between them.
+ * Godowns (storage locations, managed on Units, Groups & Godowns) and the stock
+ * journal that moves stock between them (on the Stock Items page).
  */
 class GodownController extends Controller
 {
-    public function index(Company $company)
+    /**
+     * Today, or the year end for a past year: the date stock by location is shown for.
+     */
+    public static function stockDate(Company $company): CarbonImmutable
     {
-        $this->authorizeCompany($company);
-
-        $godowns = $company->godowns()->orderBy('name')->get();
         [, $fyEnd] = (new Books($company))->financialYear();
-        $on = CarbonImmutable::today()->min($fyEnd);
 
-        return view('inventory.godowns', [
-            'company' => $company,
-            'godowns' => $godowns,
-            'on' => $on,
-            'stock' => self::stockByGodown($company, $on),
-            'items' => $company->stockItems()->with('unit')->orderBy('name')->get(),
-            'transfers' => $company->stockTransfers()->with('movements.stockItem.unit', 'movements.godown')->latest('date')->latest('id')->limit(20)->get(),
-        ]);
+        return CarbonImmutable::today()->min($fyEnd);
     }
 
     public function store(Request $request, Company $company)

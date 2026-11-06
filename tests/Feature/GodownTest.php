@@ -69,7 +69,10 @@ class GodownTest extends TestCase
         $this->assertSame([90.0, 0.0, 10.0], [$row->closing_qty, $row->inwards, $row->outwards]);
         $this->assertSame(90000.0, $row->closing_value);
 
-        $this->actingAs($user)->get(route('companies.godowns.index', $this->company))->assertOk()->assertSee('Warehouse 2')->assertSee('Main location');
+        // Godowns are managed with units and groups; stock by location shows on Stock Items.
+        $this->actingAs($user)->get(route('companies.inventory.setup', $this->company))->assertOk()->assertSee('Warehouse 2')->assertSee('in use');
+        $this->actingAs($user)->get(route('companies.stock-items.index', $this->company))
+            ->assertOk()->assertSee('Stock by godown')->assertSee('Main location')->assertSee('Stock journal');
 
         // Can't move more than is there, or to the same place.
         $this->move(['from_godown_id' => $wh->id, 'to_godown_id' => '', 'quantity' => 25, 'date' => '2026-06-01'])->assertSessionHasErrors('quantity');

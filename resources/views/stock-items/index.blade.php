@@ -11,11 +11,10 @@
         </div>
         <div class="d-flex flex-wrap gap-2">
             <a href="{{ route('companies.stock-items.create', $company) }}" class="btn btn-primary">+ Create Item</a>
-            <a href="{{ route('companies.inventory.setup', $company) }}" class="btn btn-outline-primary">Units &amp; Groups</a>
+            <a href="{{ route('companies.inventory.setup', $company) }}" class="btn btn-outline-primary">Units, Groups &amp; Godowns</a>
             <a href="{{ route('companies.manufacturing.index', $company) }}" class="btn btn-outline-primary">Manufacturing</a>
             <a href="{{ route('companies.price-lists.index', $company) }}" class="btn btn-outline-primary">Price Lists</a>
             <a href="{{ route('companies.stock-items.labels', $company) }}" class="btn btn-outline-primary">Barcode Labels</a>
-            <a href="{{ route('companies.godowns.index', $company) }}" class="btn btn-outline-primary">Godowns &amp; Transfers</a>
             <a href="{{ route('companies.inventory.batches', $company) }}" class="btn btn-outline-primary">Batches &amp; Expiry</a>
             <a href="{{ route('companies.inventory.serials', $company) }}" class="btn btn-outline-primary">Serial Numbers</a>
             <a href="{{ route('companies.inventory.summary', $company) }}" class="btn btn-outline-primary">Stock Summary</a>
@@ -28,6 +27,9 @@
     @endif
     @if (session('error'))
         <div class="alert alert-danger">{{ session('error') }}</div>
+    @endif
+    @if ($errors->any())
+        <div class="alert alert-danger"><ul class="mb-0">@foreach ($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
     @endif
 
     <div class="card border-0 shadow-sm">
@@ -81,5 +83,9 @@
             </table>
         </div>
     </div>
+
+    @if ($godowns->isNotEmpty())
+        @include('stock-items._godowns')
+    @endif
 </div>
 @endsection
