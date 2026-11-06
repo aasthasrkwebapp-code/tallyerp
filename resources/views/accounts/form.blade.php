@@ -153,6 +153,16 @@
                     </div>
 
                     <div class="col-6 col-md-3">
+                        <label class="form-label" for="f-phone">Mobile (WhatsApp)</label>
+                        <input id="f-phone" name="phone" value="{{ old('phone', $account->phone) }}" class="form-control" maxlength="20" inputmode="tel" placeholder="98765 43210">
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <label class="form-label" for="f-email">Email</label>
+                        <input id="f-email" type="email" name="email" value="{{ old('email', $account->email) }}" class="form-control" maxlength="255">
+                    </div>
+
+                    <div class="col-6 col-md-3">
                         <label class="form-label" for="f-hsn-sac">HSN / SAC</label>
                         <input id="f-hsn-sac" name="hsn_sac" value="{{ old('hsn_sac', $account->hsn_sac) }}"
                             class="form-control" maxlength="10" inputmode="numeric">

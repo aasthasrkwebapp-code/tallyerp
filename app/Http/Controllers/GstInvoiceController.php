@@ -472,6 +472,18 @@ class GstInvoiceController extends Controller
         return view('gst-invoices.receipt', compact('company', 'voucher', 'width'));
     }
 
+    /**
+     * Read-only invoice for the customer, opened from a signed link (no login).
+     */
+    public function publicShow(Voucher $voucher)
+    {
+        abort_unless($voucher->gstLines()->exists(), 404);
+
+        $voucher->load('gstLines.account', 'gstLines.stockItem.unit', 'party', 'company');
+
+        return view('gst-invoices.public', ['company' => $voucher->company, 'voucher' => $voucher]);
+    }
+
     public function show(Company $company, Voucher $voucher)
     {
         $this->authorizeCompany($company);

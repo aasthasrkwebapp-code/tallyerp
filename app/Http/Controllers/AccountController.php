@@ -128,6 +128,8 @@ class AccountController extends Controller
             'address' => ['nullable', 'string', 'max:500'],
             'city' => ['nullable', 'string', 'max:100'],
             'pincode' => ['nullable', 'digits:6'],
+            'phone' => ['nullable', 'string', 'max:20', 'regex:/^[0-9+\-\s()]{7,20}$/'],
+            'email' => ['nullable', 'email', 'max:255'],
             'hsn_sac' => ['nullable', 'string', 'max:10', 'regex:/^[0-9]+$/'],
             'gst_rate' => ['nullable', Rule::in(GstInvoiceController::RATES)],
             'pan' => ['nullable', 'string', 'regex:/^[A-Z]{5}[0-9]{4}[A-Z]$/'],

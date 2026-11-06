@@ -30,6 +30,7 @@
                         @endforeach
                         <th class="text-end">Advance</th>
                         <th class="text-end">Total</th>
+                        @if ($kind === 'receivables')<th class="d-print-none"></th>@endif
                     </tr>
                 </thead>
                 <tbody>
@@ -45,6 +46,17 @@
                             @endforeach
                             <td class="text-end text-secondary">{{ $row->advance ? '('.inr($row->advance, 2).')' : '' }}</td>
                             <td class="text-end fw-semibold">{{ inr($row->total, 2) }}</td>
+                            @if ($kind === 'receivables')
+                                <td class="text-end d-print-none">
+                                    @if ($row->total > 0)
+                                        <a href="{{ \App\Support\WhatsApp::link($row->party->phone, \App\Support\WhatsApp::reminderMessage($row->party, $row->total, $company->legal_name ?: $company->name, $company->upi_id)) }}"
+                                            target="_blank" rel="noopener" class="btn btn-sm btn-outline-success text-nowrap"
+                                            title="{{ $row->party->phone ? 'WhatsApp '.$row->party->phone : 'No mobile number on this ledger: you can pick the contact in WhatsApp' }}">
+                                            <i class="bi bi-whatsapp"></i> Remind
+                                        </a>
+                                    @endif
+                                </td>
+                            @endif
                         </tr>
                     @empty
                         <tr>
@@ -60,6 +72,7 @@
                         @endforeach
                         <td></td>
                         <td class="text-end">{{ inr($grandTotal, 2) }}</td>
+                        @if ($kind === 'receivables')<td class="d-print-none"></td>@endif
                     </tr>
                 </tfoot>
             </table>

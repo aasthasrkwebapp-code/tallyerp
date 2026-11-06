@@ -155,6 +155,11 @@ Route::middleware(['auth'])->group(function () {
             Route::get('ledger', 'ledger')->name('ledger');
         });
 });
+// Invoice link shared with customers (WhatsApp etc.): signed, no login.
+Route::get('i/{voucher}', [GstInvoiceController::class, 'publicShow'])
+    ->middleware('signed')
+    ->name('invoices.public');
+
 Route::get('/', function () {
     return view('welcome');
 });

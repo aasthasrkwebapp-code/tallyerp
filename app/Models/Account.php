@@ -29,6 +29,8 @@ class Account extends Model
         'address',
         'city',
         'pincode',
+        'phone',
+        'email',
         'hsn_sac',
         'gst_rate',
         'itc_blocked',
