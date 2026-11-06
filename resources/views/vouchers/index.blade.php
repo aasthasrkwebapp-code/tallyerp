@@ -41,7 +41,45 @@
         <div class="col-12 col-md-2 d-grid">
             <button class="btn btn-outline-primary">Filter</button>
         </div>
+        @if (request('type'))
+            <div class="col-12">
+                <div class="btn-group btn-group-sm">
+                    <a href="{{ route('companies.vouchers.index', [$company, 'type' => request('type')]) }}" class="btn {{ $months ? 'btn-outline-secondary' : 'btn-secondary' }}">Voucher list</a>
+                    <a href="{{ route('companies.vouchers.index', [$company, 'type' => request('type'), 'view' => 'monthly']) }}" class="btn {{ $months ? 'btn-secondary' : 'btn-outline-secondary' }}">Month-wise ({{ \App\Models\Voucher::TYPES[request('type')] ?? '' }} Register)</a>
+                </div>
+            </div>
+        @endif
     </form>
+
+    @if ($months)
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead class="table-light"><tr><th>Month</th><th class="text-end">Vouchers</th><th class="text-end">Taxable value</th><th class="text-end">GST</th><th class="text-end">Total</th></tr></thead>
+                <tbody>
+                    @foreach ($months as $row)
+                        <tr>
+                            <td>
+                                @if ($row->count)
+                                    <a href="{{ route('companies.vouchers.index', [$company, 'type' => request('type'), 'from' => $row->month->toDateString(), 'to' => $row->month->endOfMonth()->toDateString()]) }}">{{ $row->month->format('F Y') }}</a>
+                                @else
+                                    {{ $row->month->format('F Y') }}
+                                @endif
+                            </td>
+                            <td class="text-end">{{ $row->count ?: '' }}</td>
+                            <td class="text-end">{{ $row->count ? inr($row->taxable) : '' }}</td>
+                            <td class="text-end">{{ $row->count ? inr($row->tax) : '' }}</td>
+                            <td class="text-end">{{ $row->count ? inr($row->total) : '' }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+                <tfoot class="fw-semibold">
+                    <tr><td>Total</td><td class="text-end">{{ $months->sum('count') }}</td><td class="text-end">{{ inr($months->sum('taxable')) }}</td><td class="text-end">{{ inr($months->sum('tax')) }}</td><td class="text-end">{{ inr($months->sum('total')) }}</td></tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    @else
 
     <div class="card border-0 shadow-sm">
         <div class="table-responsive">
@@ -86,5 +124,6 @@
     </div>
 
     <div class="mt-3">{{ $vouchers->links() }}</div>
+    @endif
 </div>
 @endsection

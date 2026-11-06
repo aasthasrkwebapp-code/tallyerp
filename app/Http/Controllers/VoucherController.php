@@ -19,6 +19,11 @@ class VoucherController extends Controller
     {
         $this->authorizeCompany($company);
 
+        // Month-wise register of one voucher type (Sales Register, Purchase Register…).
+        if ($request->query('view') === 'monthly' && array_key_exists($request->query('type'), Voucher::TYPES)) {
+            return view('vouchers.index', ['company' => $company, 'vouchers' => null, 'months' => $this->monthly($company, $request->query('type'))]);
+        }
+
         $vouchers = $company->vouchers()
             ->with('entries.account')
             ->when($request->filled('type'), fn ($q) => $q->where('type', $request->string('type')))
@@ -29,7 +34,34 @@ class VoucherController extends Controller
             ->paginate(25)
             ->withQueryString();
 
-        return view('vouchers.index', compact('company', 'vouchers'));
+        return view('vouchers.index', ['company' => $company, 'vouchers' => $vouchers, 'months' => null]);
+    }
+
+    /**
+     * Count, taxable value, GST and total of one voucher type for each month of the year.
+     */
+    protected function monthly(Company $company, string $type): \Illuminate\Support\Collection
+    {
+        [$fyStart, $fyEnd] = (new \App\Support\Books($company))->financialYear();
+
+        $vouchers = $company->vouchers()->where('type', $type)
+            ->whereDate('date', '>=', $fyStart->toDateString())->whereDate('date', '<=', $fyEnd->toDateString())
+            ->with('gstLines')->get();
+
+        $months = collect();
+        for ($m = $fyStart->startOfMonth(); $m->lte($fyEnd); $m = $m->addMonth()) {
+            $in = $vouchers->filter(fn (Voucher $v) => $v->date->format('Y-m') === $m->format('Y-m'));
+            $months->push((object) [
+                'month' => $m,
+                'count' => $in->count(),
+                // Vouchers without GST lines count in full as taxable value.
+                'taxable' => round($in->sum(fn (Voucher $v) => $v->gstLines->isEmpty() ? (float) $v->amount : (float) $v->gstLines->sum('taxable')), 2),
+                'tax' => round($in->sum(fn (Voucher $v) => (float) $v->gstLines->sum(fn ($l) => $l->cgst + $l->sgst + $l->igst)), 2),
+                'total' => round($in->sum(fn (Voucher $v) => (float) $v->amount), 2),
+            ]);
+        }
+
+        return $months;
     }
 
     public function create(Request $request, Company $company)

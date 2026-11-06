@@ -22,7 +22,6 @@ use App\Http\Controllers\ChequeController;
 use App\Http\Controllers\DepreciationController;
 use App\Http\Controllers\GodownController;
 use App\Http\Controllers\InventoryController;
-use App\Http\Controllers\RegisterController;
 use App\Http\Controllers\SmsController;
 use App\Http\Controllers\WhatsAppController;
 use App\Http\Controllers\LoanController;
@@ -209,8 +208,6 @@ Route::middleware(['auth'])->group(function () {
             Route::get('cash-flow', 'cashFlow')->name('cash-flow');
             Route::get('ratios', 'ratios')->name('ratios');
         });
-    Route::get('companies/{company}/reports/register/{type}', [RegisterController::class, 'show'])
-        ->name('companies.reports.register');
 });
 // Invoice link shared with customers (WhatsApp etc.): signed, no login.
 Route::get('i/{voucher}', [GstInvoiceController::class, 'publicShow'])

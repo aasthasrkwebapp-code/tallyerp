@@ -74,7 +74,7 @@ class BulkEntriesTest extends TestCase
 
         foreach (['profit-and-loss', 'balance-sheet', 'ratios', 'register'] as $report) {
             if ($report === 'register') {
-                $this->actingAs($user)->get(route('companies.reports.register', [$company, 'sales']))->assertOk();
+                $this->actingAs($user)->get(route('companies.vouchers.index', [$company, 'type' => 'sales', 'view' => 'monthly']))->assertOk();
 
                 continue;
             }

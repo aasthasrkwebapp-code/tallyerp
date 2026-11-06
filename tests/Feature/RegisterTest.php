@@ -28,18 +28,20 @@ class RegisterTest extends TestCase
             ])->assertSessionHasNoErrors();
         }
 
-        $months = $this->actingAs($user)->get(route('companies.reports.register', [$company, 'sales']))
+        // Day Book → Sales → Month-wise is the Sales Register.
+        $months = $this->actingAs($user)->get(route('companies.vouchers.index', [$company, 'type' => 'sales', 'view' => 'monthly']))
             ->assertOk()->assertSee('Sales Register')->viewData('months');
         $this->assertCount(12, $months);
         $this->assertSame([2, 3000.0, 540.0, 3540.0], [$months[0]->count, $months[0]->taxable, $months[0]->tax, $months[0]->total]);
         $this->assertSame(0, $months[1]->count);
         $this->assertSame(590.0, $months[2]->total);
 
-        $this->actingAs($user)->get(route('companies.reports.register', [$company, 'sales', 'month' => '2026-04']))
-            ->assertOk()->assertSee('Pune Stores')->assertSee('3,540.00');
-        $this->actingAs($user)->get(route('companies.reports.register', [$company, 'purchase']))->assertOk();
-        $this->actingAs($user)->get(route('companies.reports.register', [$company, 'receipt']))->assertNotFound();
-        $this->actingAs($user)->get(route('companies.reports.register', [$company, 'sales', 'month' => '2030-01']))->assertNotFound();
-        $this->actingAs(User::factory()->create())->get(route('companies.reports.register', [$company, 'sales']))->assertForbidden();
+        // A month drills down to the voucher list for that month.
+        $list = $this->actingAs($user)->get(route('companies.vouchers.index', [$company, 'type' => 'sales', 'from' => '2026-04-01', 'to' => '2026-04-30']))
+            ->assertOk()->viewData('vouchers');
+        $this->assertSame(2, $list->total());
+
+        $this->actingAs($user)->get(route('companies.vouchers.index', [$company, 'type' => 'purchase', 'view' => 'monthly']))->assertOk();
+        $this->actingAs(User::factory()->create())->get(route('companies.vouchers.index', [$company, 'type' => 'sales', 'view' => 'monthly']))->assertForbidden();
     }
 }
