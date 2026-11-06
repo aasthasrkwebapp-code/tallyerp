@@ -11,8 +11,18 @@ A Tally-style accounting app for Indian businesses, built with Laravel 12 and Bo
 | **Vouchers** | Payment, Receipt, Contra, Journal, Sales, Purchase, Debit/Credit Note. Debits must equal credits, numbering per type, dates within the financial year, cash/bank rules for contra/payment/receipt. Day Book, edit and delete |
 | **GST** | GSTIN/state/HSN/rate on ledgers; sales and purchase invoices, credit and debit notes, split into CGST+SGST or IGST by place of supply; printable tax invoice; GSTR-1 (B2B, B2C, credit notes, HSN), GSTR-3B with ITC set-off, blocked credit and rule 42/43 reversal; e-invoice JSON (NIC schema 1.1) for B2B invoices and credit notes; e-way bill JSON for the portal's bulk upload |
 | **Inventory** | Units, stock groups, stock items; invoice lines move stock; Stock Summary at weighted average cost; opening/closing stock in P&L and Balance Sheet |
+| **Estimates & orders** | Estimates/quotations, sale orders, purchase orders and delivery challans; convert any of them into a GST invoice in one click |
+| **Discounts** | Line discount % on invoices, notes, estimates, orders and challans |
+| **Barcodes** | Item barcodes, scan-to-bill with a USB scanner or keyboard, printable Code 128 label sheets |
+| **Batches & serials** | Batch numbers with manufacturing/expiry dates and a batch-wise stock report; serial/IMEI numbers tracked from purchase to sale with a lookup page |
+| **Price lists** | Wholesale, retail, dealer (any number of) rate lists; assign one to a party and its rates fill in on invoices |
+| **Invoice printing** | Several invoice designs, amount in words, bank details, UPI payment QR code, terms; print or save as PDF; 80 mm thermal receipt |
+| **WhatsApp** | Share an invoice on WhatsApp with a secure public link; one-click payment reminders from Receivables |
+| **Manufacturing** | Bills of materials and production entries: raw materials consumed, finished goods added at cost (materials + other costs) |
+| **Loans** | Loans taken with EMI calculation and a full repayment schedule; paying an EMI splits principal (reduces the loan) and interest (expense) |
+| **Mobile app** | Installable on phones and desktops as a Progressive Web App, with an offline page |
 | **Reports** | Trial Balance, Profit & Loss, Balance Sheet, Ledger statement, Receivables/Payables with ageing, Cost Centres, Budget vs Actual |
-| **Banking** | Bank reconciliation with cheque/UTR numbers and cleared dates; import a bank statement CSV to match and clear entries automatically |
+| **Banking** | Bank reconciliation with cheque/UTR numbers and cleared dates; import a bank statement CSV to match and clear entries automatically; cheque register (issued/received, pending/cleared/bounced) where a bounced cheque is reversed by a journal |
 | **TDS** | TDS sections on suppliers (194C/H/I/J/Q, 20% without PAN), bills booked net of TDS, TDS report and balance payable |
 | **Payroll** | Employees, monthly runs with PF/ESI/professional tax, salary journal posted automatically, payslips and register |
 | **Year-end** | Move between financial years; assets/liabilities carry forward, income/expenses restart, earlier profit shown in P&L A/c |
@@ -56,3 +66,5 @@ Feature tests cover each module with worked examples (see `tests/Feature`).
 - GST invoices, TDS bills and payroll journals are deleted and re-entered rather than edited.
 - e-invoice JSON is generated for upload to the e-invoice portal; the app does not call the IRP API or store the IRN/QR code. E-way bill JSON is likewise uploaded on the portal; the EWB number is then entered on the invoice (not fetched automatically).
 - Multi-currency: GST invoices are in rupees; an opening balance without a foreign amount is not revalued.
+- WhatsApp sharing opens WhatsApp (wa.me) with the message ready to send; it does not use the WhatsApp Business API.
+- Loans: interest on an EMI is entered as paid (pre-filled from the outstanding balance); prepayments simply reduce the outstanding, the schedule stays on the original terms.
