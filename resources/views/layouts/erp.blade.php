@@ -121,6 +121,7 @@
             }
         }
     </style>
+    @include('partials.pwa')
 </head>
 <body>
 <div class="d-md-flex min-vh-100">
