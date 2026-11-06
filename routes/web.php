@@ -18,6 +18,7 @@ use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\PriceListController;
 use App\Http\Controllers\GstInvoiceController;
 use App\Http\Controllers\GstReportController;
+use App\Http\Controllers\ChequeController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\LoanController;
 use App\Http\Controllers\ManufacturingController;
@@ -86,6 +87,11 @@ Route::middleware(['auth'])->group(function () {
             Route::get('gstr-1', 'gstr1')->name('gstr1');
             Route::get('gstr-3b', 'gstr3b')->name('gstr3b');
         });
+
+    Route::get('companies/{company}/cheques', [ChequeController::class, 'index'])
+        ->name('companies.cheques.index');
+    Route::post('companies/{company}/cheques/{entry}/bounce', [ChequeController::class, 'bounce'])
+        ->name('companies.cheques.bounce');
 
     Route::resource('companies.loans', LoanController::class)
         ->only(['index', 'create', 'store', 'show', 'destroy']);

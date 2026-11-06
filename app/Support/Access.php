@@ -57,6 +57,7 @@ class Access
         'inventory.*' => 'inventory',
         'banking.*' => 'banking',
         'loans.*' => 'banking',
+        'cheques.*' => 'banking',
         'tds.*' => 'tds',
         'employees.*' => 'payroll',
         'payroll.*' => 'payroll',

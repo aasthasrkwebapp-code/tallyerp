@@ -33,7 +33,7 @@ class CompanyBackup
         'price_list_items' => ['refs' => ['price_list_id' => 'price_lists', 'stock_item_id' => 'stock_items'], 'via' => ['price_list_id', 'price_lists']],
         'cost_centres' => ['refs' => [], 'self' => 'parent_id'],
         'vouchers' => ['refs' => ['party_account_id' => 'chart_of_accounts']],
-        'voucher_entries' => ['refs' => ['voucher_id' => 'vouchers', 'account_id' => 'chart_of_accounts', 'cost_centre_id' => 'cost_centres'], 'via' => ['voucher_id', 'vouchers']],
+        'voucher_entries' => ['refs' => ['voucher_id' => 'vouchers', 'bounced_voucher_id' => 'vouchers', 'account_id' => 'chart_of_accounts', 'cost_centre_id' => 'cost_centres'], 'via' => ['voucher_id', 'vouchers']],
         'voucher_gst_lines' => ['refs' => ['voucher_id' => 'vouchers', 'account_id' => 'chart_of_accounts', 'stock_item_id' => 'stock_items'], 'via' => ['voucher_id', 'vouchers']],
         'boms' => ['refs' => ['stock_item_id' => 'stock_items']],
         'bom_components' => ['refs' => ['bom_id' => 'boms', 'stock_item_id' => 'stock_items'], 'via' => ['bom_id', 'boms']],

@@ -18,6 +18,7 @@ class VoucherEntry extends Model
         'exchange_rate',
         'instrument_no',
         'bank_date',
+        'bounced_voucher_id',
     ];
 
     protected function casts(): array
