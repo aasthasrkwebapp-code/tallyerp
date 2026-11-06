@@ -141,4 +141,45 @@ class InventoryController extends Controller
 
         return view('inventory.summary', compact('company', 'from', 'to', 'rows'));
     }
+
+    public function lowStock(Company $company)
+    {
+        $this->authorizeCompany($company);
+
+        $on = self::stockDate($company);
+        $rows = self::lowStockRows($company, $on);
+
+        return view('inventory.low-stock', compact('company', 'on', 'rows'));
+    }
+
+    /**
+     * Today, kept inside the financial year.
+     */
+    public static function stockDate(Company $company): CarbonImmutable
+    {
+        [$fyStart, $fyEnd] = (new Books($company))->financialYear();
+
+        return CarbonImmutable::today()->max($fyStart)->min($fyEnd);
+    }
+
+    /**
+     * Items with a reorder level whose closing stock is at or below it.
+     */
+    public static function lowStockRows(Company $company, CarbonImmutable $on)
+    {
+        if (! $company->stockItems()->whereNotNull('reorder_level')->exists()) {
+            return collect();
+        }
+        [$fyStart] = (new Books($company))->financialYear();
+
+        return (new Stock($company))->summary($fyStart, $on)
+            ->filter(fn ($r) => $r->item->reorder_level !== null && $r->closing_qty <= (float) $r->item->reorder_level)
+            ->map(function ($r) {
+                $r->short = round((float) $r->item->reorder_level - $r->closing_qty, 3);
+                $r->rate = $r->closing_qty > 0 ? $r->closing_value / $r->closing_qty : (float) $r->item->opening_rate;
+
+                return $r;
+            })
+            ->values();
+    }
 }

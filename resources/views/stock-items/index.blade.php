@@ -15,6 +15,7 @@
             <a href="{{ route('companies.manufacturing.index', $company) }}" class="btn btn-outline-primary">Manufacturing</a>
             <a href="{{ route('companies.price-lists.index', $company) }}" class="btn btn-outline-primary">Price Lists</a>
             <a href="{{ route('companies.stock-items.labels', $company) }}" class="btn btn-outline-primary">Barcode Labels</a>
+            <a href="{{ route('companies.inventory.low-stock', $company) }}" class="btn btn-outline-warning">Low Stock</a>
             <a href="{{ route('companies.inventory.batches', $company) }}" class="btn btn-outline-primary">Batches &amp; Expiry</a>
             <a href="{{ route('companies.inventory.serials', $company) }}" class="btn btn-outline-primary">Serial Numbers</a>
             <a href="{{ route('companies.inventory.summary', $company) }}" class="btn btn-outline-primary">Stock Summary</a>

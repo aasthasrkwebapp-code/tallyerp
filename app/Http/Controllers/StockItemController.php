@@ -122,6 +122,7 @@ class StockItemController extends Controller
             'opening_quantity' => ['nullable', 'numeric', 'min:0', 'max:9999999999.999'],
             'opening_rate' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'selling_price' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
+            'reorder_level' => ['nullable', 'numeric', 'min:0', 'max:9999999999.999'],
             'barcode' => ['nullable', 'string', 'max:48', 'regex:/^[\x20-\x7E]+$/', Rule::unique('stock_items', 'barcode')->where('company_id', $company->id)->ignore($item?->id)],
         ]);
 

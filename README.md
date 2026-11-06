@@ -10,7 +10,7 @@ A Tally-style accounting app for Indian businesses, built with Laravel 12 and Bo
 | **Masters** | Tally's 28 predefined account groups created for every company; your own sub-groups; ledgers with Dr/Cr opening balances |
 | **Vouchers** | Payment, Receipt, Contra, Journal, Sales, Purchase, Debit/Credit Note. Debits must equal credits, numbering per type, dates within the financial year, cash/bank rules for contra/payment/receipt. Day Book, edit and delete |
 | **GST** | GSTIN/state/HSN/rate on ledgers; sales and purchase invoices, credit and debit notes, split into CGST+SGST or IGST by place of supply; printable tax invoice; GSTR-1 (B2B, B2C, credit notes, HSN), GSTR-3B with ITC set-off, blocked credit and rule 42/43 reversal; e-invoice JSON (NIC schema 1.1) for B2B invoices and credit notes; e-way bill JSON for the portal's bulk upload |
-| **Inventory** | Units, stock groups, stock items; invoice lines move stock; Stock Summary at weighted average cost; opening/closing stock in P&L and Balance Sheet |
+| **Inventory** | Units, stock groups, stock items; invoice lines move stock; Stock Summary at weighted average cost; opening/closing stock in P&L and Balance Sheet; reorder levels with a Low Stock report and dashboard alert |
 | **Estimates & orders** | Estimates/quotations, sale orders, purchase orders and delivery challans; convert any of them into a GST invoice in one click |
 | **Discounts** | Line discount % on invoices, notes, estimates, orders and challans; a discount % on the whole invoice, taken off every line before GST |
 | **Barcodes** | Item barcodes, scan-to-bill with a USB scanner or keyboard, printable Code 128 label sheets |

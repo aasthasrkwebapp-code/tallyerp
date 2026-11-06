@@ -55,6 +55,7 @@ class Access
         'manufacturing.*' => 'inventory',
         'inventory.summary' => 'reports',
         'inventory.batches' => 'reports',
+        'inventory.low-stock' => 'reports',
         'inventory.serials' => 'reports',
         'inventory.*' => 'inventory',
         'banking.*' => 'banking',

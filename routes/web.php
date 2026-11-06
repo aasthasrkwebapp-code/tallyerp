@@ -145,6 +145,7 @@ Route::middleware(['auth'])->group(function () {
             Route::delete('groups/{stockGroup}', 'destroyGroup')->name('groups.destroy');
             Route::get('summary', 'summary')->name('summary');
             Route::get('batches', 'batches')->name('batches');
+            Route::get('low-stock', 'lowStock')->name('low-stock');
             Route::get('serials', 'serials')->name('serials');
         });
 

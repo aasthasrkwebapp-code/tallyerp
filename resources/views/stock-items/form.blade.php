@@ -85,6 +85,12 @@
                         <input id="f-selling-price" type="number" step="0.01" min="0" name="selling_price"
                             value="{{ old('selling_price', $item->selling_price !== null ? (float) $item->selling_price : '') }}" class="form-control">
                     </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label" for="f-reorder">Reorder level</label>
+                        <input id="f-reorder" type="number" step="0.001" min="0" name="reorder_level"
+                            value="{{ old('reorder_level', $item->reorder_level !== null ? (float) $item->reorder_level : '') }}" class="form-control">
+                        <div class="form-text">Warn when stock falls to this.</div>
+                    </div>
                     <div class="col-12 col-md-6">
                         <label class="form-label" for="f-barcode">Barcode</label>
                         <div class="input-group">

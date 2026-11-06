@@ -13,6 +13,13 @@
 @endphp
 
 <div class="small text-secondary mb-2">As on {{ $f->on->format('d-m-Y') }}</div>
+@php $lowStock = \App\Http\Controllers\InventoryController::lowStockRows($company, \App\Http\Controllers\InventoryController::stockDate($company)); @endphp
+@if ($lowStock->isNotEmpty())
+    <div class="alert alert-warning d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-exclamation-triangle"></i> {{ $lowStock->count() }} {{ Str::plural('item', $lowStock->count()) }} at or below reorder level: {{ $lowStock->take(5)->map(fn ($r) => $r->item->name)->join(', ') }}{{ $lowStock->count() > 5 ? '…' : '' }}</span>
+        <a href="{{ route('companies.inventory.low-stock', $company) }}" class="btn btn-sm btn-warning">View</a>
+    </div>
+@endif
 <div class="row g-3 mb-3">
     @foreach ($tiles as [$label, $value, $href])
         <div class="col-6 col-md-4 col-xl-3">

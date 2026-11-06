@@ -22,6 +22,7 @@ class StockItem extends Model
         'opening_rate',
         'barcode',
         'selling_price',
+        'reorder_level',
         'track_batches',
         'track_serials',
     ];
@@ -33,6 +34,7 @@ class StockItem extends Model
             'opening_quantity' => 'decimal:3',
             'opening_rate' => 'decimal:2',
             'selling_price' => 'decimal:2',
+            'reorder_level' => 'decimal:3',
             'track_batches' => 'boolean',
             'track_serials' => 'boolean',
         ];
