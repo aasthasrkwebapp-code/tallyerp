@@ -57,7 +57,7 @@ class BulkEntriesTest extends TestCase
 
         // No item goes negative.
         $rows = $this->actingAs($user)->get(route('companies.inventory.summary', $company))->assertOk()->viewData('rows');
-        $this->assertCount(40, $rows);
+        $this->assertCount(43, $rows); // 40 trading items + kit, batch-tracked medicine, serial-tracked phone
         $this->assertTrue($rows->every(fn ($r) => $r->closing_qty >= 0));
 
         // Loans: three EMIs paid on each, so both are below the amount borrowed.

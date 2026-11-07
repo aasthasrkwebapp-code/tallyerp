@@ -62,6 +62,8 @@ Feature tests cover each module with worked examples (see `tests/Feature`).
 
 `tests/Feature/BulkEntriesTest.php` is a load test: it posts 5,000 entries (sales and purchase invoices with line and bill discounts, receipts, cheques and bounces, payments, contras, journals, loan EMIs) through the real controllers, then checks that every voucher balances, invoice totals match their lines, the trial balance agrees, stock never goes negative and every report opens. It takes about 2–3 minutes.
 
+`tests/Feature/IntegrationTest.php` checks that the modules work together: on the demo company and a fully populated Bulk Test Traders it opens every screen of the app (about 70 per company), checks the trial balance, balance sheet and cash flow agree, that a viewer can read but not write, that a backup restores every module with the same totals, and that deleting a company leaves no rows behind.
+
 ```bash
 php artisan test --exclude-group=bulk   # everything except the load test (fast)
 php artisan test --group=bulk           # only the 5,000-entry load test
@@ -75,7 +77,7 @@ php artisan db:seed --class=BulkDataSeeder    # "Bulk Test Traders" with 5,000 e
 BULK_ENTRIES=20000 php artisan db:seed --class=BulkDataSeeder   # any size
 ```
 
-Log in as `demo@example.com` / `password`. Bulk data has 60 customers (Customer 01 uses the test number +919660533307), 20 suppliers, 40 barcoded items, two loans and cheques. WhatsApp and SMS stay in test mode (dummy keys), so nothing is sent.
+Log in as `demo@example.com` / `password`. Bulk data has 60 customers (Customer 01 uses the test number +919660533307), 20 suppliers, 40 barcoded items, two loans and cheques, plus a dealer price list, an estimate, sale and purchase orders, a delivery challan, a BOM and production run, batch-tracked and serial-tracked items, a second godown with a stock journal, reorder levels, credit terms and fixed assets with depreciation rates. WhatsApp and SMS stay in test mode (dummy keys), so nothing is sent.
 
 ## Simplifications
 

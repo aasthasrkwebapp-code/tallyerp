@@ -164,7 +164,98 @@ class BulkDataSeeder extends DemoSeeder
             }
         }
 
+        $this->everyModule($company, $customers, $suppliers, $items, $sales, $purchases, $bank, $date);
+
         $this->command?->info("Bulk Test Traders ready with {$this->entries} entries. Log in as demo@example.com / password.");
+    }
+
+    /**
+     * One or more records in every remaining module, so every screen has data:
+     * price list, estimate / orders / challan, BOM + production, batches, serials,
+     * godown + stock journal, credit terms, reorder levels, fixed assets + depreciation.
+     */
+    protected function everyModule(Company $company, $customers, $suppliers, $items, $sales, $purchases, $bank, $date): void
+    {
+        $unit = $company->units()->where('symbol', 'Nos')->value('id');
+
+        // Price list with dealer rates, given to the first ten customers.
+        $this->act(\App\Http\Controllers\PriceListController::class, 'store', $company, ['name' => 'Dealer']);
+        $dealer = $company->priceLists()->firstOrFail();
+        $this->act(\App\Http\Controllers\PriceListController::class, 'update', $company, [
+            'name' => 'Dealer', 'prices' => $items->mapWithKeys(fn ($i) => [$i->id => round((float) $i->selling_price * 0.9, 2)])->all(),
+        ], $dealer);
+        $customers->take(10)->each(fn ($p) => $p->update(['price_list_id' => $dealer->id, 'credit_days' => 30, 'credit_limit' => 200000]));
+
+        // Reorder levels: a few items set high so the low-stock alert has something to show.
+        $items->each(fn ($i, $k) => $i->update(['reorder_level' => $k < 3 ? 1000000 : 50]));
+
+        // Estimate, sale order, purchase order and delivery challan.
+        foreach (['estimate', 'sale_order', 'delivery_challan'] as $type) {
+            $this->act(\App\Http\Controllers\BusinessDocumentController::class, 'store', $company, [
+                'date' => $date(), 'party_account_id' => $customers->random()->id,
+                'lines' => [['account_id' => $sales->id, 'stock_item_id' => $items[1]->id, 'quantity' => 2, 'item_rate' => $items[1]->selling_price, 'rate' => '18', 'discount_percent' => 5]],
+            ], $type);
+        }
+        $this->act(\App\Http\Controllers\BusinessDocumentController::class, 'store', $company, [
+            'date' => $date(), 'party_account_id' => $suppliers->random()->id,
+            'lines' => [['account_id' => $purchases->id, 'stock_item_id' => $items[2]->id, 'quantity' => 20, 'item_rate' => $items[2]->opening_rate, 'rate' => '18']],
+        ], 'purchase_order');
+
+        // Manufacturing: a kit made from two items.
+        $kit = $company->stockItems()->create(['name' => 'Combo Kit', 'unit_id' => $unit, 'gst_rate' => 18, 'selling_price' => 2500]);
+        $this->act(\App\Http\Controllers\ManufacturingController::class, 'storeBom', $company, [
+            'name' => 'Combo Kit recipe', 'stock_item_id' => $kit->id, 'output_quantity' => 1,
+            'components' => [['stock_item_id' => $items[0]->id, 'quantity' => 1], ['stock_item_id' => $items[1]->id, 'quantity' => 2]],
+        ]);
+        $this->act(\App\Http\Controllers\ManufacturingController::class, 'storeProduction', $company, [
+            'bom_id' => $company->boms()->value('id'), 'date' => $date(), 'quantity' => 25, 'other_cost' => 500,
+        ]);
+
+        // Batch-tracked medicine and serial-tracked phones, bought then sold.
+        $medicine = $company->stockItems()->create(['name' => 'Paracetamol Strip', 'unit_id' => $unit, 'gst_rate' => 12, 'selling_price' => 30, 'track_batches' => true]);
+        $phone = $company->stockItems()->create(['name' => 'Smartphone', 'unit_id' => $unit, 'gst_rate' => 18, 'selling_price' => 15000, 'track_serials' => true]);
+        $buyDate = now()->setDate((int) substr($company->financial_year, 0, 4), 4, 2)->toDateString();
+        $this->post($company, 'gst-invoices.store', [
+            'type' => 'purchase', 'date' => $buyDate, 'party_account_id' => $suppliers->first()->id, 'reference' => 'PB/BATCH',
+            'lines' => [
+                ['account_id' => $purchases->id, 'stock_item_id' => $medicine->id, 'quantity' => 500, 'item_rate' => 20, 'rate' => '12', 'batch_no' => 'PCM-01', 'expiry_date' => now()->addMonths(2)->toDateString()],
+                ['account_id' => $purchases->id, 'stock_item_id' => $phone->id, 'quantity' => 3, 'item_rate' => 11000, 'rate' => '18', 'serial_numbers' => 'IMEI1001, IMEI1002, IMEI1003'],
+            ],
+        ]);
+        $this->post($company, 'gst-invoices.store', [
+            'type' => 'sales', 'date' => $date(), 'party_account_id' => $customers->first()->id,
+            'lines' => [
+                ['account_id' => $sales->id, 'stock_item_id' => $medicine->id, 'quantity' => 40, 'item_rate' => 30, 'rate' => '12', 'batch_no' => 'PCM-01'],
+                ['account_id' => $sales->id, 'stock_item_id' => $phone->id, 'quantity' => 1, 'item_rate' => 15000, 'rate' => '18', 'serial_numbers' => 'IMEI1001'],
+            ],
+        ]);
+
+        // Second godown and a stock journal into it.
+        $this->act(\App\Http\Controllers\GodownController::class, 'store', $company, ['name' => 'Warehouse 2']);
+        $this->act(\App\Http\Controllers\GodownController::class, 'transfer', $company, [
+            'date' => $buyDate, 'stock_item_id' => $items[5]->id, 'from_godown_id' => '', 'to_godown_id' => $company->godowns()->value('id'), 'quantity' => 500,
+        ]);
+
+        // Fixed assets with depreciation rates (depreciation itself is posted from the screen).
+        $fixed = $company->accountGroups()->where('code', 'FIXED_ASSETS')->firstOrFail();
+        foreach ([['Machinery', 15, 800000], ['Computers', 40, 250000], ['Furniture', 10, 150000]] as [$name, $rate, $cost]) {
+            $asset = $company->accounts()->create(['name' => $name, 'account_group_id' => $fixed->id, 'account_type' => 'assets', 'depreciation_rate' => $rate]);
+            $this->post($company, 'vouchers.store', ['type' => 'payment', 'date' => $buyDate, 'narration' => $name.' bought', 'entries' => [
+                ['account_id' => $asset->id, 'debit' => $cost], ['account_id' => $bank->id, 'credit' => $cost],
+            ]]);
+        }
+    }
+
+    /**
+     * Call a controller action with form data; $extra are further route arguments.
+     */
+    protected function act(string $controller, string $method, Company $company, array $data, ...$extra): void
+    {
+        $request = Request::create('/', 'POST', $data);
+        $request->setUserResolver(fn () => Auth::user());
+        app()->instance('request', $request);
+
+        app($controller)->{$method}($request, $company, ...$extra);
     }
 
     /**
