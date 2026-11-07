@@ -15,6 +15,9 @@ use Illuminate\Support\Facades\DB;
  */
 class Books
 {
+    /** Cash-in-hand, bank accounts and bank OD: cash and cash equivalents. */
+    public const CASH_GROUPS = ['CASH_IN_HAND', 'BANK_ACCOUNTS', 'BANK_OD'];
+
     /** @var Collection<int, AccountGroup> */
     protected Collection $groups;
 
@@ -85,6 +88,16 @@ class Books
     /**
      * Whether a ledger sits under one of the given group codes (at any depth).
      */
+    /**
+     * Active cash and bank ledgers, for "paid from" / "received in" choices.
+     */
+    public function cashAndBankLedgers(): \Illuminate\Support\Collection
+    {
+        return $this->company->accounts()->where('is_active', true)->orderBy('name')->get()
+            ->filter(fn (Account $a) => $this->isUnder($a, self::CASH_GROUPS))
+            ->values();
+    }
+
     public function isUnder(Account $account, array $groupCodes): bool
     {
         for ($groupId = $account->account_group_id; $groupId; $groupId = $this->groupParent($groupId)) {

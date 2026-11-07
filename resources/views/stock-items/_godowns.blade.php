@@ -2,7 +2,7 @@
 @php
     $q = fn ($v) => rtrim(rtrim(inr((float) $v, 3), '0'), '.');
     $locations = collect([0 => \App\Models\Godown::MAIN])->union($godowns->pluck('name', 'id'));
-    $on = \App\Http\Controllers\GodownController::stockDate($company);
+    $on = \App\Http\Controllers\InventoryController::stockDate($company);
 @endphp
 <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mt-4 mb-2">
     <h3 class="h6 mb-0">Stock by godown <span class="text-secondary fw-normal small">as on {{ $on->format('d-m-Y') }}</span></h3>

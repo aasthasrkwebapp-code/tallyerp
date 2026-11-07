@@ -34,7 +34,7 @@ class Dashboard
 
         return (object) [
             'on' => $on,
-            'cash_bank' => $sum(['CASH_IN_HAND', 'BANK_ACCOUNTS', 'BANK_OD']),
+            'cash_bank' => $sum(Books::CASH_GROUPS),
             'receivables' => $sum(['SUNDRY_DEBTORS']),
             'payables' => -$sum(['SUNDRY_CREDITORS']),
             'sales' => -$sum(['SALES_ACCOUNTS']),

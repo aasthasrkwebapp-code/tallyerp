@@ -104,9 +104,6 @@ class ReportController extends Controller
         ]);
     }
 
-    /** Cash and cash equivalents. */
-    public const CASH_GROUPS = ['CASH_IN_HAND', 'BANK_ACCOUNTS', 'BANK_OD'];
-
     public const INVESTING_GROUPS = ['FIXED_ASSETS', 'INVESTMENTS'];
 
     public const FINANCING_GROUPS = ['CAPITAL_ACCOUNT', 'SECURED_LOANS', 'UNSECURED_LOANS'];
@@ -125,7 +122,7 @@ class ReportController extends Controller
         $to = $this->dateParam($request, 'to', $fyEnd);
 
         $accounts = $company->accounts()->get()->keyBy('id');
-        $isCash = $accounts->map(fn (Account $a) => $books->isUnder($a, self::CASH_GROUPS));
+        $isCash = $accounts->map(fn (Account $a) => $books->isUnder($a, Books::CASH_GROUPS));
         $cashIds = $isCash->filter()->keys();
 
         $cashOn = fn (CarbonImmutable $date) => round($books->closingBalances($date)->whereIn('id', $cashIds)->sum('balance'), 2);
@@ -206,7 +203,7 @@ class ReportController extends Controller
 
         $figures = [
             'Working capital' => ['₹', round($currentAssets - $currentLiabilities, 2), 'Current assets − current liabilities'],
-            'Cash & bank' => ['₹', $sum(self::CASH_GROUPS), 'Cash-in-hand, bank and OD balances'],
+            'Cash & bank' => ['₹', $sum(Books::CASH_GROUPS), 'Cash-in-hand, bank and OD balances'],
             'Sundry debtors' => ['₹', $debtors, 'Owed by customers'],
             'Sundry creditors' => ['₹', $creditors, 'Owed to suppliers'],
             'Sales' => ['₹', $sales, 'Sales accounts for the year'],

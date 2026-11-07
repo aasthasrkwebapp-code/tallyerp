@@ -20,15 +20,6 @@ use Illuminate\Validation\ValidationException;
  */
 class GodownController extends Controller
 {
-    /**
-     * Today, or the year end for a past year: the date stock by location is shown for.
-     */
-    public static function stockDate(Company $company): CarbonImmutable
-    {
-        [, $fyEnd] = (new Books($company))->financialYear();
-
-        return CarbonImmutable::today()->min($fyEnd);
-    }
 
     public function store(Request $request, Company $company)
     {

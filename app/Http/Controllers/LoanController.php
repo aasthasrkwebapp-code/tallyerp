@@ -179,11 +179,7 @@ class LoanController extends Controller
 
     protected function cashAndBank(Company $company)
     {
-        $books = new Books($company);
-
-        return $company->accounts()->where('is_active', true)->orderBy('name')->get()
-            ->filter(fn (Account $a) => $books->isUnder($a, ['CASH_IN_HAND', 'BANK_ACCOUNTS', 'BANK_OD']))
-            ->values();
+        return (new Books($company))->cashAndBankLedgers();
     }
 
     protected function owns(Company $company, Loan $loan): void

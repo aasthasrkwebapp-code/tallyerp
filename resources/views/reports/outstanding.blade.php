@@ -73,12 +73,12 @@
                                             title="{{ $row->party->phone ? 'WhatsApp '.$row->party->phone : 'No mobile number on this ledger: you can pick the contact in WhatsApp' }}">
                                             <i class="bi bi-whatsapp"></i> Remind
                                         </a>
-                                        <form method="POST" action="{{ route('companies.whatsapp.reminder', [$company, $row->party]) }}" class="d-inline">
+                                        <form method="POST" action="{{ route('companies.reminders.send', [$company, $row->party, 'whatsapp']) }}" class="d-inline">
                                             @csrf
                                             <input type="hidden" name="amount" value="{{ $row->total }}">
                                             <button class="btn btn-sm btn-outline-success" title="Send via WhatsApp Business API"><i class="bi bi-send"></i></button>
                                         </form>
-                                        <form method="POST" action="{{ route('companies.sms.reminder', [$company, $row->party]) }}" class="d-inline">
+                                        <form method="POST" action="{{ route('companies.reminders.send', [$company, $row->party, 'sms']) }}" class="d-inline">
                                             @csrf
                                             <input type="hidden" name="amount" value="{{ $row->total }}">
                                             <button class="btn btn-sm btn-outline-secondary" title="Send reminder by SMS"><i class="bi bi-chat-text"></i></button>

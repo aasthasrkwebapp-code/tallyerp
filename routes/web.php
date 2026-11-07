@@ -22,8 +22,7 @@ use App\Http\Controllers\ChequeController;
 use App\Http\Controllers\DepreciationController;
 use App\Http\Controllers\GodownController;
 use App\Http\Controllers\InventoryController;
-use App\Http\Controllers\SmsController;
-use App\Http\Controllers\WhatsAppController;
+use App\Http\Controllers\MessageController;
 use App\Http\Controllers\LoanController;
 use App\Http\Controllers\ManufacturingController;
 use App\Http\Controllers\OutstandingController;
@@ -92,15 +91,11 @@ Route::middleware(['auth'])->group(function () {
             Route::get('gstr-3b', 'gstr3b')->name('gstr3b');
         });
 
-    Route::post('companies/{company}/gst-invoices/{voucher}/whatsapp', [WhatsAppController::class, 'invoice'])
-        ->name('companies.gst-invoices.whatsapp');
-    Route::post('companies/{company}/whatsapp/reminder/{account}', [WhatsAppController::class, 'reminder'])
-        ->name('companies.whatsapp.reminder');
-
-    Route::post('companies/{company}/gst-invoices/{voucher}/sms', [SmsController::class, 'invoice'])
-        ->name('companies.gst-invoices.sms');
-    Route::post('companies/{company}/sms/reminder/{account}', [SmsController::class, 'reminder'])
-        ->name('companies.sms.reminder');
+    // Send by WhatsApp Business API or SMS ({channel} = whatsapp | sms).
+    Route::post('companies/{company}/gst-invoices/{voucher}/send/{channel}', [MessageController::class, 'invoice'])
+        ->name('companies.gst-invoices.send');
+    Route::post('companies/{company}/reminders/{account}/{channel}', [MessageController::class, 'reminder'])
+        ->name('companies.reminders.send');
 
     Route::get('companies/{company}/cheques', [ChequeController::class, 'index'])
         ->name('companies.cheques.index');

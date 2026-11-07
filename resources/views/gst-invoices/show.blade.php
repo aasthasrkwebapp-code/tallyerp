@@ -11,13 +11,13 @@
                 target="_blank" rel="noopener" class="btn btn-success">
                 <i class="bi bi-whatsapp"></i> Send on WhatsApp
             </a>
-            <form method="POST" action="{{ route('companies.gst-invoices.whatsapp', [$company, $voucher]) }}">
+            <form method="POST" action="{{ route('companies.gst-invoices.send', [$company, $voucher, 'whatsapp']) }}">
                 @csrf
                 <button class="btn btn-outline-success" title="Send from the server through the WhatsApp Business API{{ \App\Support\WhatsAppCloud::isLogMode() ? ' (test mode: dummy keys, logged only)' : '' }}">
                     <i class="bi bi-send"></i> Send via API
                 </button>
             </form>
-            <form method="POST" action="{{ route('companies.gst-invoices.sms', [$company, $voucher]) }}">
+            <form method="POST" action="{{ route('companies.gst-invoices.send', [$company, $voucher, 'sms']) }}">
                 @csrf
                 <button class="btn btn-outline-secondary" title="Send by SMS{{ \App\Support\Sms::isLogMode() ? ' (test mode: dummy keys, logged only)' : '' }}">
                     <i class="bi bi-chat-text"></i> SMS

@@ -43,7 +43,7 @@ class WhatsAppApiTest extends TestCase
         Log::spy();
 
         $this->actingAs($this->company->user)
-            ->post(route('companies.gst-invoices.whatsapp', [$this->company, $this->voucher]))
+            ->post(route('companies.gst-invoices.send', [$this->company, $this->voucher, 'whatsapp']))
             ->assertSessionHas('success', 'WhatsApp test mode (dummy keys): message to +919876543210 written to the log, not sent.');
 
         Http::assertNothingSent();
@@ -56,7 +56,7 @@ class WhatsAppApiTest extends TestCase
         Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.X']]])]);
 
         $this->actingAs($this->company->user)
-            ->post(route('companies.whatsapp.reminder', [$this->company, $this->party]), ['amount' => 1180])
+            ->post(route('companies.reminders.send', [$this->company, $this->party, 'whatsapp']), ['amount' => 1180])
             ->assertSessionHas('success', 'WhatsApp message sent to +919876543210.');
 
         Http::assertSent(fn ($r) => $r->url() === 'https://graph.facebook.com/v21.0/123456/messages'
@@ -70,12 +70,12 @@ class WhatsAppApiTest extends TestCase
         Http::fake(['*' => Http::response(['error' => ['message' => 'Invalid OAuth access token']], 401)]);
 
         $this->actingAs($this->company->user)
-            ->post(route('companies.gst-invoices.whatsapp', [$this->company, $this->voucher]))
-            ->assertSessionHas('error', 'WhatsApp API error: Invalid OAuth access token');
+            ->post(route('companies.gst-invoices.send', [$this->company, $this->voucher, 'whatsapp']))
+            ->assertSessionHas('error', 'WhatsApp error: Invalid OAuth access token');
 
         $this->party->update(['phone' => null]);
         $this->actingAs($this->company->user)
-            ->post(route('companies.gst-invoices.whatsapp', [$this->company, $this->voucher]))
+            ->post(route('companies.gst-invoices.send', [$this->company, $this->voucher, 'whatsapp']))
             ->assertSessionHas('error');
     }
 
@@ -84,14 +84,14 @@ class WhatsAppApiTest extends TestCase
         $this->party->update(['phone' => null]);
 
         $this->actingAs($this->company->user)
-            ->post(route('companies.gst-invoices.whatsapp', [$this->company, $this->voucher]))
+            ->post(route('companies.gst-invoices.send', [$this->company, $this->voucher, 'whatsapp']))
             ->assertSessionHas('success', 'WhatsApp test mode (dummy keys): message to +919660533307 written to the log, not sent.');
     }
 
     public function test_other_users_are_blocked(): void
     {
         $this->actingAs(User::factory()->create())
-            ->post(route('companies.gst-invoices.whatsapp', [$this->company, $this->voucher]))
+            ->post(route('companies.gst-invoices.send', [$this->company, $this->voucher, 'whatsapp']))
             ->assertForbidden();
     }
 }

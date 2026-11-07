@@ -13,7 +13,6 @@ use Illuminate\Validation\ValidationException;
 class VoucherController extends Controller
 {
     /** Group codes whose ledgers count as cash or bank. */
-    protected const CASH_BANK_GROUPS = ['CASH_IN_HAND', 'BANK_ACCOUNTS', 'BANK_OD'];
 
     public function index(Request $request, Company $company)
     {
@@ -365,7 +364,7 @@ class VoucherController extends Controller
     protected function cashBankAccountIds(Company $company): array
     {
         $groups = $company->accountGroups()->get(['id', 'parent_id', 'code']);
-        $ids = $groups->whereIn('code', self::CASH_BANK_GROUPS)->pluck('id')->all();
+        $ids = $groups->whereIn('code', \App\Support\Books::CASH_GROUPS)->pluck('id')->all();
 
         // Walk down to user-created sub-groups.
         do {

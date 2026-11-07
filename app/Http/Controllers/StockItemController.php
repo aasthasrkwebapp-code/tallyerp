@@ -21,7 +21,7 @@ class StockItemController extends Controller
             'items' => $items,
             'godowns' => $godowns,
             // Only needed once the company keeps stock in more than one place.
-            'godownStock' => $godowns->isNotEmpty() ? GodownController::stockByGodown($company, GodownController::stockDate($company)) : [],
+            'godownStock' => $godowns->isNotEmpty() ? GodownController::stockByGodown($company, InventoryController::stockDate($company)) : [],
             'transfers' => $godowns->isNotEmpty()
                 ? $company->stockTransfers()->with('movements.stockItem.unit', 'movements.godown')->latest('date')->latest('id')->limit(10)->get()
                 : collect(),

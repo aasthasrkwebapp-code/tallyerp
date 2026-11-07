@@ -43,7 +43,7 @@ class SmsTest extends TestCase
         Log::spy();
 
         $this->actingAs($this->company->user)
-            ->post(route('companies.gst-invoices.sms', [$this->company, $this->voucher]))
+            ->post(route('companies.gst-invoices.send', [$this->company, $this->voucher, 'sms']))
             ->assertSessionHas('success', 'SMS test mode (dummy keys): message to +919876543210 written to the log, not sent.');
 
         Http::assertNothingSent();
@@ -55,7 +55,7 @@ class SmsTest extends TestCase
         $this->party->update(['phone' => null]);
 
         $this->actingAs($this->company->user)
-            ->post(route('companies.sms.reminder', [$this->company, $this->party]), ['amount' => 500])
+            ->post(route('companies.reminders.send', [$this->company, $this->party, 'sms']), ['amount' => 500])
             ->assertSessionHas('success', 'SMS test mode (dummy keys): message to +919660533307 written to the log, not sent.');
     }
 
@@ -65,8 +65,8 @@ class SmsTest extends TestCase
         Http::fake(['api.sms.test/*' => Http::response(['status' => 'ok'])]);
 
         $this->actingAs($this->company->user)
-            ->post(route('companies.sms.reminder', [$this->company, $this->party]), ['amount' => 1180])
-            ->assertSessionHas('success', 'SMS sent to +919876543210.');
+            ->post(route('companies.reminders.send', [$this->company, $this->party, 'sms']), ['amount' => 1180])
+            ->assertSessionHas('success', 'SMS message sent to +919876543210.');
 
         Http::assertSent(fn ($r) => $r->url() === 'https://api.sms.test/send'
             && $r->hasHeader('Authorization', 'Bearer live-key')
@@ -79,16 +79,16 @@ class SmsTest extends TestCase
         Http::fake(['*' => Http::response(['message' => 'Invalid API key'], 401)]);
 
         $this->actingAs($this->company->user)
-            ->post(route('companies.gst-invoices.sms', [$this->company, $this->voucher]))
-            ->assertSessionHas('error', 'SMS gateway error: Invalid API key');
+            ->post(route('companies.gst-invoices.send', [$this->company, $this->voucher, 'sms']))
+            ->assertSessionHas('error', 'SMS error: Invalid API key');
 
         $this->party->update(['phone' => null]);
         $this->actingAs($this->company->user)
-            ->post(route('companies.gst-invoices.sms', [$this->company, $this->voucher]))
+            ->post(route('companies.gst-invoices.send', [$this->company, $this->voucher, 'sms']))
             ->assertSessionHas('error');
 
         $this->actingAs(User::factory()->create())
-            ->post(route('companies.gst-invoices.sms', [$this->company, $this->voucher]))
+            ->post(route('companies.gst-invoices.send', [$this->company, $this->voucher, 'sms']))
             ->assertForbidden();
     }
 }
